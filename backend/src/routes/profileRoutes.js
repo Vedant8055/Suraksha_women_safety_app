@@ -1,0 +1,10 @@
+const express = require('express');
+const { authGuard } = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
+const { getProfile, updateProfile, addContact, listContacts, updateProfileSchema, contactSchema } = require('../controllers/profileController');
+const router = express.Router();
+router.get('/', authGuard, getProfile);
+router.patch('/', authGuard, validate(updateProfileSchema), updateProfile);
+router.get('/contacts', authGuard, listContacts);
+router.post('/contacts', authGuard, validate(contactSchema), addContact);
+module.exports = router;

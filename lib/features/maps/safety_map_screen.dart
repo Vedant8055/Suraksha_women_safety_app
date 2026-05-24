@@ -1,0 +1,591 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:suraksha_women_safety_app/constants/api_constants.dart';
+import 'package:suraksha_women_safety_app/core/network/dio_client.dart';
+import 'package:suraksha_women_safety_app/features/maps/widgets/live_safety_controls_sheet.dart';
+import 'package:suraksha_women_safety_app/theme/app_theme.dart';
+
+class SafetyMapScreen extends StatefulWidget {
+  const SafetyMapScreen({super.key});
+
+  @override
+  State<SafetyMapScreen> createState() => _SafetyMapScreenState();
+}
+
+class _SafetyMapScreenState extends State<SafetyMapScreen> {
+  static const CameraPosition _defaultPosition = CameraPosition(
+    target: LatLng(28.6139, 77.2090),
+    zoom: 13,
+  );
+
+  final _dio = DioClient().dio;
+  final _searchController = TextEditingController();
+  final _searchFocusNode = FocusNode();
+  final Set<Marker> _markers = {};
+  final Set<Circle> _circles = {};
+  final Set<Polyline> _polylines = {};
+
+  GoogleMapController? _mapController;
+  Position? _position;
+  StreamSubscription<Position>? _liveLocationSubscription;
+
+  bool _locationPermissionGranted = false;
+  bool _followMe = true;
+  bool _trafficEnabled = false;
+  MapType _mapType = MapType.normal;
+  bool _isLoading = true;
+  String? _statusText;
+  bool _isSearchOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeMap();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    _liveLocationSubscription?.cancel();
+    _mapController?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _initializeMap() async {
+    setState(() {
+      _isLoading = true;
+      _statusText = 'Initializing map services...';
+    });
+
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      setState(() {
+        _isLoading = false;
+        _statusText = 'Location service is disabled.';
+      });
+      return;
+    }
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      setState(() {
+        _isLoading = false;
+        _statusText = 'Location permission denied.';
+      });
+      return;
+    }
+
+    setState(() => _locationPermissionGranted = true);
+
+    try {
+      Position? current;
+      try {
+        current = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.best,
+          timeLimit: const Duration(seconds: 10),
+        );
+      } catch (_) {
+        current = await Geolocator.getLastKnownPosition();
+      }
+
+      if (current == null) {
+        setState(() {
+          _isLoading = false;
+          _statusText =
+              'Unable to fetch location. Move near open sky and try again.';
+        });
+        return;
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _position = current;
+      });
+
+      _setOrUpdateSelfMarker(current);
+      await _fetchNearby(current.latitude, current.longitude);
+      _startLiveLocationStream();
+
+      setState(() {
+        _isLoading = false;
+        _statusText = null;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _statusText = 'Could not fetch your location.';
+      });
+    }
+  }
+
+  void _setOrUpdateSelfMarker(Position pos) {
+    final me = LatLng(pos.latitude, pos.longitude);
+    _markers.removeWhere((m) => m.markerId.value == 'me');
+    _markers.add(
+      Marker(
+        markerId: const MarkerId('me'),
+        position: me,
+        infoWindow: const InfoWindow(title: 'You are here'),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+      ),
+    );
+
+    _circles.removeWhere((c) => c.circleId.value == 'me_accuracy');
+    _circles.add(
+      Circle(
+        circleId: const CircleId('me_accuracy'),
+        center: me,
+        radius: pos.accuracy > 0 ? pos.accuracy : 20,
+        fillColor: Colors.blue.withValues(alpha: 0.12),
+        strokeColor: Colors.blue.withValues(alpha: 0.35),
+        strokeWidth: 1,
+      ),
+    );
+  }
+
+  void _startLiveLocationStream() {
+    _liveLocationSubscription?.cancel();
+
+    final LocationSettings locationSettings = Platform.isAndroid
+        ? AndroidSettings(
+            accuracy: LocationAccuracy.bestForNavigation,
+            distanceFilter: 5,
+            intervalDuration: const Duration(seconds: 2),
+            foregroundNotificationConfig: const ForegroundNotificationConfig(
+              notificationTitle: 'Suraksha Live Location',
+              notificationText: 'Tracking live location for safety features.',
+              enableWakeLock: true,
+            ),
+          )
+        : const LocationSettings(
+            accuracy: LocationAccuracy.bestForNavigation,
+            distanceFilter: 5,
+          );
+
+    _liveLocationSubscription =
+        Geolocator.getPositionStream(locationSettings: locationSettings).listen(
+          (pos) {
+            if (!mounted) return;
+
+            setState(() {
+              _position = pos;
+              _setOrUpdateSelfMarker(pos);
+            });
+
+            if (_followMe && _mapController != null) {
+              _mapController!.animateCamera(
+                CameraUpdate.newLatLng(LatLng(pos.latitude, pos.longitude)),
+              );
+            }
+            setState(() => _statusText = 'Live tracking active');
+          },
+        );
+  }
+
+  Future<void> _fetchNearby(double lat, double lng) async {
+    try {
+      final policeRes = await _dio.get(
+        ApiConstants.nearbyPolice,
+        queryParameters: {'lat': lat, 'lng': lng},
+      );
+      final hospitalRes = await _dio.get(
+        ApiConstants.nearbyHospitals,
+        queryParameters: {'lat': lat, 'lng': lng},
+      );
+
+      final markers = <Marker>{};
+
+      for (final p in policeRes.data as List<dynamic>) {
+        final coords = p['location']?['coordinates'];
+        if (coords is List && coords.length == 2) {
+          markers.add(
+            Marker(
+              markerId: MarkerId('police_${p['_id']}'),
+              position: LatLng(
+                (coords[1] as num).toDouble(),
+                (coords[0] as num).toDouble(),
+              ),
+              infoWindow: InfoWindow(
+                title: p['name']?.toString() ?? 'Police Station',
+              ),
+              icon: BitmapDescriptor.defaultMarkerWithHue(
+                BitmapDescriptor.hueBlue,
+              ),
+              onTap: () => _buildRouteTo(
+                LatLng(
+                  (coords[1] as num).toDouble(),
+                  (coords[0] as num).toDouble(),
+                ),
+              ),
+            ),
+          );
+        }
+      }
+
+      for (final h in hospitalRes.data as List<dynamic>) {
+        final coords = h['location']?['coordinates'];
+        if (coords is List && coords.length == 2) {
+          markers.add(
+            Marker(
+              markerId: MarkerId('hospital_${h['_id']}'),
+              position: LatLng(
+                (coords[1] as num).toDouble(),
+                (coords[0] as num).toDouble(),
+              ),
+              infoWindow: InfoWindow(
+                title: h['name']?.toString() ?? 'Hospital',
+              ),
+              icon: BitmapDescriptor.defaultMarkerWithHue(
+                BitmapDescriptor.hueRed,
+              ),
+              onTap: () => _buildRouteTo(
+                LatLng(
+                  (coords[1] as num).toDouble(),
+                  (coords[0] as num).toDouble(),
+                ),
+              ),
+            ),
+          );
+        }
+      }
+
+      setState(() {
+        _markers.removeWhere(
+          (m) =>
+              m.markerId.value.startsWith('police_') ||
+              m.markerId.value.startsWith('hospital_'),
+        );
+        _markers.addAll(markers);
+      });
+    } on DioException {
+      if (!mounted) return;
+      setState(() => _statusText = 'Nearby services unavailable right now.');
+    }
+  }
+
+  Future<void> _searchLocation() async {
+    final query = _searchController.text.trim();
+    if (query.isEmpty) return;
+
+    try {
+      final locations = await locationFromAddress(query);
+      if (locations.isEmpty) return;
+
+      final loc = locations.first;
+      final target = LatLng(loc.latitude, loc.longitude);
+
+      setState(() {
+        _markers.removeWhere((m) => m.markerId.value == 'search_result');
+        _markers.add(
+          Marker(
+            markerId: const MarkerId('search_result'),
+            position: target,
+            infoWindow: InfoWindow(title: query),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueViolet,
+            ),
+          ),
+        );
+      });
+
+      await _mapController?.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(target: target, zoom: 15),
+        ),
+      );
+
+      _buildRouteTo(target);
+      _closeSearch();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not find that location.')),
+      );
+    }
+  }
+
+  void _buildRouteTo(LatLng target) {
+    if (_position == null) return;
+    final me = LatLng(_position!.latitude, _position!.longitude);
+    setState(() {
+      _polylines
+        ..clear()
+        ..add(
+          Polyline(
+            polylineId: const PolylineId('quick_route'),
+            color: const Color(0xFF40C4FF),
+            width: 5,
+            points: [me, target],
+          ),
+        );
+    });
+  }
+
+  Future<void> _goToMyLocation() async {
+    final pos = _position;
+    if (pos == null || _mapController == null) return;
+    await _mapController!.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(target: LatLng(pos.latitude, pos.longitude), zoom: 16),
+      ),
+    );
+  }
+
+  void _dropPin(LatLng point) {
+    setState(() {
+      _markers.removeWhere((m) => m.markerId.value == 'custom_pin');
+      _markers.add(
+        Marker(
+          markerId: const MarkerId('custom_pin'),
+          position: point,
+          infoWindow: const InfoWindow(title: 'Custom Pin'),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueOrange,
+          ),
+        ),
+      );
+      _buildRouteTo(point);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Safety Intelligence Map')),
+      body: Stack(
+        children: [
+          GoogleMap(
+            initialCameraPosition: _position == null
+                ? _defaultPosition
+                : CameraPosition(
+                    target: LatLng(_position!.latitude, _position!.longitude),
+                    zoom: 15,
+                  ),
+            onMapCreated: (controller) => _mapController = controller,
+            onTap: (_) {},
+            onLongPress: _dropPin,
+            onCameraMoveStarted: () {
+              if (_followMe) setState(() => _followMe = false);
+            },
+            markers: _markers,
+            circles: _circles,
+            polylines: _polylines,
+            trafficEnabled: _trafficEnabled,
+            compassEnabled: true,
+            myLocationEnabled: _locationPermissionGranted,
+            myLocationButtonEnabled: false,
+            zoomControlsEnabled: false,
+            mapType: _mapType,
+          ),
+          _buildTopSearchBar(),
+          _buildQuickControls(),
+          if (_isLoading)
+            const Center(
+              child: CircularProgressIndicator(color: AppTheme.primaryColor),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _openSearch() {
+    setState(() => _isSearchOpen = true);
+    Future.delayed(const Duration(milliseconds: 180), () {
+      if (!mounted) return;
+      _searchFocusNode.requestFocus();
+    });
+  }
+
+  void _closeSearch() {
+    _searchFocusNode.unfocus();
+    setState(() => _isSearchOpen = false);
+  }
+
+  Widget _buildTopSearchBar() {
+    return Positioned(
+      top: 16,
+      right: 16,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 260),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (child, animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: SizeTransition(
+              sizeFactor: animation,
+              axis: Axis.horizontal,
+              axisAlignment: 1,
+              child: child,
+            ),
+          );
+        },
+        child: _isSearchOpen
+            ? Container(
+                key: const ValueKey('search_open'),
+                width: MediaQuery.of(context).size.width * 0.72,
+                decoration: BoxDecoration(
+                  color: AppTheme.cardColor.withValues(alpha: 0.92),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black38,
+                      blurRadius: 16,
+                      offset: Offset(0, 8),
+                    ),
+                  ],
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.14),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 10),
+                    const Icon(Icons.search, color: Colors.white70),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        focusNode: _searchFocusNode,
+                        autofocus: false,
+                        textInputAction: TextInputAction.search,
+                        onSubmitted: (_) => _searchLocation(),
+                        decoration: const InputDecoration(
+                          hintText: 'Search location...',
+                          border: InputBorder.none,
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: _searchLocation,
+                      icon: const Icon(
+                        Icons.arrow_forward,
+                        color: AppTheme.primaryColor,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: _closeSearch,
+                      icon: const Icon(
+                        Icons.close,
+                        color: Colors.white70,
+                        size: 20,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : Material(
+                key: const ValueKey('search_closed'),
+                color: AppTheme.cardColor.withValues(alpha: 0.85),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                elevation: 5,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: _openSearch,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    child: Icon(Icons.search, color: Colors.white),
+                  ),
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildQuickControls() {
+    return Positioned(
+      right: 16,
+      top: _isSearchOpen ? 82 : 92,
+      child: Column(
+        children: <Widget>[
+          _circleControl(
+            icon: _followMe ? Icons.gps_fixed : Icons.gps_not_fixed,
+            onTap: () {
+              setState(() => _followMe = !_followMe);
+              if (_followMe) {
+                _goToMyLocation();
+              }
+            },
+          ),
+          const SizedBox(height: 10),
+          _circleControl(
+            icon: _trafficEnabled ? Icons.traffic : Icons.traffic_outlined,
+            onTap: () {
+              setState(() => _trafficEnabled = !_trafficEnabled);
+            },
+          ),
+          const SizedBox(height: 10),
+          _circleControl(
+            icon: Icons.layers,
+            onTap: () {
+              setState(() {
+                _mapType = _mapType == MapType.normal
+                    ? MapType.hybrid
+                    : _mapType == MapType.hybrid
+                    ? MapType.terrain
+                    : MapType.normal;
+              });
+            },
+          ),
+          const SizedBox(height: 10),
+          _circleControl(icon: Icons.safety_check, onTap: _openLiveSafetySheet),
+        ],
+      ),
+    );
+  }
+
+  void _openLiveSafetySheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black54,
+      builder: (context) {
+        return LiveSafetyControlsSheet(
+          position: _position,
+          statusText: _statusText,
+          onMyLocation: _goToMyLocation,
+          onRefreshNearby: () async {
+            final pos = _position;
+            if (pos == null) return;
+            await _fetchNearby(pos.latitude, pos.longitude);
+          },
+          onRetryLiveLocation: _initializeMap,
+        );
+      },
+    );
+  }
+
+  Widget _circleControl({required IconData icon, required VoidCallback onTap}) {
+    return Material(
+      color: AppTheme.cardColor,
+      shape: const CircleBorder(),
+      elevation: 4,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Icon(icon, color: Colors.white),
+        ),
+      ),
+    );
+  }
+}

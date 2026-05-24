@@ -1,0 +1,51 @@
+name: suraksha_women_safety_app
+description: "A complete futuristic AI-powered Women Safety Ecosystem mobile application."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  flutter_riverpod: ^2.5.1
+  go_router: ^14.2.0
+  dio: ^5.4.3+1
+  flutter_secure_storage: ^10.2.0
+  shared_preferences: ^2.2.3
+  google_maps_flutter: ^2.6.1
+  geolocator: ^11.0.0
+  geocoding: ^3.0.0
+  sensors_plus: ^5.0.1
+  camera: ^0.11.0+1
+  flutter_sound: ^9.4.1
+  speech_to_text: ^7.4.0
+  flutter_tts: ^3.8.5
+  lottie: ^3.1.2
+  animate_do: ^3.3.4
+  google_fonts: ^6.2.1
+  socket_io_client: ^3.0.1
+  intl: ^0.19.0
+  glassmorphism: ^3.0.0
+  url_launcher: ^6.2.5
+  permission_handler: ^11.3.1
+  path_provider: ^2.1.3
+  image_picker: ^1.1.0
+  firebase_core: ^3.4.1
+  firebase_messaging: ^15.2.10
+  flutter_local_notifications: ^17.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/animations/
+    - assets/images/
+    - assets/icons/

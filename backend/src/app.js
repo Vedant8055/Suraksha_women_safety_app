@@ -1,0 +1,39 @@
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const { apiLimiter, authLimiter } = require('./middleware/rateLimit');
+const { errorHandler } = require('./middleware/error');
+const env = require('./config/env');
+
+const authRoutes = require('./routes/authRoutes');
+const sosRoutes = require('./routes/sosRoutes');
+const locationRoutes = require('./routes/locationRoutes');
+const incidentRoutes = require('./routes/incidentRoutes');
+const nearbyRoutes = require('./routes/nearbyRoutes');
+const aiRoutes = require('./routes/aiRoutes');
+const mediaRoutes = require('./routes/mediaRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const profileRoutes = require('./routes/profileRoutes');
+
+const app = express();
+app.use(helmet());
+app.use(cors({ origin: env.clientOrigins.length ? env.clientOrigins : true }));
+app.use(express.json({ limit: '2mb' }));
+app.use(morgan('dev'));
+
+app.get('/health', (req, res) => res.json({ status: 'ok', at: new Date().toISOString() }));
+
+app.use('/api', apiLimiter);
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/sos', sosRoutes);
+app.use('/api/location', locationRoutes);
+app.use('/api/incident', incidentRoutes);
+app.use('/api/nearby', nearbyRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/media', mediaRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/profile', profileRoutes);
+
+app.use(errorHandler);
+module.exports = { app };
