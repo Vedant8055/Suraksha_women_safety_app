@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  static const Color primaryColor = Color(0xFF2C79C9);
-  static const Color secondaryColor = Color(0xFF53A7F5);
-  static const Color accentColor = Color(0xFFE35D63);
-  static const Color backgroundColor = Color(0xFF0A1530);
-  static const Color cardColor = Color(0xFF16274A);
-  static const Color surfaceSoft = Color(0xFF223A67);
+  static const Color primaryColor = Color(0xFF1D8CF8);
+  static const Color secondaryColor = Color(0xFF2ED6C5);
+  static const Color accentColor = Color(0xFFFF5D73);
+  static const Color backgroundColor = Color(0xFF000000);
+  static const Color cardColor = Color(0xFF101A2D);
+  static const Color surfaceSoft = Color(0xFF1A2A46);
   static const Color textPrimary = Colors.white;
-  static const Color textSecondary = Color(0xFFD3DFEF);
+  static const Color textSecondary = Color(0xFFB6C6DE);
 
   static ThemeData get darkTheme {
     return ThemeData(
@@ -26,7 +26,7 @@ class AppTheme {
       textTheme: GoogleFonts.manropeTextTheme(
         const TextTheme(
           headlineLarge: TextStyle(
-            fontSize: 34,
+            fontSize: 36,
             fontWeight: FontWeight.w800,
             color: textPrimary,
           ),
@@ -39,10 +39,16 @@ class AppTheme {
           bodyMedium: TextStyle(fontSize: 14, color: textSecondary),
         ),
       ),
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
+        foregroundColor: textPrimary,
+        titleTextStyle: GoogleFonts.manrope(
+          fontSize: 19,
+          fontWeight: FontWeight.w700,
+          color: textPrimary,
+        ),
       ),
       cardTheme: CardThemeData(
         color: cardColor.withValues(alpha: 0.9),
@@ -54,21 +60,61 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryColor,
           foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 16),
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
         ),
       ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: textPrimary,
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.22)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: const Color(0xFF0F0F12),
+        hintStyle: const TextStyle(color: Color(0xFF7C90AD)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: const Color(0xFF112447),
+        contentTextStyle: GoogleFonts.manrope(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: const Color(0xFF0F1E35),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      ),
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.linux: FadeForwardsPageTransitionsBuilder(),
+        },
+      ),
     );
   }
 
   static ThemeData get lightTheme {
-    const softBg = Color(0xFFF4F7FB);
-    const softCard = Color(0xFFEAF0F8);
-    const softSurface = Color(0xFFDDE8F6);
-    const softText = Color(0xFF1F2C40);
-    const softTextMuted = Color(0xFF5E6E88);
+    const softBg = Color(0xFFF6F8FC);
+    const softCard = Color(0xFFFFFFFF);
+    const softSurface = Color(0xFFEDF3FC);
+    const softText = Color(0xFF172235);
+    const softTextMuted = Color(0xFF5F6F8A);
 
     return ThemeData(
       useMaterial3: true,
@@ -97,22 +143,28 @@ class AppTheme {
           bodyMedium: TextStyle(fontSize: 14, color: softTextMuted),
         ),
       ),
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         foregroundColor: softText,
+        titleTextStyle: GoogleFonts.manrope(
+          fontSize: 19,
+          fontWeight: FontWeight.w700,
+          color: softText,
+        ),
       ),
       cardTheme: CardThemeData(
         color: softCard,
-        shadowColor: Colors.black.withValues(alpha: 0.08),
-        elevation: 4,
+        shadowColor: Colors.black.withValues(alpha: 0.06),
+        elevation: 2,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryColor,
           foregroundColor: Colors.white,
+          elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
@@ -122,10 +174,30 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: softSurface,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        hintStyle: const TextStyle(color: Color(0xFF7E8DA6)),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide.none,
         ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: const Color(0xFF1D8CF8),
+        contentTextStyle: GoogleFonts.manrope(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.linux: FadeForwardsPageTransitionsBuilder(),
+        },
       ),
     );
   }

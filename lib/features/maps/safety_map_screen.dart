@@ -7,12 +7,22 @@ import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:suraksha_women_safety_app/constants/api_constants.dart';
+import 'package:suraksha_women_safety_app/config/app_environment.dart';
 import 'package:suraksha_women_safety_app/core/network/dio_client.dart';
 import 'package:suraksha_women_safety_app/features/maps/widgets/live_safety_controls_sheet.dart';
 import 'package:suraksha_women_safety_app/theme/app_theme.dart';
 
 class SafetyMapScreen extends StatefulWidget {
-  const SafetyMapScreen({super.key});
+  const SafetyMapScreen({
+    super.key,
+    this.initialTargetLatitude,
+    this.initialTargetLongitude,
+    this.initialTargetName,
+  });
+
+  final double? initialTargetLatitude;
+  final double? initialTargetLongitude;
+  final String? initialTargetName;
 
   @override
   State<SafetyMapScreen> createState() => _SafetyMapScreenState();
@@ -30,10 +40,12 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
   final Set<Marker> _markers = {};
   final Set<Circle> _circles = {};
   final Set<Polyline> _polylines = {};
+  final List<_PlaceSuggestion> _suggestions = [];
 
   GoogleMapController? _mapController;
   Position? _position;
   StreamSubscription<Position>? _liveLocationSubscription;
+  Timer? _searchDebounce;
 
   bool _locationPermissionGranted = false;
   bool _followMe = true;
@@ -42,6 +54,7 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
   bool _isLoading = true;
   String? _statusText;
   bool _isSearchOpen = false;
+  bool _isLoadingSuggestions = false;
 
   @override
   void initState() {
@@ -51,6 +64,7 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     _searchFocusNode.dispose();
     _liveLocationSubscription?.cancel();
@@ -118,6 +132,7 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
       _setOrUpdateSelfMarker(current);
       await _fetchNearby(current.latitude, current.longitude);
       _startLiveLocationStream();
+      _applyInitialTargetIfAny();
 
       setState(() {
         _isLoading = false;
@@ -130,6 +145,41 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
         _statusText = 'Could not fetch your location.';
       });
     }
+  }
+
+  void _applyInitialTargetIfAny() {
+    final lat = widget.initialTargetLatitude;
+    final lng = widget.initialTargetLongitude;
+    if (lat == null || lng == null) return;
+    _showTargetOnMap(
+      LatLng(lat, lng),
+      widget.initialTargetName?.trim().isNotEmpty == true
+          ? widget.initialTargetName!
+          : 'Selected Location',
+    );
+  }
+
+  Future<void> _showTargetOnMap(LatLng target, String title) async {
+    setState(() {
+      _markers.removeWhere((m) => m.markerId.value == 'search_result');
+      _markers.add(
+        Marker(
+          markerId: const MarkerId('search_result'),
+          position: target,
+          infoWindow: InfoWindow(title: title),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueViolet,
+          ),
+        ),
+      );
+    });
+
+    await _mapController?.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(target: target, zoom: 15),
+      ),
+    );
+    _buildRouteTo(target);
   }
 
   void _setOrUpdateSelfMarker(Position pos) {
@@ -287,33 +337,135 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
 
       final loc = locations.first;
       final target = LatLng(loc.latitude, loc.longitude);
-
-      setState(() {
-        _markers.removeWhere((m) => m.markerId.value == 'search_result');
-        _markers.add(
-          Marker(
-            markerId: const MarkerId('search_result'),
-            position: target,
-            infoWindow: InfoWindow(title: query),
-            icon: BitmapDescriptor.defaultMarkerWithHue(
-              BitmapDescriptor.hueViolet,
-            ),
-          ),
-        );
-      });
-
-      await _mapController?.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(target: target, zoom: 15),
-        ),
-      );
-
-      _buildRouteTo(target);
+      await _showTargetOnMap(target, query);
       _closeSearch();
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not find that location.')),
+      );
+    }
+  }
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    final query = value.trim();
+    if (query.isEmpty) {
+      setState(() {
+        _suggestions.clear();
+        _isLoadingSuggestions = false;
+      });
+      return;
+    }
+
+    _searchDebounce = Timer(const Duration(milliseconds: 320), () {
+      _fetchPlaceSuggestions(query);
+    });
+  }
+
+  Future<void> _fetchPlaceSuggestions(String input) async {
+    final apiKey = AppEnvironment.googleMapsApiKey;
+    if (apiKey.isEmpty) return;
+
+    setState(() => _isLoadingSuggestions = true);
+    try {
+      final response = await _dio.get(
+        'https://maps.googleapis.com/maps/api/place/autocomplete/json',
+        queryParameters: {
+          'input': input,
+          'key': apiKey,
+          'components': 'country:in',
+        },
+      );
+
+      final data = response.data;
+      final predictions = data is Map<String, dynamic> ? data['predictions'] : null;
+      if (predictions is! List) {
+        if (!mounted) return;
+        setState(() {
+          _suggestions.clear();
+          _isLoadingSuggestions = false;
+        });
+        return;
+      }
+
+      final parsed = predictions
+          .whereType<Map<String, dynamic>>()
+          .map(
+            (item) => _PlaceSuggestion(
+              placeId: item['place_id']?.toString() ?? '',
+              title: item['structured_formatting']?['main_text']?.toString() ??
+                  item['description']?.toString() ??
+                  '',
+              subtitle: item['structured_formatting']?['secondary_text']
+                      ?.toString() ??
+                  '',
+            ),
+          )
+          .where((s) => s.placeId.isNotEmpty && s.title.isNotEmpty)
+          .take(6)
+          .toList();
+
+      if (!mounted) return;
+      setState(() {
+        _suggestions
+          ..clear()
+          ..addAll(parsed);
+        _isLoadingSuggestions = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _suggestions.clear();
+        _isLoadingSuggestions = false;
+      });
+    }
+  }
+
+  Future<void> _selectSuggestion(_PlaceSuggestion suggestion) async {
+    final apiKey = AppEnvironment.googleMapsApiKey;
+    if (apiKey.isEmpty) return;
+
+    try {
+      final response = await _dio.get(
+        'https://maps.googleapis.com/maps/api/place/details/json',
+        queryParameters: {
+          'place_id': suggestion.placeId,
+          'fields': 'geometry/location,name',
+          'key': apiKey,
+        },
+      );
+
+      final result = response.data is Map<String, dynamic>
+          ? response.data['result']
+          : null;
+      final geometry = result is Map<String, dynamic> ? result['geometry'] : null;
+      final location = geometry is Map<String, dynamic> ? geometry['location'] : null;
+      final lat = location is Map<String, dynamic>
+          ? (location['lat'] as num?)?.toDouble()
+          : null;
+      final lng = location is Map<String, dynamic>
+          ? (location['lng'] as num?)?.toDouble()
+          : null;
+      if (lat == null || lng == null) {
+        await _searchLocation();
+        return;
+      }
+
+      final target = LatLng(lat, lng);
+      setState(() {
+        _searchController.text = suggestion.title;
+        _searchController.selection = TextSelection.collapsed(
+          offset: _searchController.text.length,
+        );
+        _suggestions.clear();
+      });
+      await _showTargetOnMap(target, suggestion.title);
+      _closeSearch();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open this place.')),
       );
     }
   }
@@ -364,6 +516,7 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isLight = Theme.of(context).brightness == Brightness.light;
     return Scaffold(
       appBar: AppBar(title: const Text('Safety Intelligence Map')),
       body: Stack(
@@ -393,6 +546,45 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
           ),
           _buildTopSearchBar(),
           _buildQuickControls(),
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 18,
+            child: IgnorePointer(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: isLight
+                      ? const Color(0xFFFFFFFF).withValues(alpha: 0.9)
+                      : AppTheme.cardColor.withValues(alpha: 0.76),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isLight
+                        ? const Color(0xFFDCE5F6)
+                        : Colors.white.withValues(alpha: 0.14),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.tips_and_updates_rounded, size: 17, color: AppTheme.secondaryColor),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        _statusText ?? 'Long press to drop pin. Tap markers to preview route.',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: isLight ? Color(0xFF546784) : Colors.white70,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
           if (_isLoading)
             const Center(
               child: CircularProgressIndicator(color: AppTheme.primaryColor),
@@ -412,10 +604,14 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
 
   void _closeSearch() {
     _searchFocusNode.unfocus();
-    setState(() => _isSearchOpen = false);
+    setState(() {
+      _isSearchOpen = false;
+      _suggestions.clear();
+    });
   }
 
   Widget _buildTopSearchBar() {
+    final isLight = Theme.of(context).brightness == Brightness.light;
     return Positioned(
       top: 16,
       right: 16,
@@ -452,56 +648,107 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
                     color: Colors.white.withValues(alpha: 0.14),
                   ),
                 ),
-                child: Row(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    const SizedBox(width: 10),
-                    const Icon(Icons.search, color: Colors.white70),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: TextField(
-                        controller: _searchController,
-                        focusNode: _searchFocusNode,
-                        autofocus: false,
-                        textInputAction: TextInputAction.search,
-                        onSubmitted: (_) => _searchLocation(),
-                        decoration: const InputDecoration(
-                          hintText: 'Search location...',
-                          border: InputBorder.none,
-                          isDense: true,
+                    Row(
+                      children: [
+                        const SizedBox(width: 10),
+                        const Icon(Icons.search, color: Colors.white70),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: TextField(
+                            controller: _searchController,
+                            focusNode: _searchFocusNode,
+                            autofocus: false,
+                            textInputAction: TextInputAction.search,
+                            onChanged: _onSearchChanged,
+                            onSubmitted: (_) => _searchLocation(),
+                            decoration: const InputDecoration(
+                              hintText: 'Search location...',
+                              border: InputBorder.none,
+                              isDense: true,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: _searchLocation,
+                          icon: const Icon(
+                            Icons.arrow_forward,
+                            color: AppTheme.primaryColor,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: _closeSearch,
+                          icon: const Icon(
+                            Icons.close,
+                            color: Colors.white70,
+                            size: 20,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_isLoadingSuggestions)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 12),
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    else if (_suggestions.isNotEmpty)
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 220),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: _suggestions.length,
+                          separatorBuilder: (context, index) => Divider(
+                            height: 1,
+                            color: Colors.white.withValues(alpha: 0.1),
+                          ),
+                          itemBuilder: (context, index) {
+                            final suggestion = _suggestions[index];
+                            return ListTile(
+                              dense: true,
+                              leading: const Icon(
+                                Icons.location_on_outlined,
+                                color: Colors.white70,
+                              ),
+                              title: Text(
+                                suggestion.title,
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                              subtitle: suggestion.subtitle.isNotEmpty
+                                  ? Text(
+                                      suggestion.subtitle,
+                                      style: const TextStyle(
+                                        color: Colors.white60,
+                                        fontSize: 12,
+                                      ),
+                                    )
+                                  : null,
+                              onTap: () => _selectSuggestion(suggestion),
+                            );
+                          },
                         ),
                       ),
-                    ),
-                    IconButton(
-                      onPressed: _searchLocation,
-                      icon: const Icon(
-                        Icons.arrow_forward,
-                        color: AppTheme.primaryColor,
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: _closeSearch,
-                      icon: const Icon(
-                        Icons.close,
-                        color: Colors.white70,
-                        size: 20,
-                      ),
-                    ),
                   ],
                 ),
               )
             : Material(
                 key: const ValueKey('search_closed'),
-                color: AppTheme.cardColor.withValues(alpha: 0.85),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
+                color: isLight
+                    ? const Color(0xFFFFFFFF).withValues(alpha: 0.94)
+                    : AppTheme.cardColor.withValues(alpha: 0.85),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 elevation: 5,
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(16),
                   onTap: _openSearch,
                   child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    child: Icon(Icons.search, color: Colors.white),
+                    padding: EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+                    child: Icon(Icons.search, color: Colors.white, size: 21),
                   ),
                 ),
               ),
@@ -577,15 +824,27 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
     return Material(
       color: AppTheme.cardColor,
       shape: const CircleBorder(),
-      elevation: 4,
+      elevation: 6,
       child: InkWell(
         onTap: onTap,
         customBorder: const CircleBorder(),
         child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Icon(icon, color: Colors.white),
+          padding: const EdgeInsets.all(13),
+          child: Icon(icon, color: Colors.white, size: 22),
         ),
       ),
     );
   }
+}
+
+class _PlaceSuggestion {
+  const _PlaceSuggestion({
+    required this.placeId,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final String placeId;
+  final String title;
+  final String subtitle;
 }

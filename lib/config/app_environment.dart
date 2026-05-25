@@ -23,4 +23,9 @@ class AppEnvironment {
     'GEMINI_MODEL',
     defaultValue: 'gemini-1.5-flash',
   );
+
+  static const String googleMapsApiKey = String.fromEnvironment(
+    'GOOGLE_MAPS_API_KEY',
+    defaultValue: 'AIzaSyAHuQ735KTsOI98USg1auNELNf4tY8AwK4',
+  );
 }
