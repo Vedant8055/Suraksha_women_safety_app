@@ -46,6 +46,7 @@ class CyberCrimeScreen extends StatelessWidget {
       {'name': 'Online Bullying', 'icon': Icons.forum, 'color': Colors.orange},
       {'name': 'Identity Theft', 'icon': Icons.fingerprint, 'color': Colors.purple},
       {'name': 'Harassment', 'icon': Icons.warning, 'color': Colors.teal},
+      {'name': 'Deepfake Scam', 'icon': Icons.perm_camera_mic, 'color': Colors.pinkAccent},
     ];
 
     return GridView.builder(

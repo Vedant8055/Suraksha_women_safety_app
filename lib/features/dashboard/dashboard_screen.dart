@@ -239,7 +239,7 @@ class DashboardScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Realtime Monitor: $gpsStateText • Updated $lastUpdate',
+                      'Realtime Monitor: $gpsStateText | Updated $lastUpdate',
                       style: const TextStyle(
                         fontSize: 12,
                         color: Color(0xFFC6D6EC),
@@ -418,9 +418,9 @@ class DashboardScreen extends ConsumerWidget {
             _buildActionCard(
               context,
               Icons.gavel_rounded,
-              'POSH AI',
+              'POSH Portal',
               const Color(0xFF2FB79E),
-              const POSHChatScreen(),
+              const POSHLegalPortalScreen(),
               cardWidth,
             ),
           ],

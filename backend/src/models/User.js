@@ -20,6 +20,7 @@ const userSchema = new mongoose.Schema({
   bloodGroup: String,
   medicalConditions: [String],
   allergies: [String],
+  currentMedications: [String],
   lastKnownLocation: {
     type: { type: String, enum: ['Point'], default: 'Point' },
     coordinates: { type: [Number], default: [0, 0] },

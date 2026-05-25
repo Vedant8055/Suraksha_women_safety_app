@@ -28,7 +28,7 @@ class SafetyMonitorState {
     this.nearbyPoliceCount = 0,
     this.nearbyHospitalCount = 0,
     this.safetyScore = 50,
-    this.riskLabel = 'Unknown',
+    this.riskLabel = 'Monitoring',
     this.statusMessage = 'Initializing safety monitor...',
   });
 
@@ -71,6 +71,7 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
   StreamSubscription<Position>? _positionSubscription;
   Timer? _nearbyRefreshTimer;
   bool _started = false;
+  DateTime? _lastNearbyRefreshAt;
 
   Future<void> start() async {
     if (_started) return;
@@ -78,6 +79,7 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
 
     await _ensureGpsAndPermission();
     if (!state.gpsEnabled || !state.permissionGranted) {
+      state = state.copyWith(trackingActive: false);
       return;
     }
 
@@ -89,6 +91,14 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
   Future<void> retry() async {
     _started = false;
     await stop();
+    final gpsEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!gpsEnabled) {
+      await Geolocator.openLocationSettings();
+    }
+    final permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.deniedForever) {
+      await Geolocator.openAppSettings();
+    }
     await start();
   }
 
@@ -108,15 +118,19 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
     }
     final granted = permission == LocationPermission.always ||
         permission == LocationPermission.whileInUse;
+    final deniedForever = permission == LocationPermission.deniedForever;
 
     state = state.copyWith(
       gpsEnabled: gpsEnabled,
       permissionGranted: granted,
       statusMessage: !gpsEnabled
           ? 'GPS is off. Turn on location to capture live area data.'
-          : !granted
+          : deniedForever
+              ? 'Location permission permanently denied. Enable it in App Settings.'
+              : !granted
               ? 'Location permission required for realtime safety monitoring.'
               : 'GPS connected. Capturing realtime safety data.',
+      riskLabel: !gpsEnabled || !granted ? 'Location Off' : state.riskLabel,
     );
   }
 
@@ -170,6 +184,13 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
             lastUpdatedAt: DateTime.now(),
             statusMessage: 'Realtime area monitoring in progress.',
           );
+
+          final now = DateTime.now();
+          if (_lastNearbyRefreshAt == null ||
+              now.difference(_lastNearbyRefreshAt!) > const Duration(seconds: 20)) {
+            _lastNearbyRefreshAt = now;
+            _fetchNearbyCounts(pos.latitude, pos.longitude);
+          }
         });
   }
 
@@ -193,8 +214,10 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
         queryParameters: {'lat': lat, 'lng': lng},
       );
 
-      final policeCount = (policeRes.data as List<dynamic>).length;
-      final hospitalCount = (hospitalRes.data as List<dynamic>).length;
+      final policeData = policeRes.data;
+      final hospitalData = hospitalRes.data;
+      final policeCount = policeData is List ? policeData.length : 0;
+      final hospitalCount = hospitalData is List ? hospitalData.length : 0;
       final score = _calculateScore(policeCount, hospitalCount);
       final risk = score >= 80
           ? 'Low Risk'
@@ -207,6 +230,9 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
         nearbyHospitalCount: hospitalCount,
         safetyScore: score,
         riskLabel: risk,
+        statusMessage: policeCount == 0 && hospitalCount == 0
+            ? 'GPS active. No mapped police/hospital found in 10km radius.'
+            : 'Realtime area monitoring in progress.',
       );
     } on DioException {
       state = state.copyWith(

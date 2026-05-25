@@ -17,11 +17,11 @@ class UserModel {
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      id: json['_id'],
-      name: json['name'],
-      email: json['email'],
-      phone: json['phone'],
-      profilePhoto: json['profilePhoto'],
+      id: (json['_id'] ?? '').toString(),
+      name: (json['name'] ?? json['fullName'] ?? '').toString(),
+      email: (json['email'] ?? '').toString(),
+      phone: (json['phone'] ?? '').toString(),
+      profilePhoto: (json['profilePhoto'] ?? json['profilePhotoUrl'])?.toString(),
       bloodGroup: json['bloodGroup'],
     );
   }
@@ -35,5 +35,23 @@ class UserModel {
       'profilePhoto': profilePhoto,
       'bloodGroup': bloodGroup,
     };
+  }
+
+  UserModel copyWith({
+    String? id,
+    String? name,
+    String? email,
+    String? phone,
+    String? profilePhoto,
+    String? bloodGroup,
+  }) {
+    return UserModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      phone: phone ?? this.phone,
+      profilePhoto: profilePhoto ?? this.profilePhoto,
+      bloodGroup: bloodGroup ?? this.bloodGroup,
+    );
   }
 }

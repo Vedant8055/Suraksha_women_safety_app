@@ -125,4 +125,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _storage.delete(key: 'token');
     state = AuthState();
   }
+
+  void updateUser(UserModel user) {
+    state = state.copyWith(user: user);
+  }
 }
