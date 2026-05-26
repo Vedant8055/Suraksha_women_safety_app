@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:suraksha_women_safety_app/theme/app_theme.dart';
 import 'package:animate_do/animate_do.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:suraksha_women_safety_app/features/sos/sos_provider.dart';
 import 'package:suraksha_women_safety_app/features/sos/emergency_mode_screen.dart';
@@ -117,16 +118,23 @@ class DashboardScreen extends ConsumerWidget {
                     from: 10,
                     child: _buildSOSButton(context, ref),
                   ),
+                  const SizedBox(height: 14),
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 240),
+                    duration: const Duration(milliseconds: 430),
+                    from: 10,
+                    child: _buildWomenHelplineCard(context),
+                  ),
                   const SizedBox(height: 24),
                   FadeInUp(
-                    delay: const Duration(milliseconds: 280),
+                    delay: const Duration(milliseconds: 300),
                     duration: const Duration(milliseconds: 440),
                     from: 10,
                     child: _buildRecentAlerts(),
                   ),
                   const SizedBox(height: 24),
                   FadeInUp(
-                    delay: const Duration(milliseconds: 360),
+                    delay: const Duration(milliseconds: 380),
                     duration: const Duration(milliseconds: 440),
                     from: 10,
                     child: _buildNearbyServicesBlock(context, ref),
@@ -479,6 +487,58 @@ class DashboardScreen extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Future<void> _openDialPad(BuildContext context, String number) async {
+    final uri = Uri(scheme: 'tel', path: number);
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open dialer')),
+      );
+    }
+  }
+
+  Widget _buildWomenHelplineCard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.cardColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.support_agent, color: AppTheme.primaryColor),
+          ),
+          const SizedBox(width: 16),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Women Helpline',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  '1091',
+                  style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: () => _openDialPad(context, '1091'),
+            icon: const Icon(Icons.call, color: Colors.green),
+          ),
+        ],
+      ),
     );
   }
 

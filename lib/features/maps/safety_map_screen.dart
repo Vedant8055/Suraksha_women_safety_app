@@ -470,21 +470,165 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
     }
   }
 
-  void _buildRouteTo(LatLng target) {
+  Future<void> _buildRouteTo(LatLng target) async {
     if (_position == null) return;
+    final apiKey = AppEnvironment.googleMapsApiKey;
     final me = LatLng(_position!.latitude, _position!.longitude);
-    setState(() {
-      _polylines
-        ..clear()
-        ..add(
-          Polyline(
-            polylineId: const PolylineId('quick_route'),
-            color: const Color(0xFF40C4FF),
-            width: 5,
-            points: [me, target],
-          ),
+
+    if (apiKey.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _polylines
+          ..clear()
+          ..add(
+            Polyline(
+              polylineId: const PolylineId('quick_route'),
+              color: const Color(0xFF40C4FF),
+              width: 5,
+              points: [me, target],
+            ),
+          );
+        _statusText = 'Road routing unavailable (missing Maps API key).';
+      });
+      return;
+    }
+
+    try {
+      final response = await _dio.get(
+        'https://maps.googleapis.com/maps/api/directions/json',
+        queryParameters: {
+          'origin': '${me.latitude},${me.longitude}',
+          'destination': '${target.latitude},${target.longitude}',
+          'mode': 'driving',
+          'alternatives': 'true',
+          'departure_time': 'now',
+          'traffic_model': 'best_guess',
+          'key': apiKey,
+        },
+      );
+
+      final data = response.data;
+      final routes = data is Map<String, dynamic> ? data['routes'] : null;
+      if (routes is! List || routes.isEmpty) {
+        throw StateError('No routes found');
+      }
+
+      _DirectionRoute? bestRoute;
+      for (final routeItem in routes.whereType<Map<String, dynamic>>()) {
+        final overview = routeItem['overview_polyline'];
+        final points =
+            overview is Map<String, dynamic> ? overview['points']?.toString() : null;
+        if (points == null || points.isEmpty) continue;
+
+        final legs = routeItem['legs'];
+        if (legs is! List || legs.isEmpty) continue;
+        final firstLeg = legs.first;
+        if (firstLeg is! Map<String, dynamic>) continue;
+
+        final durationInTrafficValue =
+            (firstLeg['duration_in_traffic'] is Map<String, dynamic>)
+                ? (firstLeg['duration_in_traffic']['value'] as num?)?.toInt()
+                : null;
+        final durationValue = (firstLeg['duration'] is Map<String, dynamic>)
+            ? (firstLeg['duration']['value'] as num?)?.toInt()
+            : null;
+        final distanceText = (firstLeg['distance'] is Map<String, dynamic>)
+            ? firstLeg['distance']['text']?.toString()
+            : null;
+        final durationText = (firstLeg['duration_in_traffic'] is Map<String, dynamic>)
+            ? firstLeg['duration_in_traffic']['text']?.toString()
+            : (firstLeg['duration'] is Map<String, dynamic>)
+                ? firstLeg['duration']['text']?.toString()
+                : null;
+
+        final route = _DirectionRoute(
+          encodedPolyline: points,
+          etaSeconds: durationInTrafficValue ?? durationValue ?? 1 << 30,
+          distanceText: distanceText ?? '',
+          durationText: durationText ?? '',
         );
-    });
+
+        if (bestRoute == null || route.etaSeconds < bestRoute.etaSeconds) {
+          bestRoute = route;
+        }
+      }
+
+      if (bestRoute == null) {
+        throw StateError('No valid route geometry');
+      }
+      final selectedRoute = bestRoute;
+
+      final routePoints = _decodePolyline(selectedRoute.encodedPolyline);
+      if (!mounted) return;
+      setState(() {
+        _polylines
+          ..clear()
+          ..add(
+            Polyline(
+              polylineId: const PolylineId('quick_route'),
+              color: const Color(0xFF40C4FF),
+              width: 5,
+              points: routePoints,
+            ),
+          );
+        _statusText =
+            'Fastest route by live traffic: ${selectedRoute.distanceText} - ${selectedRoute.durationText}';
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _statusText = 'Road route unavailable, showing direct line fallback.';
+        _polylines
+          ..clear()
+          ..add(
+            Polyline(
+              polylineId: const PolylineId('quick_route'),
+              color: const Color(0xFF40C4FF),
+              width: 5,
+              points: [me, target],
+            ),
+          );
+      });
+    }
+  }
+
+  List<LatLng> _decodePolyline(String encoded) {
+    final List<LatLng> points = [];
+    int index = 0;
+    int lat = 0;
+    int lng = 0;
+
+    while (index < encoded.length) {
+      int b;
+      int shift = 0;
+      int result = 0;
+      do {
+        if (index >= encoded.length) {
+          return points;
+        }
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20 && index < encoded.length);
+      final dlat = (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
+      lat += dlat;
+
+      shift = 0;
+      result = 0;
+      do {
+        if (index >= encoded.length) {
+          return points;
+        }
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20 && index < encoded.length);
+      final dlng = (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
+      lng += dlng;
+
+      points.add(LatLng(lat / 1e5, lng / 1e5));
+    }
+    return points;
   }
 
   Future<void> _goToMyLocation() async {
@@ -510,8 +654,8 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
           ),
         ),
       );
-      _buildRouteTo(point);
     });
+    _buildRouteTo(point);
   }
 
   @override
@@ -847,4 +991,18 @@ class _PlaceSuggestion {
   final String placeId;
   final String title;
   final String subtitle;
+}
+
+class _DirectionRoute {
+  const _DirectionRoute({
+    required this.encodedPolyline,
+    required this.etaSeconds,
+    required this.distanceText,
+    required this.durationText,
+  });
+
+  final String encodedPolyline;
+  final int etaSeconds;
+  final String distanceText;
+  final String durationText;
 }
