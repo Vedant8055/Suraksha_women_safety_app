@@ -1,9 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:suraksha_women_safety_app/theme/app_theme.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:suraksha_women_safety_app/features/auth/auth_provider.dart';
 import 'package:suraksha_women_safety_app/features/sos/sos_provider.dart';
 import 'package:suraksha_women_safety_app/features/sos/emergency_mode_screen.dart';
 import 'package:suraksha_women_safety_app/features/cybercrime/cybercrime_screen.dart';
@@ -12,9 +16,37 @@ import 'package:suraksha_women_safety_app/features/medical/medical_vault_screen.
 import 'package:suraksha_women_safety_app/features/posh/posh_chat_screen.dart';
 import 'package:suraksha_women_safety_app/features/profile/profile_screen.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/nearby_places_provider.dart';
+import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
+
+final _localProfilePhotoPathProvider = FutureProvider<String?>((ref) async {
+  const key = 'profile_local_photo_path_v1';
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getString(key);
+});
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
+
+  Future<void> _showProfilePhotoPreview(
+    BuildContext context,
+    ImageProvider<Object> profileImage,
+  ) {
+    return showDialog<void>(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(20),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: InteractiveViewer(
+            minScale: 1,
+            maxScale: 4,
+            child: Image(image: profileImage, fit: BoxFit.contain),
+          ),
+        ),
+      ),
+    );
+  }
 
   Future<void> _pushPremium(BuildContext context, Widget screen) {
     return Navigator.push(
@@ -48,21 +80,20 @@ class DashboardScreen extends ConsumerWidget {
     BuildContext context,
     NearbyPlaceItem place,
   ) async {
+    final l10n = AppLocalizations.of(context);
     final shouldOpen = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Open Safety Map'),
-        content: const Text(
-          'Willing to see this location on the safety map?',
-        ),
+        title: Text(l10n.t('openSafetyMap')),
+        content: Text(l10n.t('openSafetyMapConfirm')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('No'),
+            child: Text(l10n.t('no')),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Yes'),
+            child: Text(l10n.t('yes')),
           ),
         ],
       ),
@@ -91,10 +122,7 @@ class DashboardScreen extends ConsumerWidget {
           const _DashboardBackground(),
           SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 22,
-                vertical: 16,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -102,7 +130,7 @@ class DashboardScreen extends ConsumerWidget {
                     delay: const Duration(milliseconds: 40),
                     duration: const Duration(milliseconds: 420),
                     from: 10,
-                    child: _buildHeader(context),
+                    child: _buildHeader(context, ref),
                   ),
                   const SizedBox(height: 24),
                   FadeInUp(
@@ -149,31 +177,51 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final isLight = Theme.of(context).brightness == Brightness.light;
+    final user = ref.watch(authProvider).user;
+    final localPhotoPath = ref.watch(_localProfilePhotoPathProvider).value;
+    final hasLocalPhoto =
+        localPhotoPath != null &&
+        localPhotoPath.isNotEmpty &&
+        File(localPhotoPath).existsSync();
+    final remotePhotoUrl = user?.profilePhoto;
+    final hasRemotePhoto = remotePhotoUrl != null && remotePhotoUrl.isNotEmpty;
+    final ImageProvider<Object>? profileImage = hasLocalPhoto
+        ? FileImage(File(localPhotoPath))
+        : (hasRemotePhoto ? NetworkImage(remotePhotoUrl) : null);
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: isLight
-              ? const [Color(0xFFFFFFFF), Color(0xFFF0F5FF)]
-              : const [Color(0xFF13213B), Color(0xFF0C172B)],
+              ? const [Color(0xFFFFFFFF), Color(0xFFF3F7FF), Color(0xFFEAF1FF)]
+              : const [Color(0xFF1A1A1A), Color(0xFF000000), Color(0xFF2A2A2A)],
+          stops: const [0.0, 0.6, 1.0],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: isLight
-              ? const Color(0xFFDDE6F7)
-              : Colors.white.withValues(alpha: 0.18),
+              ? const Color(0xFFD7E3F5)
+              : Colors.white.withValues(alpha: 0.22),
         ),
         boxShadow: [
           BoxShadow(
             color: isLight
-                ? const Color(0xFF7E8FB0).withValues(alpha: 0.18)
-                : Colors.black.withValues(alpha: 0.32),
-            blurRadius: isLight ? 16 : 24,
+                ? const Color(0xFF7E8FB0).withValues(alpha: 0.24)
+                : Colors.black.withValues(alpha: 0.55),
+            blurRadius: isLight ? 16 : 28,
             offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: isLight
+                ? const Color(0xFFFFFFFF).withValues(alpha: 0.65)
+                : const Color(0xFF8FA2BE).withValues(alpha: 0.14),
+            blurRadius: 14,
+            offset: const Offset(0, -2),
           ),
         ],
       ),
@@ -194,7 +242,7 @@ class DashboardScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Hello, Kaveri',
+                l10n.t('helloKaveri'),
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
@@ -215,7 +263,7 @@ class DashboardScreen extends ConsumerWidget {
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: const [
+                  children: [
                     Icon(
                       Icons.verified_user,
                       size: 14,
@@ -223,7 +271,7 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                     SizedBox(width: 6),
                     Text(
-                      'Safe Zone Active',
+                      l10n.t('safeZoneActive'),
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -237,6 +285,9 @@ class DashboardScreen extends ConsumerWidget {
           ),
           GestureDetector(
             onTap: () => _pushPremium(context, const ProfileScreen()),
+            onLongPress: profileImage == null
+                ? null
+                : () => _showProfilePhotoPreview(context, profileImage),
             child: Container(
               width: 58,
               height: 58,
@@ -247,9 +298,22 @@ class DashboardScreen extends ConsumerWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                border: Border.all(
+                  color: isLight
+                      ? const Color(0xFFD9E5F8)
+                      : Colors.white.withValues(alpha: 0.2),
+                ),
               ),
-              child: const Icon(Icons.person, color: Colors.white),
+              child: ClipOval(
+                child: profileImage != null
+                    ? Image(
+                        image: profileImage,
+                        fit: BoxFit.cover,
+                        width: 58,
+                        height: 58,
+                      )
+                    : const Icon(Icons.person, color: Colors.white),
+              ),
             ),
           ),
         ],
@@ -324,12 +388,13 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   Widget _buildQuickActions(BuildContext context, double cardWidth) {
+    final l10n = AppLocalizations.of(context);
     final isLight = Theme.of(context).brightness == Brightness.light;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Emergency Services',
+          l10n.t('emergencyServices'),
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w800,
@@ -344,7 +409,7 @@ class DashboardScreen extends ConsumerWidget {
             _buildActionCard(
               context,
               Icons.map_rounded,
-              'Map',
+              l10n.t('map'),
               const Color(0xFF3B82F6),
               const SafetyMapScreen(),
               cardWidth,
@@ -352,7 +417,7 @@ class DashboardScreen extends ConsumerWidget {
             _buildActionCard(
               context,
               Icons.medical_services_rounded,
-              'Medical',
+              l10n.t('medical'),
               const Color(0xFFE66E41),
               const MedicalVaultScreen(),
               cardWidth,
@@ -360,7 +425,7 @@ class DashboardScreen extends ConsumerWidget {
             _buildActionCard(
               context,
               Icons.security_rounded,
-              'Cyber',
+              l10n.t('cyber'),
               const Color(0xFFEC9F2A),
               const CyberCrimeScreen(),
               cardWidth,
@@ -368,7 +433,7 @@ class DashboardScreen extends ConsumerWidget {
             _buildActionCard(
               context,
               Icons.gavel_rounded,
-              'POSH Portal',
+              l10n.t('poshPortal'),
               const Color(0xFF2FB79E),
               const POSHLegalPortalScreen(),
               cardWidth,
@@ -396,7 +461,9 @@ class DashboardScreen extends ConsumerWidget {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              isLight ? const Color(0xFFFFFFFF) : AppTheme.cardColor.withValues(alpha: 0.95),
+              isLight
+                  ? const Color(0xFFFFFFFF)
+                  : AppTheme.cardColor.withValues(alpha: 0.95),
               isLight ? const Color(0xFFF2F6FF) : const Color(0xFF0C182D),
             ],
             begin: Alignment.topLeft,
@@ -457,12 +524,12 @@ class DashboardScreen extends ConsumerWidget {
           builder: (context) {
             final isLight = Theme.of(context).brightness == Brightness.light;
             return Text(
-          'Community Alerts',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-                  color: isLight ? const Color(0xFF172235) : Colors.white,
-          ),
+              AppLocalizations.of(context).t('communityAlerts'),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: isLight ? const Color(0xFF172235) : Colors.white,
+              ),
             );
           },
         ),
@@ -470,20 +537,20 @@ class DashboardScreen extends ConsumerWidget {
         Builder(
           builder: (context) => _buildAlertCard(
             context,
-          'Safe zone updated nearby',
-          '2 mins ago',
-          Icons.location_on_rounded,
-          const Color(0xFF26BF96),
+            AppLocalizations.of(context).t('safeZoneUpdatedNearby'),
+            AppLocalizations.of(context).t('minsAgo2'),
+            Icons.location_on_rounded,
+            const Color(0xFF26BF96),
           ),
         ),
         const SizedBox(height: 12),
         Builder(
           builder: (context) => _buildAlertCard(
             context,
-          'Crowded area warning',
-          '15 mins ago',
-          Icons.warning_amber_rounded,
-          const Color(0xFFF3B13E),
+            AppLocalizations.of(context).t('crowdedAreaWarning'),
+            AppLocalizations.of(context).t('minsAgo15'),
+            Icons.warning_amber_rounded,
+            const Color(0xFFF3B13E),
           ),
         ),
       ],
@@ -495,17 +562,40 @@ class DashboardScreen extends ConsumerWidget {
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open dialer')),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).t('couldNotOpenDialer')),
+        ),
       );
     }
   }
 
   Widget _buildWomenHelplineCard(BuildContext context) {
+    final isLight = Theme.of(context).brightness == Brightness.light;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.cardColor,
+        gradient: LinearGradient(
+          colors: isLight
+              ? const [Color(0xFFFFFFFF), Color(0xFFF2F6FF)]
+              : const [AppTheme.cardColor, AppTheme.cardColor],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isLight
+              ? const Color(0xFFDCE5F6)
+              : Colors.white.withValues(alpha: 0.08),
+        ),
+        boxShadow: isLight
+            ? [
+                BoxShadow(
+                  color: const Color(0xFF8A9FBE).withValues(alpha: 0.16),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ]
+            : null,
       ),
       child: Row(
         children: [
@@ -515,20 +605,29 @@ class DashboardScreen extends ConsumerWidget {
               color: AppTheme.primaryColor.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.support_agent, color: AppTheme.primaryColor),
+            child: const Icon(
+              Icons.support_agent,
+              color: AppTheme.primaryColor,
+            ),
           ),
           const SizedBox(width: 16),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Women Helpline',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                  AppLocalizations.of(context).t('womenHelpline'),
+                  style: TextStyle(
+                    color: isLight ? const Color(0xFF172235) : Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 Text(
                   '1091',
-                  style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: AppTheme.primaryColor,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -616,6 +715,7 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   Widget _buildNearbyServicesBlock(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final isLight = Theme.of(context).brightness == Brightness.light;
     final nearbyState = ref.watch(nearbyPlacesProvider);
 
@@ -640,7 +740,7 @@ class DashboardScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Nearby Services',
+            l10n.t('nearbyServices'),
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w800,
@@ -653,7 +753,7 @@ class DashboardScreen extends ConsumerWidget {
               Expanded(
                 child: _nearbyButton(
                   context: context,
-                  label: 'Nearby Hospitals',
+                  label: l10n.t('nearbyHospitals'),
                   icon: Icons.local_hospital_rounded,
                   loading:
                       nearbyState.isLoading &&
@@ -667,7 +767,7 @@ class DashboardScreen extends ConsumerWidget {
               Expanded(
                 child: _nearbyButton(
                   context: context,
-                  label: 'Police Stations',
+                  label: l10n.t('policeStations'),
                   icon: Icons.local_police_rounded,
                   loading:
                       nearbyState.isLoading &&
@@ -696,8 +796,8 @@ class DashboardScreen extends ConsumerWidget {
               ),
             )
           else if (nearbyState.activeType != null && nearbyState.places.isEmpty)
-            const Text(
-              'No nearby places found in 5 km radius.',
+            Text(
+              l10n.t('noNearbyPlaces'),
               style: TextStyle(color: AppTheme.textSecondary),
             )
           else if (nearbyState.places.isNotEmpty)
@@ -734,7 +834,9 @@ class DashboardScreen extends ConsumerWidget {
                         Text(
                           place.name,
                           style: TextStyle(
-                            color: isLight ? const Color(0xFF172235) : Colors.white,
+                            color: isLight
+                                ? const Color(0xFF172235)
+                                : Colors.white,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -762,8 +864,8 @@ class DashboardScreen extends ConsumerWidget {
               }).toList(),
             )
           else
-            const Text(
-              'Tap a button to load nearby real-time services.',
+            Text(
+              l10n.t('tapToLoadNearby'),
               style: TextStyle(color: AppTheme.textSecondary),
             ),
         ],
@@ -790,10 +892,18 @@ class DashboardScreen extends ConsumerWidget {
           : Icon(icon, size: 18),
       label: Text(label, textAlign: TextAlign.center),
       style: ElevatedButton.styleFrom(
-        backgroundColor: ThemeData.estimateBrightnessForColor(Theme.of(context).scaffoldBackgroundColor) == Brightness.light
+        backgroundColor:
+            ThemeData.estimateBrightnessForColor(
+                  Theme.of(context).scaffoldBackgroundColor,
+                ) ==
+                Brightness.light
             ? const Color(0xFFEAF2FF)
             : const Color(0xFF1A355A),
-        foregroundColor: ThemeData.estimateBrightnessForColor(Theme.of(context).scaffoldBackgroundColor) == Brightness.light
+        foregroundColor:
+            ThemeData.estimateBrightnessForColor(
+                  Theme.of(context).scaffoldBackgroundColor,
+                ) ==
+                Brightness.light
             ? const Color(0xFF173056)
             : Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),

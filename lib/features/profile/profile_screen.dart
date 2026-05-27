@@ -10,6 +10,8 @@ import 'package:suraksha_women_safety_app/constants/api_constants.dart';
 import 'package:suraksha_women_safety_app/core/network/dio_client.dart';
 import 'package:suraksha_women_safety_app/features/auth/auth_provider.dart';
 import 'package:suraksha_women_safety_app/features/profile/emergency_contacts_provider.dart';
+import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
+import 'package:suraksha_women_safety_app/localization/locale_provider.dart';
 import 'package:suraksha_women_safety_app/models/user_model.dart';
 import 'package:suraksha_women_safety_app/theme/app_theme.dart';
 import 'package:suraksha_women_safety_app/theme/theme_mode_provider.dart';
@@ -45,20 +47,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.redAccent));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
+    );
   }
 
   @override
   void initState() {
     super.initState();
-    Future.microtask(
-      () async {
-        await _loadLocalProfile();
-        await ref.read(emergencyContactsProvider.notifier).loadContacts();
-      },
-    );
+    Future.microtask(() async {
+      await _loadLocalProfile();
+      await ref.read(emergencyContactsProvider.notifier).loadContacts();
+    });
   }
 
   Future<void> _loadLocalProfile() async {
@@ -98,24 +98,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final authState = ref.watch(authProvider);
     final user = authState.user;
-    final displayName =
-        (_localName != null && _localName!.trim().isNotEmpty) ? _localName! : (user?.name ?? 'User Name');
-    final displayEmail =
-        (_localEmail != null && _localEmail!.trim().isNotEmpty) ? _localEmail! : (user?.email ?? 'email@example.com');
+    final displayName = (_localName != null && _localName!.trim().isNotEmpty)
+        ? _localName!
+        : (user?.name ?? 'User Name');
+    final displayEmail = (_localEmail != null && _localEmail!.trim().isNotEmpty)
+        ? _localEmail!
+        : (user?.email ?? 'email@example.com');
     final contacts = ref.watch(emergencyContactsProvider);
     final themeMode = ref.watch(appThemeModeProvider);
+    final currentLocale = ref.watch(appLocaleProvider);
+    final selectedLanguage = AppLanguage.values.firstWhere(
+      (lang) => lang.locale.languageCode == currentLocale.languageCode,
+      orElse: () => AppLanguage.english,
+    );
     final isDarkMode = themeMode == ThemeMode.dark;
     final ImageProvider<Object>? profileImage =
         _localPhotoPath != null && _localPhotoPath!.isNotEmpty
-            ? FileImage(File(_localPhotoPath!))
-            : (user?.profilePhoto != null && user!.profilePhoto!.isNotEmpty
-                  ? NetworkImage(user.profilePhoto!)
-                  : null);
+        ? FileImage(File(_localPhotoPath!))
+        : (user?.profilePhoto != null && user!.profilePhoto!.isNotEmpty
+              ? NetworkImage(user.profilePhoto!)
+              : null);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('My Profile')),
+      appBar: AppBar(title: Text(l10n.t('myProfile'))),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -129,8 +137,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
                       backgroundImage: profileImage,
                       child:
-                          ((_localPhotoPath == null || _localPhotoPath!.isEmpty) &&
-                                  (user?.profilePhoto == null || user!.profilePhoto!.isEmpty))
+                          ((_localPhotoPath == null ||
+                                  _localPhotoPath!.isEmpty) &&
+                              (user?.profilePhoto == null ||
+                                  user!.profilePhoto!.isEmpty))
                           ? const Icon(
                               Icons.person,
                               size: 80,
@@ -170,10 +180,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 color: Colors.white,
               ),
             ),
-            Text(
-              displayEmail,
-              style: const TextStyle(color: Colors.white70),
-            ),
+            Text(displayEmail, style: const TextStyle(color: Colors.white70)),
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
@@ -181,12 +188,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 onPressed: _isSaving
                     ? null
                     : () => _showEditProfileDialog(
-                          user,
-                          displayName: displayName,
-                          displayEmail: displayEmail,
-                        ),
+                        user,
+                        displayName: displayName,
+                        displayEmail: displayEmail,
+                      ),
                 icon: const Icon(Icons.edit),
-                label: const Text('EDIT PROFILE DETAILS'),
+                label: Text(l10n.t('editProfileDetails')),
               ),
             ),
             const SizedBox(height: 12),
@@ -196,12 +203,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 borderRadius: BorderRadius.circular(16),
               ),
               child: SwitchListTile(
-                title: const Text(
-                  'Dark Mode',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                title: Text(
+                  l10n.t('darkMode'),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 subtitle: Text(
-                  isDarkMode ? 'Dark Bluish Theme' : 'Soft Calm Light Theme',
+                  isDarkMode
+                      ? l10n.t('darkModeSubtitleOn')
+                      : l10n.t('darkModeSubtitleOff'),
                   style: const TextStyle(color: Colors.white70),
                 ),
                 value: isDarkMode,
@@ -214,18 +226,84 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            _buildProfileItem('Phone Number', user?.phone ?? 'Not provided', Icons.phone),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.cardColor,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.language, color: AppTheme.primaryColor),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.t('language'),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          l10n.t('contentLanguage'),
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  DropdownButtonHideUnderline(
+                    child: DropdownButton<AppLanguage>(
+                      value: selectedLanguage,
+                      dropdownColor: AppTheme.cardColor,
+                      style: const TextStyle(color: Colors.white),
+                      iconEnabledColor: AppTheme.primaryColor,
+                      onChanged: (value) {
+                        if (value == null) return;
+                        ref.read(appLocaleProvider.notifier).setLanguage(value);
+                      },
+                      items: [
+                        DropdownMenuItem(
+                          value: AppLanguage.english,
+                          child: Text(l10n.t('english')),
+                        ),
+                        DropdownMenuItem(
+                          value: AppLanguage.hindi,
+                          child: Text(l10n.t('hindi')),
+                        ),
+                        DropdownMenuItem(
+                          value: AppLanguage.marathi,
+                          child: Text(l10n.t('marathi')),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildProfileItem(
+              l10n.t('phoneNumber'),
+              user?.phone ?? l10n.t('notProvided'),
+              Icons.phone,
+            ),
             const SizedBox(height: 16),
             _buildProfileItem(
-              'Emergency Contacts',
-              '${contacts.length} Contacts Saved',
+              l10n.t('emergencyContacts'),
+              '${contacts.length} ${l10n.t('contactsSaved')}',
               Icons.people,
             ),
             const SizedBox(height: 24),
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Emergency Contact List',
+                l10n.t('emergencyContactList'),
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
@@ -245,7 +323,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               child: OutlinedButton.icon(
                 onPressed: _isSaving ? null : _showAddContactDialog,
                 icon: const Icon(Icons.add),
-                label: const Text('ADD EMERGENCY CONTACT'),
+                label: Text(l10n.t('addEmergencyContact')),
               ),
             ),
             const SizedBox(height: 40),
@@ -257,7 +335,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 side: const BorderSide(color: Colors.red),
                 minimumSize: const Size(double.infinity, 60),
               ),
-              child: const Text('LOGOUT SESSION'),
+              child: Text(l10n.t('logoutSession')),
             ),
           ],
         ),
@@ -280,8 +358,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(color: Colors.white38, fontSize: 12)),
-                Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                Text(
+                  title,
+                  style: const TextStyle(color: Colors.white38, fontSize: 12),
+                ),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
           ),
@@ -305,10 +392,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(contact.name, style: const TextStyle(color: Colors.white38, fontSize: 12)),
+                Text(
+                  contact.name,
+                  style: const TextStyle(color: Colors.white38, fontSize: 12),
+                ),
                 Text(
                   '${contact.phone} • ${contact.relation}',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -347,17 +440,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Full Name')),
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: 'Full Name'),
+            ),
             TextField(
               controller: emailController,
               keyboardType: TextInputType.emailAddress,
               decoration: const InputDecoration(labelText: 'Email'),
             ),
-            TextField(controller: bloodController, decoration: const InputDecoration(labelText: 'Blood Group')),
+            TextField(
+              controller: bloodController,
+              decoration: const InputDecoration(labelText: 'Blood Group'),
+            ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () async {
               try {
@@ -391,17 +493,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Name')),
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: 'Name'),
+            ),
             TextField(
               controller: phoneController,
               keyboardType: TextInputType.phone,
               decoration: const InputDecoration(labelText: 'Phone Number'),
             ),
-            TextField(controller: relationController, decoration: const InputDecoration(labelText: 'Relation')),
+            TextField(
+              controller: relationController,
+              decoration: const InputDecoration(labelText: 'Relation'),
+            ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () async {
               final name = nameController.text.trim();
@@ -409,12 +520,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               final relation = relationController.text.trim();
               if (name.isEmpty || phone.isEmpty) return;
               try {
-                await ref.read(emergencyContactsProvider.notifier).addContact(
+                await ref
+                    .read(emergencyContactsProvider.notifier)
+                    .addContact(
                       EmergencyContact(
                         id: '',
                         name: name,
                         phone: phone,
-                        relation: relation.isEmpty ? 'Emergency Contact' : relation,
+                        relation: relation.isEmpty
+                            ? 'Emergency Contact'
+                            : relation,
                       ),
                     );
                 if (mounted) navigator.pop();
@@ -442,21 +557,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Name')),
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: 'Name'),
+            ),
             TextField(
               controller: phoneController,
               keyboardType: TextInputType.phone,
               decoration: const InputDecoration(labelText: 'Phone Number'),
             ),
-            TextField(controller: relationController, decoration: const InputDecoration(labelText: 'Relation')),
+            TextField(
+              controller: relationController,
+              decoration: const InputDecoration(labelText: 'Relation'),
+            ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () async {
               try {
-                await ref.read(emergencyContactsProvider.notifier).updateContact(
+                await ref
+                    .read(emergencyContactsProvider.notifier)
+                    .updateContact(
                       EmergencyContact(
                         id: contact.id,
                         name: nameController.text.trim(),
@@ -492,7 +618,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       );
       final currentUser = ref.read(authProvider).user;
       if (currentUser != null) {
-        ref.read(authProvider.notifier).updateUser(
+        ref
+            .read(authProvider.notifier)
+            .updateUser(
               currentUser.copyWith(
                 name: fullName,
                 email: email,
@@ -503,13 +631,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
       final response = await _dio.patch(
         ApiConstants.profile,
-        data: {
-          'fullName': fullName,
-          'email': email,
-          'bloodGroup': bloodGroup,
-        },
+        data: {'fullName': fullName, 'email': email, 'bloodGroup': bloodGroup},
       );
-      final updatedUser = UserModel.fromJson(response.data as Map<String, dynamic>);
+      final updatedUser = UserModel.fromJson(
+        response.data as Map<String, dynamic>,
+      );
       ref.read(authProvider.notifier).updateUser(updatedUser);
       await _saveLocalProfile(
         fullName: updatedUser.name,
@@ -528,22 +654,31 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _pickAndUploadPhoto() async {
     try {
       final picker = ImagePicker();
-      final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+      final picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
       if (picked == null) return;
 
       setState(() => _isSaving = true);
       await _saveLocalProfile(
         fullName: _localName ?? (ref.read(authProvider).user?.name ?? ''),
         email: _localEmail ?? (ref.read(authProvider).user?.email ?? ''),
-        bloodGroup: _localBloodGroup ?? (ref.read(authProvider).user?.bloodGroup ?? ''),
+        bloodGroup:
+            _localBloodGroup ?? (ref.read(authProvider).user?.bloodGroup ?? ''),
         localPhotoPath: picked.path,
       );
 
       final formData = FormData.fromMap({
         'file': await MultipartFile.fromFile(picked.path),
       });
-      final response = await _dio.post('${ApiConstants.profile}/photo', data: formData);
-      final updatedUser = UserModel.fromJson(response.data as Map<String, dynamic>);
+      final response = await _dio.post(
+        '${ApiConstants.profile}/photo',
+        data: formData,
+      );
+      final updatedUser = UserModel.fromJson(
+        response.data as Map<String, dynamic>,
+      );
       ref.read(authProvider.notifier).updateUser(updatedUser);
     } catch (error) {
       _showError('Photo saved locally. ${_extractError(error)}');
