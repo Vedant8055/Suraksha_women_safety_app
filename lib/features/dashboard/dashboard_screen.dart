@@ -748,9 +748,13 @@ class DashboardScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Row(
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
             children: [
-              Expanded(
+              SizedBox(
+                height: 48,
+                width: double.infinity,
                 child: _nearbyButton(
                   context: context,
                   label: l10n.t('nearbyHospitals'),
@@ -763,8 +767,9 @@ class DashboardScreen extends ConsumerWidget {
                       .fetchNearby(NearbyPlaceType.hospitals),
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
+              SizedBox(
+                height: 48,
+                width: double.infinity,
                 child: _nearbyButton(
                   context: context,
                   label: l10n.t('policeStations'),
@@ -775,6 +780,36 @@ class DashboardScreen extends ConsumerWidget {
                   onPressed: () => ref
                       .read(nearbyPlacesProvider.notifier)
                       .fetchNearby(NearbyPlaceType.policeStations),
+                ),
+              ),
+              SizedBox(
+                height: 48,
+                width: double.infinity,
+                child: _nearbyButton(
+                  context: context,
+                  label: l10n.t('nearbyWashrooms'),
+                  icon: Icons.wc_rounded,
+                  loading:
+                      nearbyState.isLoading &&
+                      nearbyState.activeType == NearbyPlaceType.washrooms,
+                  onPressed: () => ref
+                      .read(nearbyPlacesProvider.notifier)
+                      .fetchNearby(NearbyPlaceType.washrooms),
+                ),
+              ),
+              SizedBox(
+                height: 48,
+                width: double.infinity,
+                child: _nearbyButton(
+                  context: context,
+                  label: l10n.t('nearbyBloodBanks'),
+                  icon: Icons.bloodtype_rounded,
+                  loading:
+                      nearbyState.isLoading &&
+                      nearbyState.activeType == NearbyPlaceType.bloodBanks,
+                  onPressed: () => ref
+                      .read(nearbyPlacesProvider.notifier)
+                      .fetchNearby(NearbyPlaceType.bloodBanks),
                 ),
               ),
             ],
@@ -809,6 +844,8 @@ class DashboardScreen extends ConsumerWidget {
                 final openText = place.isOpenNow == null
                     ? 'Hours unavailable'
                     : (place.isOpenNow! ? 'Open now' : 'Closed now');
+                final detailsText =
+                    '${place.distanceText} | $ratingText | $openText';
 
                 return InkWell(
                   onTap: () => _confirmAndOpenOnMap(context, place),
@@ -850,7 +887,7 @@ class DashboardScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          '$ratingText | $openText',
+                          detailsText,
                           style: const TextStyle(
                             color: Color(0xFFC6D6EC),
                             fontSize: 11,

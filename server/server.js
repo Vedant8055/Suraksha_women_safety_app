@@ -59,6 +59,8 @@ require('./sockets/sosSocket')(io);
 // Routes
 const authRoutes = require('./routes/authRoutes');
 const cyberCrimeRoutes = require('./routes/cyberCrimeRoutes');
+const liveSosRoutes = require('./routes/liveSosRoutes');
+app.use(liveSosRoutes);
 app.use('/api', apiRateLimiter);
 app.use('/api/auth', authRateLimiter, authRoutes);
 app.use('/api/cybercrime', cyberCrimeRoutes);

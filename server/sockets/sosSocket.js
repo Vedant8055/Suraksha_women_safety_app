@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const SOSEvent = require('../models/SOSEvent');
 const User = require('../models/User');
 const env = require('../config/env');
@@ -70,15 +71,18 @@ module.exports = (io) => {
       const userId = socket.user.id;
 
       try {
-        const sosEvent = await SOSEvent.create({
-          userId,
-          location: { lat, lng },
-          liveTracking: [{ lat, lng }],
-        });
+        const sosEvent = data?.sosEventId
+          ? await SOSEvent.findOne({ _id: data.sosEventId, userId })
+          : await SOSEvent.create({
+              userId,
+              shareToken: crypto.randomBytes(18).toString('hex'),
+              location: { lat, lng },
+              liveTracking: [{ lat, lng }],
+            });
 
         // Broadcast to emergency contacts/responders
         socket.broadcast.emit('emergency_alert', {
-          eventId: sosEvent._id,
+          eventId: sosEvent?._id || data?.sosEventId,
           userId,
           lat,
           lng
@@ -100,8 +104,11 @@ module.exports = (io) => {
       const userId = socket.user.id;
 
       try {
+        const query = data?.sosEventId
+          ? { _id: data.sosEventId, userId }
+          : { userId, status: 'active' };
         await SOSEvent.findOneAndUpdate(
-          { userId, status: 'active' },
+          query,
           {
             $push: {
               liveTracking: {

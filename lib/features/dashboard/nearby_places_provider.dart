@@ -1,27 +1,39 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:suraksha_women_safety_app/config/app_environment.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/safety_monitor_provider.dart';
 
 class NearbyPlaceItem {
+  final String id;
   final String name;
   final String address;
   final double latitude;
   final double longitude;
+  final double distanceMeters;
   final bool? isOpenNow;
   final double? rating;
 
   const NearbyPlaceItem({
+    required this.id,
     required this.name,
     required this.address,
     required this.latitude,
     required this.longitude,
+    required this.distanceMeters,
     this.isOpenNow,
     this.rating,
   });
+
+  String get distanceText {
+    if (distanceMeters < 1000) {
+      return '${distanceMeters.round()} m away';
+    }
+    return '${(distanceMeters / 1000).toStringAsFixed(1)} km away';
+  }
 }
 
-enum NearbyPlaceType { hospitals, policeStations }
+enum NearbyPlaceType { hospitals, policeStations, washrooms, bloodBanks }
 
 class NearbyPlacesState {
   final bool isLoading;
@@ -96,75 +108,81 @@ class NearbyPlacesNotifier extends StateNotifier<NearbyPlacesState> {
       places: const [],
     );
 
-    final placeType = type == NearbyPlaceType.hospitals ? 'hospital' : 'police';
-
     try {
-      final response = await _dio.get(
-        'https://maps.googleapis.com/maps/api/place/nearbysearch/json',
-        queryParameters: {
-          'location': '${position.latitude},${position.longitude}',
-          'radius': 5000,
-          'type': placeType,
-          'key': apiKey,
-        },
+      final responses = await Future.wait(
+        _queryParametersFor(type, position, apiKey).map(
+          (params) => _dio.get(
+            'https://maps.googleapis.com/maps/api/place/nearbysearch/json',
+            queryParameters: params,
+          ),
+        ),
       );
 
-      final data = response.data;
-      if (data is! Map<String, dynamic>) {
-        state = state.copyWith(
-          isLoading: false,
-          error: 'Invalid response from places service.',
-        );
-        return;
-      }
+      final parsedById = <String, NearbyPlaceItem>{};
 
-      final status = data['status']?.toString() ?? 'UNKNOWN';
-      if (status != 'OK' && status != 'ZERO_RESULTS') {
-        state = state.copyWith(
-          isLoading: false,
-          error: 'Places API error: $status',
-        );
-        return;
-      }
+      for (final response in responses) {
+        final data = response.data;
+        if (data is! Map<String, dynamic>) continue;
 
-      final results = data['results'];
-      final parsed = <NearbyPlaceItem>[];
+        final status = data['status']?.toString() ?? 'UNKNOWN';
+        if (status != 'OK' && status != 'ZERO_RESULTS') {
+          state = state.copyWith(
+            isLoading: false,
+            error: 'Places API error: $status',
+          );
+          return;
+        }
 
-      if (results is List) {
-        for (final item in results) {
-          if (item is! Map<String, dynamic>) continue;
+        final results = data['results'];
 
-          final geometry = item['geometry'];
-          final location = geometry is Map<String, dynamic>
-              ? geometry['location']
-              : null;
+        if (results is List) {
+          for (final item in results) {
+            if (item is! Map<String, dynamic>) continue;
 
-          final lat = location is Map<String, dynamic>
-              ? (location['lat'] as num?)?.toDouble()
-              : null;
-          final lng = location is Map<String, dynamic>
-              ? (location['lng'] as num?)?.toDouble()
-              : null;
+            final geometry = item['geometry'];
+            final location = geometry is Map<String, dynamic>
+                ? geometry['location']
+                : null;
 
-          if (lat == null || lng == null) continue;
+            final lat = location is Map<String, dynamic>
+                ? (location['lat'] as num?)?.toDouble()
+                : null;
+            final lng = location is Map<String, dynamic>
+                ? (location['lng'] as num?)?.toDouble()
+                : null;
 
-          final openingHours = item['opening_hours'];
-          final ratingNum = item['rating'] as num?;
+            if (lat == null || lng == null) continue;
 
-          parsed.add(
-            NearbyPlaceItem(
+            final openingHours = item['opening_hours'];
+            final ratingNum = item['rating'] as num?;
+            final placeId =
+                item['place_id']?.toString() ??
+                '${item['name']}_${lat.toStringAsFixed(5)}_${lng.toStringAsFixed(5)}';
+            final distance = Geolocator.distanceBetween(
+              position.latitude,
+              position.longitude,
+              lat,
+              lng,
+            );
+
+            parsedById[placeId] = NearbyPlaceItem(
+              id: placeId,
               name: item['name']?.toString() ?? 'Unnamed place',
               address: item['vicinity']?.toString() ?? 'Address unavailable',
               latitude: lat,
               longitude: lng,
+              distanceMeters: distance,
               isOpenNow: openingHours is Map<String, dynamic>
                   ? openingHours['open_now'] as bool?
                   : null,
               rating: ratingNum?.toDouble(),
-            ),
-          );
+            );
+          }
         }
       }
+
+      final parsed = parsedById.values.toList()
+        ..sort((a, b) => a.distanceMeters.compareTo(b.distanceMeters));
 
       state = state.copyWith(
         isLoading: false,
@@ -178,5 +196,59 @@ class NearbyPlacesNotifier extends StateNotifier<NearbyPlacesState> {
         error: 'Unable to fetch nearby places right now. Please try again.',
       );
     }
+  }
+
+  List<Map<String, Object>> _queryParametersFor(
+    NearbyPlaceType type,
+    Position position,
+    String apiKey,
+  ) {
+    final base = <String, Object>{
+      'location': '${position.latitude},${position.longitude}',
+      'radius': 5000,
+      'key': apiKey,
+    };
+
+    if (type == NearbyPlaceType.hospitals) {
+      return [
+        {...base, 'type': 'hospital'},
+      ];
+    }
+
+    if (type == NearbyPlaceType.policeStations) {
+      return [
+        {...base, 'type': 'police'},
+      ];
+    }
+
+    if (type == NearbyPlaceType.bloodBanks) {
+      const bloodBankKeywords = [
+        'blood bank',
+        'blood donation center',
+        'blood centre',
+        'blood storage center',
+        'hospital blood bank',
+      ];
+
+      return bloodBankKeywords
+          .map((keyword) => {...base, 'keyword': keyword})
+          .toList();
+    }
+
+    const washroomKeywords = [
+      'public toilet',
+      'public restroom',
+      'washroom',
+      'sanitation room',
+      'mall toilet',
+      'petrol pump toilet',
+      'Dominos toilet',
+      'Pizza Hut toilet',
+      'McDonalds toilet',
+    ];
+
+    return washroomKeywords
+        .map((keyword) => {...base, 'keyword': keyword})
+        .toList();
   }
 }

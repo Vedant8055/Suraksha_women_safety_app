@@ -7,7 +7,8 @@ const createSosSchema = z.object({ body: z.object({ lat: z.number(), lng: z.numb
 
 const create = asyncHandler(async (req, res) => {
   const sos = await sosService.createSos({ userId: req.user._id, ...req.validated.body });
-  res.status(201).json(sos);
+  const trackingUrl = `${req.protocol}://${req.get('host')}/live-sos/${sos.shareToken}`;
+  res.status(201).json({ ...sos.toObject(), trackingUrl });
 });
 
 const active = asyncHandler(async (req, res) => {

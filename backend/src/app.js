@@ -15,6 +15,7 @@ const aiRoutes = require('./routes/aiRoutes');
 const mediaRoutes = require('./routes/mediaRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const profileRoutes = require('./routes/profileRoutes');
+const liveSosRoutes = require('./routes/liveSosRoutes');
 
 const app = express();
 app.use(helmet());
@@ -23,6 +24,7 @@ app.use(express.json({ limit: '2mb' }));
 app.use(morgan('dev'));
 
 app.get('/health', (req, res) => res.json({ status: 'ok', at: new Date().toISOString() }));
+app.use(liveSosRoutes);
 
 app.use('/api', apiLimiter);
 app.use('/api/auth', authLimiter, authRoutes);

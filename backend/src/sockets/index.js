@@ -20,8 +20,8 @@ const setupSockets = (httpServer) => {
 
   io.on('connection', (socket) => {
     socket.on('trigger_sos', async (payload) => {
-      const sos = await createSos({ userId: socket.user.id, lat: payload.lat, lng: payload.lng, mode: payload.mode || 'normal' });
-      io.emit('emergency_alert', { eventId: sos._id, userId: socket.user.id, lat: payload.lat, lng: payload.lng });
+      const eventId = payload.sosEventId || (await createSos({ userId: socket.user.id, lat: payload.lat, lng: payload.lng, mode: payload.mode || 'normal' }))._id;
+      io.emit('emergency_alert', { eventId, userId: socket.user.id, lat: payload.lat, lng: payload.lng });
     });
 
     socket.on('update_location', async (payload) => {

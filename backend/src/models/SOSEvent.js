@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const sosEventSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  shareToken: { type: String, required: true, unique: true, index: true },
   status: { type: String, enum: ['active', 'acknowledged', 'resolved', 'cancelled'], default: 'active', index: true },
   mode: { type: String, enum: ['normal', 'silent'], default: 'normal' },
   location: {

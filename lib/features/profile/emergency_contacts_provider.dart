@@ -18,11 +18,11 @@ class EmergencyContact {
   });
 
   Map<String, dynamic> toJson() => {
-        '_id': id,
-        'name': name,
-        'phone': phone,
-        'relation': relation,
-      };
+    '_id': id,
+    'name': name,
+    'phone': phone,
+    'relation': relation,
+  };
 
   factory EmergencyContact.fromJson(Map<String, dynamic> json) {
     return EmergencyContact(
@@ -42,13 +42,34 @@ final emergencyContactsProvider =
 class EmergencyContactsNotifier extends StateNotifier<List<EmergencyContact>> {
   final Dio _dio = DioClient().dio;
   static const String _contactsStorageKey = 'emergency_contacts_offline_v2';
+  static const List<EmergencyContact> _defaultEmergencyContacts = [
+    EmergencyContact(
+      id: 'default_7020094073',
+      name: 'Kaveri Emergency Contact 1',
+      phone: '7020094073',
+      relation: 'Emergency Contact',
+    ),
+    EmergencyContact(
+      id: 'default_9359264978',
+      name: 'Kaveri Emergency Contact 2',
+      phone: '9359264978',
+      relation: 'Emergency Contact',
+    ),
+    EmergencyContact(
+      id: 'default_8462969160',
+      name: 'Kaveri Emergency Contact 3',
+      phone: '8462969160',
+      relation: 'Emergency Contact',
+    ),
+  ];
 
   EmergencyContactsNotifier() : super(const []);
 
   Future<void> loadContacts() async {
     final local = await _loadLocalContacts();
     if (local.isNotEmpty) {
-      state = local;
+      state = _withDefaultEmergencyContact(local);
+      await _persistLocalContacts(state);
     }
 
     try {
@@ -57,18 +78,21 @@ class EmergencyContactsNotifier extends StateNotifier<List<EmergencyContact>> {
       final remote = decoded
           .map((e) => EmergencyContact.fromJson(e as Map<String, dynamic>))
           .toList();
-      state = remote;
-      await _persistLocalContacts(remote);
+      state = _withDefaultEmergencyContact(remote);
+      await _persistLocalContacts(state);
     } on DioException {
       if (local.isEmpty) {
-        state = const [];
+        state = const [..._defaultEmergencyContacts];
+        await _persistLocalContacts(state);
       }
     }
   }
 
   Future<void> addContact(EmergencyContact contact) async {
     final localContact = EmergencyContact(
-      id: contact.id.isEmpty ? DateTime.now().microsecondsSinceEpoch.toString() : contact.id,
+      id: contact.id.isEmpty
+          ? DateTime.now().microsecondsSinceEpoch.toString()
+          : contact.id,
       name: contact.name,
       phone: contact.phone,
       relation: contact.relation,
@@ -86,7 +110,9 @@ class EmergencyContactsNotifier extends StateNotifier<List<EmergencyContact>> {
           'relation': contact.relation,
         },
       );
-      final created = EmergencyContact.fromJson(response.data as Map<String, dynamic>);
+      final created = EmergencyContact.fromJson(
+        response.data as Map<String, dynamic>,
+      );
       state = [
         for (final current in state)
           if (current.id == localContact.id) created else current,
@@ -99,7 +125,8 @@ class EmergencyContactsNotifier extends StateNotifier<List<EmergencyContact>> {
 
   Future<void> updateContact(EmergencyContact contact) async {
     state = [
-      for (final current in state) if (current.id == contact.id) contact else current,
+      for (final current in state)
+        if (current.id == contact.id) contact else current,
     ];
     await _persistLocalContacts(state);
 
@@ -112,9 +139,12 @@ class EmergencyContactsNotifier extends StateNotifier<List<EmergencyContact>> {
           'relation': contact.relation,
         },
       );
-      final updated = EmergencyContact.fromJson(response.data as Map<String, dynamic>);
+      final updated = EmergencyContact.fromJson(
+        response.data as Map<String, dynamic>,
+      );
       state = [
-        for (final current in state) if (current.id == updated.id) updated else current,
+        for (final current in state)
+          if (current.id == updated.id) updated else current,
       ];
       await _persistLocalContacts(state);
     } on DioException {
@@ -139,7 +169,9 @@ class EmergencyContactsNotifier extends StateNotifier<List<EmergencyContact>> {
     if (raw == null || raw.isEmpty) return const [];
 
     try {
-      final decoded = raw.split('\n').where((e) => e.trim().isNotEmpty).map((line) {
+      final decoded = raw.split('\n').where((e) => e.trim().isNotEmpty).map((
+        line,
+      ) {
         final parts = line.split('|');
         return EmergencyContact(
           id: parts.isNotEmpty ? parts[0] : '',
@@ -160,5 +192,17 @@ class EmergencyContactsNotifier extends StateNotifier<List<EmergencyContact>> {
         .map((c) => '${c.id}|${c.name}|${c.phone}|${c.relation}')
         .join('\n');
     await prefs.setString(_contactsStorageKey, raw);
+  }
+
+  List<EmergencyContact> _withDefaultEmergencyContact(
+    List<EmergencyContact> contacts,
+  ) {
+    final savedPhones = contacts
+        .map((contact) => contact.phone.replaceAll(RegExp(r'\D'), ''))
+        .toSet();
+    final missingDefaults = _defaultEmergencyContacts.where(
+      (contact) => !savedPhones.contains(contact.phone),
+    );
+    return [...missingDefaults, ...contacts];
   }
 }

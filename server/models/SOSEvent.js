@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const sosEventSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  shareToken: { type: String, required: true, unique: true, index: true },
   location: {
     lat: { type: Number, required: true },
     lng: { type: Number, required: true },

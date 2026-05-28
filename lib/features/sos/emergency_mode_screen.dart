@@ -8,7 +8,8 @@ class EmergencyModeScreen extends ConsumerStatefulWidget {
   const EmergencyModeScreen({super.key});
 
   @override
-  ConsumerState<EmergencyModeScreen> createState() => _EmergencyModeScreenState();
+  ConsumerState<EmergencyModeScreen> createState() =>
+      _EmergencyModeScreenState();
 }
 
 class _EmergencyModeScreenState extends ConsumerState<EmergencyModeScreen> {
@@ -19,7 +20,9 @@ class _EmergencyModeScreenState extends ConsumerState<EmergencyModeScreen> {
     super.didChangeDependencies();
     if (_contactPopupShown) return;
     _contactPopupShown = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) => _showContactsInformedPopup());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _showContactsInformedPopup(),
+    );
   }
 
   void _showContactsInformedPopup() {
@@ -73,12 +76,20 @@ class _EmergencyModeScreenState extends ConsumerState<EmergencyModeScreen> {
               const SizedBox(height: 40),
               Flash(
                 infinite: true,
-                child: const Icon(Icons.warning_amber_rounded, size: 100, color: Colors.white),
+                child: const Icon(
+                  Icons.warning_amber_rounded,
+                  size: 100,
+                  color: Colors.white,
+                ),
               ),
               const SizedBox(height: 24),
               const Text(
                 'EMERGENCY MODE ACTIVE',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
               const SizedBox(height: 8),
               const Text(
@@ -125,7 +136,13 @@ class _EmergencyModeScreenState extends ConsumerState<EmergencyModeScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(title, style: const TextStyle(color: Colors.white70)),
-          Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
     );
