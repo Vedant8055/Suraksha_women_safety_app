@@ -44,7 +44,8 @@ class _MedicalVaultScreenState extends State<MedicalVaultScreen> {
     setState(() {
       _bloodGroup = prefs.getString(_bloodKey) ?? _bloodGroup;
       _allergies = prefs.getString(_allergiesKey) ?? _allergies;
-      _medicalConditions = prefs.getString(_conditionsKey) ?? _medicalConditions;
+      _medicalConditions =
+          prefs.getString(_conditionsKey) ?? _medicalConditions;
       _medications = prefs.getString(_medicationsKey) ?? _medications;
     });
   }
@@ -72,7 +73,10 @@ class _MedicalVaultScreenState extends State<MedicalVaultScreen> {
 
   String _toCsv(dynamic value) {
     if (value is List) {
-      return value.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).join(', ');
+      return value
+          .map((e) => e.toString().trim())
+          .where((e) => e.isNotEmpty)
+          .join(', ');
     }
     return '';
   }
@@ -90,7 +94,9 @@ class _MedicalVaultScreenState extends State<MedicalVaultScreen> {
       setState(() {
         if (bloodGroup.isNotEmpty) _bloodGroup = bloodGroup;
         if (allergies.isNotEmpty) _allergies = allergies;
-        if (medicalConditions.isNotEmpty) _medicalConditions = medicalConditions;
+        if (medicalConditions.isNotEmpty) {
+          _medicalConditions = medicalConditions;
+        }
         if (medications.isNotEmpty) _medications = medications;
       });
 
@@ -115,9 +121,19 @@ class _MedicalVaultScreenState extends State<MedicalVaultScreen> {
           children: [
             FadeInDown(child: _buildEmergencyQR()),
             const SizedBox(height: 32),
-            _buildMedicalSection('Blood Group', _bloodGroup, Icons.bloodtype, Colors.red),
+            _buildMedicalSection(
+              'Blood Group',
+              _bloodGroup,
+              Icons.bloodtype,
+              Colors.red,
+            ),
             const SizedBox(height: 16),
-            _buildMedicalSection('Allergies', _allergies, Icons.warning, Colors.orange),
+            _buildMedicalSection(
+              'Allergies',
+              _allergies,
+              Icons.warning,
+              Colors.orange,
+            ),
             const SizedBox(height: 16),
             _buildMedicalSection(
               'Medical Conditions',
@@ -137,7 +153,9 @@ class _MedicalVaultScreenState extends State<MedicalVaultScreen> {
               onPressed: _isSaving ? null : _showEditMedicalDialog,
               icon: const Icon(Icons.edit),
               label: const Text('EDIT MEDICAL PROFILE'),
-              style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 55)),
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 55),
+              ),
             ),
           ],
         ),
@@ -151,13 +169,17 @@ class _MedicalVaultScreenState extends State<MedicalVaultScreen> {
       decoration: BoxDecoration(
         color: AppTheme.cardColor,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+        border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
           const Text(
             'Emergency Medical ID',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
           const SizedBox(height: 16),
           Container(
@@ -179,7 +201,12 @@ class _MedicalVaultScreenState extends State<MedicalVaultScreen> {
     );
   }
 
-  Widget _buildMedicalSection(String title, String value, IconData icon, Color color) {
+  Widget _buildMedicalSection(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -195,10 +222,17 @@ class _MedicalVaultScreenState extends State<MedicalVaultScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(color: Colors.white38, fontSize: 12)),
+                Text(
+                  title,
+                  style: const TextStyle(color: Colors.white38, fontSize: 12),
+                ),
                 Text(
                   value.trim().isEmpty ? 'Not provided' : value,
-                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -212,7 +246,9 @@ class _MedicalVaultScreenState extends State<MedicalVaultScreen> {
     final navigator = Navigator.of(context);
     final bloodController = TextEditingController(text: _bloodGroup);
     final allergiesController = TextEditingController(text: _allergies);
-    final conditionsController = TextEditingController(text: _medicalConditions);
+    final conditionsController = TextEditingController(
+      text: _medicalConditions,
+    );
     final medsController = TextEditingController(text: _medications);
 
     await showDialog(
@@ -233,17 +269,24 @@ class _MedicalVaultScreenState extends State<MedicalVaultScreen> {
               ),
               TextField(
                 controller: conditionsController,
-                decoration: const InputDecoration(labelText: 'Medical Conditions'),
+                decoration: const InputDecoration(
+                  labelText: 'Medical Conditions',
+                ),
               ),
               TextField(
                 controller: medsController,
-                decoration: const InputDecoration(labelText: 'Current Medications'),
+                decoration: const InputDecoration(
+                  labelText: 'Current Medications',
+                ),
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => navigator.pop(), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => navigator.pop(),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () async {
               await _saveMedicalProfile(

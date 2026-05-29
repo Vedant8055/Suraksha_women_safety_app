@@ -26,7 +26,7 @@ class _EmergencyModeScreenState extends ConsumerState<EmergencyModeScreen> {
   }
 
   void _showContactsInformedPopup() {
-    final contacts = ref.read(emergencyContactsProvider).take(3).toList();
+    final contacts = ref.read(emergencyContactsProvider);
     if (contacts.isEmpty || !mounted) return;
 
     showDialog(
@@ -39,7 +39,17 @@ class _EmergencyModeScreenState extends ConsumerState<EmergencyModeScreen> {
           children: [
             const Text('Live location has been shared with:'),
             const SizedBox(height: 10),
-            for (final c in contacts) Text('* ${c.name} (${c.phone})'),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 220),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final c in contacts) Text('* ${c.name} (${c.phone})'),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
         actions: [

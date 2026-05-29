@@ -77,15 +77,20 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
     if (_started) return;
     _started = true;
 
-    await _ensureGpsAndPermission();
-    if (!state.gpsEnabled || !state.permissionGranted) {
-      state = state.copyWith(trackingActive: false);
-      return;
-    }
+    try {
+      await _ensureGpsAndPermission();
+      if (!state.gpsEnabled || !state.permissionGranted) {
+        state = state.copyWith(trackingActive: false);
+        return;
+      }
 
-    await _bootstrapPosition();
-    _startLivePositionStream();
-    _startNearbyRefreshLoop();
+      await _bootstrapPosition();
+      _startLivePositionStream();
+      _startNearbyRefreshLoop();
+    } catch (_) {
+      _started = false;
+      state = state.copyWith(trackingActive: false);
+    }
   }
 
   Future<void> retry() async {
@@ -99,7 +104,11 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
     if (permission == LocationPermission.deniedForever) {
       await Geolocator.openAppSettings();
     }
-    await start();
+    try {
+      await start();
+    } catch (_) {
+      state = state.copyWith(trackingActive: false);
+    }
   }
 
   Future<void> stop() async {
@@ -116,7 +125,8 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
     }
-    final granted = permission == LocationPermission.always ||
+    final granted =
+        permission == LocationPermission.always ||
         permission == LocationPermission.whileInUse;
     final deniedForever = permission == LocationPermission.deniedForever;
 
@@ -126,10 +136,10 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
       statusMessage: !gpsEnabled
           ? 'GPS is off. Turn on location to capture live area data.'
           : deniedForever
-              ? 'Location permission permanently denied. Enable it in App Settings.'
-              : !granted
-              ? 'Location permission required for realtime safety monitoring.'
-              : 'GPS connected. Capturing realtime safety data.',
+          ? 'Location permission permanently denied. Enable it in App Settings.'
+          : !granted
+          ? 'Location permission required for realtime safety monitoring.'
+          : 'GPS connected. Capturing realtime safety data.',
       riskLabel: !gpsEnabled || !granted ? 'Location Off' : state.riskLabel,
     );
   }
@@ -161,42 +171,51 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
   void _startLivePositionStream() {
     final settings = Platform.isAndroid
         ? AndroidSettings(
-            accuracy: LocationAccuracy.bestForNavigation,
-            distanceFilter: 5,
-            intervalDuration: const Duration(seconds: 3),
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 15,
+            intervalDuration: const Duration(seconds: 8),
             foregroundNotificationConfig: const ForegroundNotificationConfig(
               notificationTitle: 'Suraksha Safety Monitor',
               notificationText: 'Capturing realtime area safety data.',
-              enableWakeLock: true,
+              enableWakeLock: false,
             ),
           )
         : const LocationSettings(
-            accuracy: LocationAccuracy.bestForNavigation,
-            distanceFilter: 5,
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 15,
           );
 
     _positionSubscription?.cancel();
     _positionSubscription =
-        Geolocator.getPositionStream(locationSettings: settings).listen((pos) {
-          state = state.copyWith(
-            position: pos,
-            trackingActive: true,
-            lastUpdatedAt: DateTime.now(),
-            statusMessage: 'Realtime area monitoring in progress.',
-          );
+        Geolocator.getPositionStream(locationSettings: settings).listen(
+          (pos) {
+            state = state.copyWith(
+              position: pos,
+              trackingActive: true,
+              lastUpdatedAt: DateTime.now(),
+              statusMessage: 'Realtime area monitoring in progress.',
+            );
 
-          final now = DateTime.now();
-          if (_lastNearbyRefreshAt == null ||
-              now.difference(_lastNearbyRefreshAt!) > const Duration(seconds: 20)) {
-            _lastNearbyRefreshAt = now;
-            _fetchNearbyCounts(pos.latitude, pos.longitude);
-          }
-        });
+            final now = DateTime.now();
+            if (_lastNearbyRefreshAt == null ||
+                now.difference(_lastNearbyRefreshAt!) >
+                    const Duration(seconds: 60)) {
+              _lastNearbyRefreshAt = now;
+              _fetchNearbyCounts(pos.latitude, pos.longitude);
+            }
+          },
+          onError: (_) {
+            state = state.copyWith(
+              trackingActive: false,
+              statusMessage: 'Live location stream paused.',
+            );
+          },
+        );
   }
 
   void _startNearbyRefreshLoop() {
     _nearbyRefreshTimer?.cancel();
-    _nearbyRefreshTimer = Timer.periodic(const Duration(seconds: 25), (_) async {
+    _nearbyRefreshTimer = Timer.periodic(const Duration(minutes: 2), (_) async {
       final pos = state.position;
       if (pos == null) return;
       await _fetchNearbyCounts(pos.latitude, pos.longitude);
@@ -222,8 +241,8 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
       final risk = score >= 80
           ? 'Low Risk'
           : score >= 55
-              ? 'Moderate Risk'
-              : 'High Risk';
+          ? 'Moderate Risk'
+          : 'High Risk';
 
       state = state.copyWith(
         nearbyPoliceCount: policeCount,

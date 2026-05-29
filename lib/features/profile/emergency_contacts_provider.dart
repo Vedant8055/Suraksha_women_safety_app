@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -42,33 +44,13 @@ final emergencyContactsProvider =
 class EmergencyContactsNotifier extends StateNotifier<List<EmergencyContact>> {
   final Dio _dio = DioClient().dio;
   static const String _contactsStorageKey = 'emergency_contacts_offline_v2';
-  static const List<EmergencyContact> _defaultEmergencyContacts = [
-    EmergencyContact(
-      id: 'default_7020094073',
-      name: 'Kaveri Emergency Contact 1',
-      phone: '7020094073',
-      relation: 'Emergency Contact',
-    ),
-    EmergencyContact(
-      id: 'default_9359264978',
-      name: 'Kaveri Emergency Contact 2',
-      phone: '9359264978',
-      relation: 'Emergency Contact',
-    ),
-    EmergencyContact(
-      id: 'default_8462969160',
-      name: 'Kaveri Emergency Contact 3',
-      phone: '8462969160',
-      relation: 'Emergency Contact',
-    ),
-  ];
 
   EmergencyContactsNotifier() : super(const []);
 
   Future<void> loadContacts() async {
-    final local = await _loadLocalContacts();
+    final local = _withoutLegacyDefaultContacts(await _loadLocalContacts());
     if (local.isNotEmpty) {
-      state = _withDefaultEmergencyContact(local);
+      state = local;
       await _persistLocalContacts(state);
     }
 
@@ -78,11 +60,11 @@ class EmergencyContactsNotifier extends StateNotifier<List<EmergencyContact>> {
       final remote = decoded
           .map((e) => EmergencyContact.fromJson(e as Map<String, dynamic>))
           .toList();
-      state = _withDefaultEmergencyContact(remote);
+      state = _mergeContacts(local, remote);
       await _persistLocalContacts(state);
     } on DioException {
       if (local.isEmpty) {
-        state = const [..._defaultEmergencyContacts];
+        state = const [];
         await _persistLocalContacts(state);
       }
     }
@@ -169,6 +151,16 @@ class EmergencyContactsNotifier extends StateNotifier<List<EmergencyContact>> {
     if (raw == null || raw.isEmpty) return const [];
 
     try {
+      if (raw.trimLeft().startsWith('[')) {
+        final decoded = jsonDecode(raw);
+        if (decoded is! List) return const [];
+
+        return decoded
+            .whereType<Map<String, dynamic>>()
+            .map(EmergencyContact.fromJson)
+            .toList();
+      }
+
       final decoded = raw.split('\n').where((e) => e.trim().isNotEmpty).map((
         line,
       ) {
@@ -188,21 +180,38 @@ class EmergencyContactsNotifier extends StateNotifier<List<EmergencyContact>> {
 
   Future<void> _persistLocalContacts(List<EmergencyContact> contacts) async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = contacts
-        .map((c) => '${c.id}|${c.name}|${c.phone}|${c.relation}')
-        .join('\n');
+    final raw = jsonEncode(contacts.map((c) => c.toJson()).toList());
     await prefs.setString(_contactsStorageKey, raw);
   }
 
-  List<EmergencyContact> _withDefaultEmergencyContact(
+  List<EmergencyContact> _mergeContacts(
+    List<EmergencyContact> local,
+    List<EmergencyContact> remote,
+  ) {
+    final byKey = <String, EmergencyContact>{};
+    for (final contact in [...local, ...remote]) {
+      final key = _contactKey(contact);
+      if (key.isEmpty) continue;
+      byKey[key] = contact;
+    }
+    return _withoutLegacyDefaultContacts(byKey.values.toList());
+  }
+
+  String _contactKey(EmergencyContact contact) {
+    final phone = contact.phone.replaceAll(RegExp(r'\D'), '');
+    if (phone.isNotEmpty) return 'phone:$phone';
+    if (contact.id.isNotEmpty) return 'id:${contact.id}';
+    return '';
+  }
+
+  List<EmergencyContact> _withoutLegacyDefaultContacts(
     List<EmergencyContact> contacts,
   ) {
-    final savedPhones = contacts
-        .map((contact) => contact.phone.replaceAll(RegExp(r'\D'), ''))
-        .toSet();
-    final missingDefaults = _defaultEmergencyContacts.where(
-      (contact) => !savedPhones.contains(contact.phone),
-    );
-    return [...missingDefaults, ...contacts];
+    const legacyPhones = {'7020094073', '9359264978', '8462969160'};
+    return contacts.where((contact) {
+      final phone = contact.phone.replaceAll(RegExp(r'\D'), '');
+      return !contact.id.startsWith('default_') &&
+          !legacyPhones.contains(phone);
+    }).toList();
   }
 }

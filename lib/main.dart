@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +7,7 @@ import 'package:suraksha_women_safety_app/theme/app_theme.dart';
 import 'package:suraksha_women_safety_app/theme/theme_mode_provider.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/dashboard_screen.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/safety_monitor_provider.dart';
+import 'package:suraksha_women_safety_app/features/sos/scream_detection_service.dart';
 import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
 import 'package:suraksha_women_safety_app/localization/locale_provider.dart';
 
@@ -14,7 +17,9 @@ void main() {
 }
 
 class MyApp extends ConsumerStatefulWidget {
-  const MyApp({super.key});
+  final bool startBackgroundServices;
+
+  const MyApp({super.key, this.startBackgroundServices = true});
 
   @override
   ConsumerState<MyApp> createState() => _MyAppState();
@@ -28,7 +33,15 @@ class _MyAppState extends ConsumerState<MyApp> {
     super.initState();
     _lifecycleHandler = _AppLifecycleHandler(ref);
     WidgetsBinding.instance.addObserver(_lifecycleHandler);
-    ref.read(safetyMonitorProvider.notifier).start();
+    if (widget.startBackgroundServices) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        unawaited(
+          ref.read(safetyMonitorProvider.notifier).start().catchError((_) {}),
+        );
+        ref.read(screamDetectionProvider);
+      });
+    }
   }
 
   @override
@@ -68,7 +81,9 @@ class _AppLifecycleHandler extends WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      ref.read(safetyMonitorProvider.notifier).retry();
+      unawaited(
+        ref.read(safetyMonitorProvider.notifier).start().catchError((_) {}),
+      );
     }
   }
 }

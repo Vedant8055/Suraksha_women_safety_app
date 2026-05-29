@@ -9,7 +9,8 @@ class SafetyRadar extends StatefulWidget {
   State<SafetyRadar> createState() => _SafetyRadarState();
 }
 
-class _SafetyRadarState extends State<SafetyRadar> with SingleTickerProviderStateMixin {
+class _SafetyRadarState extends State<SafetyRadar>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
@@ -51,7 +52,7 @@ class RadarPainter extends CustomPainter {
     final radius = min(size.width / 2, size.height / 2);
 
     final bgPaint = Paint()
-      ..color = AppTheme.primaryColor.withOpacity(0.1)
+      ..color = AppTheme.primaryColor.withValues(alpha: 0.1)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
 
@@ -64,7 +65,7 @@ class RadarPainter extends CustomPainter {
     final sweepShader = SweepGradient(
       colors: [
         Colors.transparent,
-        AppTheme.primaryColor.withOpacity(0.5),
+        AppTheme.primaryColor.withValues(alpha: 0.5),
       ],
       stops: const [0.75, 1.0],
       transform: GradientRotation(angle * 2 * pi),
@@ -83,11 +84,12 @@ class RadarPainter extends CustomPainter {
         center.dx + pRadius * cos(pAngle),
         center.dy + pRadius * sin(pAngle),
       );
-      
+
       final sweepAngle = (angle * 2 * pi) % (2 * pi);
       final diff = (sweepAngle - pAngle).abs();
       if (diff < 0.5) {
-        final pointPaint = Paint()..color = Colors.greenAccent.withOpacity(1 - diff * 2);
+        final pointPaint = Paint()
+          ..color = Colors.greenAccent.withValues(alpha: 1 - diff * 2);
         canvas.drawCircle(pointOffset, 4, pointPaint);
       }
     }

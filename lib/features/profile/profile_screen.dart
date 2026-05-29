@@ -10,6 +10,7 @@ import 'package:suraksha_women_safety_app/constants/api_constants.dart';
 import 'package:suraksha_women_safety_app/core/network/dio_client.dart';
 import 'package:suraksha_women_safety_app/features/auth/auth_provider.dart';
 import 'package:suraksha_women_safety_app/features/profile/emergency_contacts_provider.dart';
+import 'package:suraksha_women_safety_app/features/sos/scream_detection_service.dart';
 import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
 import 'package:suraksha_women_safety_app/localization/locale_provider.dart';
 import 'package:suraksha_women_safety_app/models/user_model.dart';
@@ -27,11 +28,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final Dio _dio = DioClient().dio;
   static const String _localNameKey = 'profile_local_name_v1';
   static const String _localEmailKey = 'profile_local_email_v1';
+  static const String _localPhoneKey = 'profile_local_phone_v1';
   static const String _localBloodKey = 'profile_local_blood_v1';
   static const String _localPhotoPathKey = 'profile_local_photo_path_v1';
   bool _isSaving = false;
   String? _localName;
   String? _localEmail;
+  String? _localPhone;
   String? _localBloodGroup;
   String? _localPhotoPath;
   String _extractError(Object error) {
@@ -67,6 +70,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     setState(() {
       _localName = prefs.getString(_localNameKey);
       _localEmail = prefs.getString(_localEmailKey);
+      _localPhone = prefs.getString(_localPhoneKey);
       _localBloodGroup = prefs.getString(_localBloodKey);
       _localPhotoPath = prefs.getString(_localPhotoPathKey);
     });
@@ -75,12 +79,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _saveLocalProfile({
     required String fullName,
     required String email,
+    required String phone,
     required String bloodGroup,
     String? localPhotoPath,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_localNameKey, fullName);
     await prefs.setString(_localEmailKey, email);
+    await prefs.setString(_localPhoneKey, phone);
     await prefs.setString(_localBloodKey, bloodGroup);
     if (localPhotoPath != null && localPhotoPath.isNotEmpty) {
       await prefs.setString(_localPhotoPathKey, localPhotoPath);
@@ -89,6 +95,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     setState(() {
       _localName = fullName;
       _localEmail = email;
+      _localPhone = phone;
       _localBloodGroup = bloodGroup;
       if (localPhotoPath != null && localPhotoPath.isNotEmpty) {
         _localPhotoPath = localPhotoPath;
@@ -107,7 +114,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final displayEmail = (_localEmail != null && _localEmail!.trim().isNotEmpty)
         ? _localEmail!
         : (user?.email ?? 'email@example.com');
+    final displayPhone = (_localPhone != null && _localPhone!.trim().isNotEmpty)
+        ? _localPhone!
+        : (user?.phone ?? l10n.t('notProvided'));
     final contacts = ref.watch(emergencyContactsProvider);
+    final screamDetectionState = ref.watch(screamDetectionProvider);
     final themeMode = ref.watch(appThemeModeProvider);
     final currentLocale = ref.watch(appLocaleProvider);
     final selectedLanguage = AppLanguage.values.firstWhere(
@@ -115,6 +126,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       orElse: () => AppLanguage.english,
     );
     final isDarkMode = themeMode == ThemeMode.dark;
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final profileText = isLight ? const Color(0xFF172235) : Colors.white;
+    final profileMuted = isLight ? const Color(0xFF5F6F8A) : Colors.white70;
+    final profileCard = isLight ? Colors.white : AppTheme.cardColor;
+    final profileBorder = isLight
+        ? const Color(0xFFDCE5F6)
+        : Colors.transparent;
     final ImageProvider<Object>? profileImage =
         _localPhotoPath != null && _localPhotoPath!.isNotEmpty
         ? FileImage(File(_localPhotoPath!))
@@ -134,7 +152,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   children: [
                     CircleAvatar(
                       radius: 60,
-                      backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
+                      backgroundColor: AppTheme.primaryColor.withValues(
+                        alpha: 0.2,
+                      ),
                       backgroundImage: profileImage,
                       child:
                           ((_localPhotoPath == null ||
@@ -177,10 +197,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+              ).copyWith(color: profileText),
             ),
-            Text(displayEmail, style: const TextStyle(color: Colors.white70)),
+            Text(displayEmail, style: TextStyle(color: profileMuted)),
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
@@ -191,6 +210,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         user,
                         displayName: displayName,
                         displayEmail: displayEmail,
+                        displayPhone: displayPhone == l10n.t('notProvided')
+                            ? ''
+                            : displayPhone,
                       ),
                 icon: const Icon(Icons.edit),
                 label: Text(l10n.t('editProfileDetails')),
@@ -199,14 +221,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             const SizedBox(height: 12),
             Container(
               decoration: BoxDecoration(
-                color: AppTheme.cardColor,
+                color: profileCard,
                 borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: profileBorder),
               ),
               child: SwitchListTile(
                 title: Text(
                   l10n.t('darkMode'),
                   style: TextStyle(
-                    color: Colors.white,
+                    color: profileText,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -214,7 +237,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   isDarkMode
                       ? l10n.t('darkModeSubtitleOn')
                       : l10n.t('darkModeSubtitleOff'),
-                  style: const TextStyle(color: Colors.white70),
+                  style: TextStyle(color: profileMuted),
                 ),
                 value: isDarkMode,
                 activeThumbColor: AppTheme.primaryColor,
@@ -227,10 +250,43 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             const SizedBox(height: 12),
             Container(
+              decoration: BoxDecoration(
+                color: profileCard,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: profileBorder),
+              ),
+              child: SwitchListTile(
+                secondary: const Icon(
+                  Icons.graphic_eq,
+                  color: AppTheme.primaryColor,
+                ),
+                title: Text(
+                  'Scream Detection',
+                  style: TextStyle(
+                    color: profileText,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: Text(
+                  screamDetectionState.monitoring
+                      ? 'Microphone safety monitor is active.'
+                      : 'Microphone stays off while this is disabled.',
+                  style: TextStyle(color: profileMuted),
+                ),
+                value: screamDetectionState.enabled,
+                activeThumbColor: AppTheme.primaryColor,
+                onChanged: _isSaving
+                    ? null
+                    : (enabled) => _setScreamDetectionEnabled(enabled),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.cardColor,
+                color: profileCard,
                 borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: profileBorder),
               ),
               child: Row(
                 children: [
@@ -242,18 +298,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       children: [
                         Text(
                           l10n.t('language'),
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: profileText,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           l10n.t('contentLanguage'),
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                          ),
+                          style: TextStyle(color: profileMuted, fontSize: 12),
                         ),
                       ],
                     ),
@@ -261,8 +314,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   DropdownButtonHideUnderline(
                     child: DropdownButton<AppLanguage>(
                       value: selectedLanguage,
-                      dropdownColor: AppTheme.cardColor,
-                      style: const TextStyle(color: Colors.white),
+                      dropdownColor: profileCard,
+                      style: TextStyle(color: profileText),
                       iconEnabledColor: AppTheme.primaryColor,
                       onChanged: (value) {
                         if (value == null) return;
@@ -289,12 +342,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             const SizedBox(height: 12),
             _buildProfileItem(
+              context,
               l10n.t('phoneNumber'),
-              user?.phone ?? l10n.t('notProvided'),
+              displayPhone,
               Icons.phone,
             ),
             const SizedBox(height: 16),
             _buildProfileItem(
+              context,
               l10n.t('emergencyContacts'),
               '${contacts.length} ${l10n.t('contactsSaved')}',
               Icons.people,
@@ -305,7 +360,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               child: Text(
                 l10n.t('emergencyContactList'),
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Colors.white,
+                  color: profileText,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -330,7 +385,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ElevatedButton(
               onPressed: () => ref.read(authProvider.notifier).logout(),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.withOpacity(0.1),
+                backgroundColor: Colors.red.withValues(alpha: 0.1),
                 foregroundColor: Colors.red,
                 side: const BorderSide(color: Colors.red),
                 minimumSize: const Size(double.infinity, 60),
@@ -343,12 +398,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _buildProfileItem(String title, String value, IconData icon) {
+  Widget _buildProfileItem(
+    BuildContext context,
+    String title,
+    String value,
+    IconData icon,
+  ) {
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final textColor = isLight ? const Color(0xFF172235) : Colors.white;
+    final mutedColor = isLight ? const Color(0xFF5F6F8A) : Colors.white38;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.cardColor,
+        color: isLight ? Colors.white : AppTheme.cardColor,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isLight ? const Color(0xFFDCE5F6) : Colors.transparent,
+        ),
       ),
       child: Row(
         children: [
@@ -358,14 +424,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(color: Colors.white38, fontSize: 12),
-                ),
+                Text(title, style: TextStyle(color: mutedColor, fontSize: 12)),
                 Text(
                   value,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: textColor,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -378,11 +441,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Widget _buildContactItem(EmergencyContact contact) {
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final textColor = isLight ? const Color(0xFF172235) : Colors.white;
+    final mutedColor = isLight ? const Color(0xFF5F6F8A) : Colors.white38;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.cardColor,
+        color: isLight ? Colors.white : AppTheme.cardColor,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isLight ? const Color(0xFFDCE5F6) : Colors.transparent,
+        ),
       ),
       child: Row(
         children: [
@@ -394,12 +463,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               children: [
                 Text(
                   contact.name,
-                  style: const TextStyle(color: Colors.white38, fontSize: 12),
+                  style: TextStyle(color: mutedColor, fontSize: 12),
                 ),
                 Text(
                   '${contact.phone} • ${contact.relation}',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: textColor,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -419,14 +488,33 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  Future<void> _setScreamDetectionEnabled(bool enabled) async {
+    final success = await ref
+        .read(screamDetectionProvider.notifier)
+        .setEnabled(enabled);
+    if (!mounted) return;
+
+    final state = ref.read(screamDetectionProvider);
+    final message = success
+        ? enabled
+              ? 'Scream detection enabled.'
+              : 'Scream detection disabled.'
+        : state.error ?? 'Could not enable scream detection.';
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Future<void> _showEditProfileDialog(
     UserModel? user, {
     required String displayName,
     required String displayEmail,
+    required String displayPhone,
   }) async {
     final navigator = Navigator.of(context);
     final nameController = TextEditingController(text: displayName);
     final emailController = TextEditingController(text: displayEmail);
+    final phoneController = TextEditingController(text: displayPhone);
     final bloodController = TextEditingController(
       text: (_localBloodGroup != null && _localBloodGroup!.isNotEmpty)
           ? _localBloodGroup
@@ -450,6 +538,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               decoration: const InputDecoration(labelText: 'Email'),
             ),
             TextField(
+              controller: phoneController,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(labelText: 'Phone Number'),
+            ),
+            TextField(
               controller: bloodController,
               decoration: const InputDecoration(labelText: 'Blood Group'),
             ),
@@ -466,6 +559,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 await _updateProfile(
                   fullName: nameController.text.trim(),
                   email: emailController.text.trim(),
+                  phone: phoneController.text.trim(),
                   bloodGroup: bloodController.text.trim(),
                 );
                 if (mounted) navigator.pop();
@@ -607,6 +701,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _updateProfile({
     required String fullName,
     required String email,
+    required String phone,
     required String bloodGroup,
   }) async {
     setState(() => _isSaving = true);
@@ -614,6 +709,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       await _saveLocalProfile(
         fullName: fullName,
         email: email,
+        phone: phone,
         bloodGroup: bloodGroup,
       );
       final currentUser = ref.read(authProvider).user;
@@ -624,6 +720,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               currentUser.copyWith(
                 name: fullName,
                 email: email,
+                phone: phone,
                 bloodGroup: bloodGroup,
               ),
             );
@@ -631,7 +728,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
       final response = await _dio.patch(
         ApiConstants.profile,
-        data: {'fullName': fullName, 'email': email, 'bloodGroup': bloodGroup},
+        data: {
+          'fullName': fullName,
+          'email': email,
+          'phone': phone,
+          'bloodGroup': bloodGroup,
+        },
       );
       final updatedUser = UserModel.fromJson(
         response.data as Map<String, dynamic>,
@@ -640,6 +742,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       await _saveLocalProfile(
         fullName: updatedUser.name,
         email: updatedUser.email,
+        phone: updatedUser.phone,
         bloodGroup: updatedUser.bloodGroup ?? bloodGroup,
       );
     } on DioException {
@@ -664,6 +767,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       await _saveLocalProfile(
         fullName: _localName ?? (ref.read(authProvider).user?.name ?? ''),
         email: _localEmail ?? (ref.read(authProvider).user?.email ?? ''),
+        phone: _localPhone ?? (ref.read(authProvider).user?.phone ?? ''),
         bloodGroup:
             _localBloodGroup ?? (ref.read(authProvider).user?.bloodGroup ?? ''),
         localPhotoPath: picked.path,

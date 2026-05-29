@@ -15,6 +15,7 @@ import 'package:suraksha_women_safety_app/features/maps/safety_map_screen.dart';
 import 'package:suraksha_women_safety_app/features/medical/medical_vault_screen.dart';
 import 'package:suraksha_women_safety_app/features/posh/posh_chat_screen.dart';
 import 'package:suraksha_women_safety_app/features/profile/profile_screen.dart';
+import 'package:suraksha_women_safety_app/features/dashboard/community_alerts_provider.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/nearby_places_provider.dart';
 import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
 
@@ -158,7 +159,7 @@ class DashboardScreen extends ConsumerWidget {
                     delay: const Duration(milliseconds: 300),
                     duration: const Duration(milliseconds: 440),
                     from: 10,
-                    child: _buildRecentAlerts(),
+                    child: _buildRecentAlerts(context, ref),
                   ),
                   const SizedBox(height: 24),
                   FadeInUp(
@@ -515,46 +516,118 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildRecentAlerts() {
-    // keep colors adaptive for premium light mode
+  Widget _buildRecentAlerts(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final alertsState = ref.watch(communityAlertsProvider);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Builder(
-          builder: (context) {
-            final isLight = Theme.of(context).brightness == Brightness.light;
-            return Text(
-              AppLocalizations.of(context).t('communityAlerts'),
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: isLight ? const Color(0xFF172235) : Colors.white,
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                l10n.t('communityAlerts'),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: isLight ? const Color(0xFF172235) : Colors.white,
+                ),
               ),
-            );
-          },
+            ),
+            IconButton(
+              tooltip: 'Refresh live alerts',
+              onPressed: alertsState.isLoading
+                  ? null
+                  : () => ref.read(communityAlertsProvider.notifier).refresh(),
+              icon: alertsState.isLoading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(
+                      Icons.refresh_rounded,
+                      color: isLight ? const Color(0xFF36506F) : Colors.white70,
+                    ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
-        Builder(
-          builder: (context) => _buildAlertCard(
+        if (alertsState.error != null)
+          _buildAlertCard(
             context,
-            AppLocalizations.of(context).t('safeZoneUpdatedNearby'),
-            AppLocalizations.of(context).t('minsAgo2'),
-            Icons.location_on_rounded,
-            const Color(0xFF26BF96),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Builder(
-          builder: (context) => _buildAlertCard(
-            context,
-            AppLocalizations.of(context).t('crowdedAreaWarning'),
-            AppLocalizations.of(context).t('minsAgo15'),
+            alertsState.error!,
+            'Tap refresh to try again',
             Icons.warning_amber_rounded,
             const Color(0xFFF3B13E),
+          )
+        else if (alertsState.alerts.isEmpty && alertsState.isLoading)
+          _buildAlertCard(
+            context,
+            'Loading live area alerts...',
+            'Checking traffic, transport and nearby activity',
+            Icons.sync_rounded,
+            AppTheme.primaryColor,
+          )
+        else if (alertsState.alerts.isEmpty)
+          _buildAlertCard(
+            context,
+            'Live alerts will appear here',
+            'Keep GPS on for realtime community updates',
+            Icons.location_searching_rounded,
+            const Color(0xFF26BF96),
+          )
+        else
+          ...alertsState.alerts.map(
+            (alert) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildAlertCard(
+                context,
+                alert.title,
+                '${alert.detail} | ${alert.timeText}',
+                _iconForCommunityAlert(alert.kind),
+                _colorForCommunityAlert(alert.kind),
+              ),
+            ),
           ),
-        ),
       ],
     );
+  }
+
+  IconData _iconForCommunityAlert(CommunityAlertKind kind) {
+    switch (kind) {
+      case CommunityAlertKind.traffic:
+        return Icons.traffic_rounded;
+      case CommunityAlertKind.transport:
+        return Icons.directions_bus_rounded;
+      case CommunityAlertKind.lonelyRoad:
+        return Icons.route_rounded;
+      case CommunityAlertKind.silentZone:
+        return Icons.volume_off_rounded;
+      case CommunityAlertKind.roadBlock:
+        return Icons.construction_rounded;
+      case CommunityAlertKind.safetyContext:
+        return Icons.info_outline_rounded;
+    }
+  }
+
+  Color _colorForCommunityAlert(CommunityAlertKind kind) {
+    switch (kind) {
+      case CommunityAlertKind.traffic:
+        return const Color(0xFFF3B13E);
+      case CommunityAlertKind.transport:
+        return const Color(0xFF1D8CF8);
+      case CommunityAlertKind.lonelyRoad:
+        return const Color(0xFFFF5D73);
+      case CommunityAlertKind.silentZone:
+        return const Color(0xFF8E7CF4);
+      case CommunityAlertKind.roadBlock:
+        return const Color(0xFFE66E41);
+      case CommunityAlertKind.safetyContext:
+        return const Color(0xFF26BF96);
+    }
   }
 
   Future<void> _openDialPad(BuildContext context, String number) async {
@@ -718,234 +791,544 @@ class DashboardScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final isLight = Theme.of(context).brightness == Brightness.light;
     final nearbyState = ref.watch(nearbyPlacesProvider);
+    final activeType = nearbyState.activeType;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF121E34), Color(0xFF0B172A)],
+        gradient: LinearGradient(
+          colors: isLight
+              ? const [Color(0xFFFFFFFF), Color(0xFFF6FAFF), Color(0xFFEAF3FF)]
+              : const [Color(0xFF15233A), Color(0xFF0B172A), Color(0xFF101827)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        color: isLight ? const Color(0xFFFFFFFF) : null,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: isLight
-              ? const Color(0xFFDCE5F6)
-              : Colors.white.withValues(alpha: 0.12),
+              ? const Color(0xFFCFE0F6)
+              : Colors.white.withValues(alpha: 0.14),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: isLight
+                ? const Color(0xFF7892B8).withValues(alpha: 0.18)
+                : Colors.black.withValues(alpha: 0.32),
+            blurRadius: 22,
+            offset: const Offset(0, 12),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            l10n.t('nearbyServices'),
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: isLight ? const Color(0xFF172235) : Colors.white,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
+          Row(
             children: [
-              SizedBox(
-                height: 48,
-                width: double.infinity,
-                child: _nearbyButton(
-                  context: context,
-                  label: l10n.t('nearbyHospitals'),
-                  icon: Icons.local_hospital_rounded,
-                  loading:
-                      nearbyState.isLoading &&
-                      nearbyState.activeType == NearbyPlaceType.hospitals,
-                  onPressed: () => ref
-                      .read(nearbyPlacesProvider.notifier)
-                      .fetchNearby(NearbyPlaceType.hospitals),
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF2FB79E), Color(0xFF3B82F6)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF2FB79E).withValues(alpha: 0.24),
+                      blurRadius: 14,
+                      offset: const Offset(0, 7),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.near_me_rounded,
+                  color: Colors.white,
+                  size: 22,
                 ),
               ),
-              SizedBox(
-                height: 48,
-                width: double.infinity,
-                child: _nearbyButton(
-                  context: context,
-                  label: l10n.t('policeStations'),
-                  icon: Icons.local_police_rounded,
-                  loading:
-                      nearbyState.isLoading &&
-                      nearbyState.activeType == NearbyPlaceType.policeStations,
-                  onPressed: () => ref
-                      .read(nearbyPlacesProvider.notifier)
-                      .fetchNearby(NearbyPlaceType.policeStations),
-                ),
-              ),
-              SizedBox(
-                height: 48,
-                width: double.infinity,
-                child: _nearbyButton(
-                  context: context,
-                  label: l10n.t('nearbyWashrooms'),
-                  icon: Icons.wc_rounded,
-                  loading:
-                      nearbyState.isLoading &&
-                      nearbyState.activeType == NearbyPlaceType.washrooms,
-                  onPressed: () => ref
-                      .read(nearbyPlacesProvider.notifier)
-                      .fetchNearby(NearbyPlaceType.washrooms),
-                ),
-              ),
-              SizedBox(
-                height: 48,
-                width: double.infinity,
-                child: _nearbyButton(
-                  context: context,
-                  label: l10n.t('nearbyBloodBanks'),
-                  icon: Icons.bloodtype_rounded,
-                  loading:
-                      nearbyState.isLoading &&
-                      nearbyState.activeType == NearbyPlaceType.bloodBanks,
-                  onPressed: () => ref
-                      .read(nearbyPlacesProvider.notifier)
-                      .fetchNearby(NearbyPlaceType.bloodBanks),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.t('nearbyServices'),
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w900,
+                        color: isLight ? const Color(0xFF13243D) : Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      nearbyState.places.isNotEmpty
+                          ? '${nearbyState.places.length} nearby results'
+                          : 'Choose a service to scan your area',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isLight
+                            ? const Color(0xFF627491)
+                            : Colors.white.withValues(alpha: 0.68),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const gap = 10.0;
+              final tileWidth = (constraints.maxWidth - gap) / 2;
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: [
+                  _nearbyServiceTile(
+                    context: context,
+                    width: tileWidth,
+                    label: l10n.t('nearbyHospitals'),
+                    icon: Icons.local_hospital_rounded,
+                    color: const Color(0xFFE45858),
+                    active: activeType == NearbyPlaceType.hospitals,
+                    loading:
+                        nearbyState.isLoading &&
+                        activeType == NearbyPlaceType.hospitals,
+                    onPressed: () => ref
+                        .read(nearbyPlacesProvider.notifier)
+                        .fetchNearby(NearbyPlaceType.hospitals),
+                  ),
+                  _nearbyServiceTile(
+                    context: context,
+                    width: tileWidth,
+                    label: l10n.t('policeStations'),
+                    icon: Icons.local_police_rounded,
+                    color: const Color(0xFF3B82F6),
+                    active: activeType == NearbyPlaceType.policeStations,
+                    loading:
+                        nearbyState.isLoading &&
+                        activeType == NearbyPlaceType.policeStations,
+                    onPressed: () => ref
+                        .read(nearbyPlacesProvider.notifier)
+                        .fetchNearby(NearbyPlaceType.policeStations),
+                  ),
+                  _nearbyServiceTile(
+                    context: context,
+                    width: tileWidth,
+                    label: l10n.t('nearbyWashrooms'),
+                    icon: Icons.wc_rounded,
+                    color: const Color(0xFF2FB79E),
+                    active: activeType == NearbyPlaceType.washrooms,
+                    loading:
+                        nearbyState.isLoading &&
+                        activeType == NearbyPlaceType.washrooms,
+                    onPressed: () => ref
+                        .read(nearbyPlacesProvider.notifier)
+                        .fetchNearby(NearbyPlaceType.washrooms),
+                  ),
+                  _nearbyServiceTile(
+                    context: context,
+                    width: tileWidth,
+                    label: l10n.t('nearbyBloodBanks'),
+                    icon: Icons.bloodtype_rounded,
+                    color: const Color(0xFFD64271),
+                    active: activeType == NearbyPlaceType.bloodBanks,
+                    loading:
+                        nearbyState.isLoading &&
+                        activeType == NearbyPlaceType.bloodBanks,
+                    onPressed: () => ref
+                        .read(nearbyPlacesProvider.notifier)
+                        .fetchNearby(NearbyPlaceType.bloodBanks),
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 16),
           if (nearbyState.error != null)
-            Text(
-              nearbyState.error!,
-              style: const TextStyle(
-                color: Color(0xFFFFB3B3),
-                fontWeight: FontWeight.w600,
-              ),
+            _nearbyStatusPanel(
+              context: context,
+              icon: Icons.warning_amber_rounded,
+              title: nearbyState.error!,
+              tone: const Color(0xFFE66E41),
             )
           else if (nearbyState.isLoading)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
+            _nearbyStatusPanel(
+              context: context,
+              icon: Icons.radar_rounded,
+              title: 'Scanning nearby places...',
+              tone: activeType == NearbyPlaceType.bloodBanks
+                  ? const Color(0xFFD64271)
+                  : activeType == NearbyPlaceType.washrooms
+                  ? const Color(0xFF2FB79E)
+                  : activeType == NearbyPlaceType.policeStations
+                  ? const Color(0xFF3B82F6)
+                  : const Color(0xFFE45858),
+              loading: true,
             )
           else if (nearbyState.activeType != null && nearbyState.places.isEmpty)
-            Text(
-              l10n.t('noNearbyPlaces'),
-              style: TextStyle(color: AppTheme.textSecondary),
+            _nearbyStatusPanel(
+              context: context,
+              icon: Icons.search_off_rounded,
+              title: l10n.t('noNearbyPlaces'),
+              tone: const Color(0xFF8E7CF4),
             )
           else if (nearbyState.places.isNotEmpty)
             Column(
               children: nearbyState.places.take(8).map((place) {
-                final ratingText = place.rating != null
-                    ? 'Rating ${place.rating!.toStringAsFixed(1)}'
-                    : 'Rating N/A';
-                final openText = place.isOpenNow == null
-                    ? 'Hours unavailable'
-                    : (place.isOpenNow! ? 'Open now' : 'Closed now');
-                final detailsText =
-                    '${place.distanceText} | $ratingText | $openText';
-
-                return InkWell(
-                  onTap: () => _confirmAndOpenOnMap(context, place),
-                  borderRadius: BorderRadius.circular(14),
-                  child: Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.only(bottom: 10),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: isLight
-                          ? const Color(0xFFF4F8FF)
-                          : AppTheme.surfaceSoft.withValues(alpha: 0.55),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: isLight
-                            ? const Color(0xFFDCE5F6)
-                            : Colors.white.withValues(alpha: 0.1),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          place.name,
-                          style: TextStyle(
-                            color: isLight
-                                ? const Color(0xFF172235)
-                                : Colors.white,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          place.address,
-                          style: const TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 12,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          detailsText,
-                          style: const TextStyle(
-                            color: Color(0xFFC6D6EC),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _nearbyResultCard(
+                    context: context,
+                    place: place,
+                    onTap: () => _confirmAndOpenOnMap(context, place),
                   ),
                 );
               }).toList(),
             )
           else
-            Text(
-              l10n.t('tapToLoadNearby'),
-              style: TextStyle(color: AppTheme.textSecondary),
+            _nearbyStatusPanel(
+              context: context,
+              icon: Icons.touch_app_rounded,
+              title: l10n.t('tapToLoadNearby'),
+              tone: const Color(0xFF3B82F6),
             ),
         ],
       ),
     );
   }
 
-  Widget _nearbyButton({
+  Widget _nearbyServiceTile({
     required BuildContext context,
+    required double width,
     required String label,
     required IconData icon,
+    required Color color,
+    required bool active,
     required bool loading,
     required VoidCallback onPressed,
   }) {
-    // keep contrast high in both modes
-    return ElevatedButton.icon(
-      onPressed: loading ? null : onPressed,
-      icon: loading
-          ? const SizedBox(
-              width: 14,
-              height: 14,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : Icon(icon, size: 18),
-      label: Text(label, textAlign: TextAlign.center),
-      style: ElevatedButton.styleFrom(
-        backgroundColor:
-            ThemeData.estimateBrightnessForColor(
-                  Theme.of(context).scaffoldBackgroundColor,
-                ) ==
-                Brightness.light
-            ? const Color(0xFFEAF2FF)
-            : const Color(0xFF1A355A),
-        foregroundColor:
-            ThemeData.estimateBrightnessForColor(
-                  Theme.of(context).scaffoldBackgroundColor,
-                ) ==
-                Brightness.light
-            ? const Color(0xFF173056)
-            : Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        elevation: 0,
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final textColor = active
+        ? Colors.white
+        : (isLight ? const Color(0xFF172235) : Colors.white);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: loading ? null : onPressed,
+        borderRadius: BorderRadius.circular(18),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          width: width,
+          constraints: const BoxConstraints(minHeight: 94),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            gradient: active
+                ? LinearGradient(
+                    colors: [color, Color.lerp(color, Colors.black, 0.18)!],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : LinearGradient(
+                    colors: isLight
+                        ? const [Color(0xFFFFFFFF), Color(0xFFF2F7FF)]
+                        : [
+                            AppTheme.surfaceSoft.withValues(alpha: 0.72),
+                            const Color(0xFF10213A),
+                          ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: active
+                  ? Colors.white.withValues(alpha: 0.32)
+                  : isLight
+                  ? const Color(0xFFD8E5F7)
+                  : Colors.white.withValues(alpha: 0.1),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: active
+                    ? color.withValues(alpha: 0.32)
+                    : isLight
+                    ? const Color(0xFF8A9FBE).withValues(alpha: 0.12)
+                    : Colors.black.withValues(alpha: 0.18),
+                blurRadius: active ? 18 : 10,
+                offset: const Offset(0, 7),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: active
+                          ? Colors.white.withValues(alpha: 0.22)
+                          : color.withValues(alpha: isLight ? 0.14 : 0.22),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: loading
+                        ? const Padding(
+                            padding: EdgeInsets.all(9),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Icon(icon, color: active ? Colors.white : color),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 18,
+                    color: active
+                        ? Colors.white.withValues(alpha: 0.86)
+                        : color.withValues(alpha: 0.82),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 13,
+                  height: 1.12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _nearbyStatusPanel({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    required Color tone,
+    bool loading = false,
+  }) {
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isLight
+            ? Colors.white.withValues(alpha: 0.76)
+            : Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isLight
+              ? const Color(0xFFD8E5F7)
+              : Colors.white.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: tone.withValues(alpha: isLight ? 0.13 : 0.22),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: loading
+                ? Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: tone,
+                    ),
+                  )
+                : Icon(icon, color: tone, size: 21),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                color: isLight ? const Color(0xFF334158) : Colors.white70,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _nearbyResultCard({
+    required BuildContext context,
+    required NearbyPlaceItem place,
+    required VoidCallback onTap,
+  }) {
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final ratingText = place.rating != null
+        ? place.rating!.toStringAsFixed(1)
+        : 'N/A';
+    final openText = place.isOpenNow == null
+        ? 'Hours unavailable'
+        : (place.isOpenNow! ? 'Open now' : 'Closed now');
+    final openColor = place.isOpenNow == true
+        ? const Color(0xFF2FB79E)
+        : place.isOpenNow == false
+        ? const Color(0xFFE66E41)
+        : const Color(0xFF8E7CF4);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(13),
+          decoration: BoxDecoration(
+            color: isLight
+                ? Colors.white.withValues(alpha: 0.88)
+                : AppTheme.surfaceSoft.withValues(alpha: 0.56),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isLight
+                  ? const Color(0xFFD8E5F7)
+                  : Colors.white.withValues(alpha: 0.1),
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(
+                    0xFF3B82F6,
+                  ).withValues(alpha: isLight ? 0.12 : 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.place_rounded,
+                  color: Color(0xFF3B82F6),
+                  size: 21,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      place.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: isLight ? const Color(0xFF172235) : Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      place.address,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: isLight
+                            ? const Color(0xFF627491)
+                            : Colors.white.withValues(alpha: 0.64),
+                        fontSize: 12,
+                        height: 1.25,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 9),
+                    Wrap(
+                      spacing: 7,
+                      runSpacing: 7,
+                      children: [
+                        _nearbyChip(
+                          context: context,
+                          icon: Icons.route_rounded,
+                          label: place.distanceText,
+                          color: const Color(0xFF3B82F6),
+                        ),
+                        _nearbyChip(
+                          context: context,
+                          icon: Icons.star_rounded,
+                          label: ratingText,
+                          color: const Color(0xFFF3B13E),
+                        ),
+                        _nearbyChip(
+                          context: context,
+                          icon: Icons.schedule_rounded,
+                          label: openText,
+                          color: openColor,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: isLight ? const Color(0xFF8FA2BE) : Colors.white30,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _nearbyChip({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isLight ? 0.1 : 0.16),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: isLight ? const Color(0xFF334158) : Colors.white70,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
     );
   }

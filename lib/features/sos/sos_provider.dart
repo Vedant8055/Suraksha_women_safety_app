@@ -7,11 +7,12 @@ import 'package:suraksha_women_safety_app/constants/api_constants.dart';
 import 'package:suraksha_women_safety_app/config/app_environment.dart';
 import 'package:suraksha_women_safety_app/features/auth/auth_provider.dart';
 import 'package:suraksha_women_safety_app/core/network/dio_client.dart';
+import 'package:suraksha_women_safety_app/features/profile/emergency_contacts_provider.dart';
 import 'package:suraksha_women_safety_app/features/sos/sos_sms_service.dart';
 
 final sosProvider = StateNotifierProvider<SOSNotifier, SOSState>((ref) {
   final authState = ref.watch(authProvider);
-  return SOSNotifier(authState.user?.id, authState.token);
+  return SOSNotifier(ref, authState.user?.id, authState.token);
 });
 
 class SOSState {
@@ -56,17 +57,24 @@ class SOSState {
 
 class SOSNotifier extends StateNotifier<SOSState> {
   socket_io.Socket? _socket;
+  final Ref? _ref;
   final String? _userId;
   final String? _token;
   StreamSubscription<Position>? _positionSubscription;
   final _dioClient = DioClient();
   final _smsService = SOSSmsService();
 
-  SOSNotifier(this._userId, this._token) : super(SOSState()) {
+  SOSNotifier(this._ref, this._userId, this._token) : super(SOSState()) {
     if (_userId != null && _token != null) {
       _initSocket();
     }
   }
+
+  SOSNotifier.test({String? userId, String? token})
+    : _ref = null,
+      _userId = userId,
+      _token = token,
+      super(SOSState());
 
   void _initSocket() {
     _socket = socket_io.io(
@@ -164,6 +172,7 @@ class SOSNotifier extends StateNotifier<SOSState> {
     try {
       final sent = await _smsService.sendEmergencySms(
         position,
+        contacts: await _emergencyContactsForSms(),
         trackingUrl: trackingUrl,
       );
       if (!sent) {
@@ -176,6 +185,14 @@ class SOSNotifier extends StateNotifier<SOSState> {
         error: 'SOS activated. SMS alert could not be sent from this device.',
       );
     }
+  }
+
+  Future<List<EmergencyContact>> _emergencyContactsForSms() async {
+    final ref = _ref;
+    if (ref == null) return const [];
+
+    await ref.read(emergencyContactsProvider.notifier).loadContacts();
+    return ref.read(emergencyContactsProvider);
   }
 
   void _startLiveTracking() {

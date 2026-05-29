@@ -3,20 +3,23 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:suraksha_women_safety_app/features/profile/emergency_contacts_provider.dart';
 
 class SOSSmsService {
-  static const List<String> emergencyNumbers = [
-    '7020094073',
-    '9359264978',
-    '8462969160',
-  ];
   static const MethodChannel _channel = MethodChannel('suraksha/sms');
 
   Future<bool> sendEmergencySms(
     Position position, {
+    required List<EmergencyContact> contacts,
     String? trackingUrl,
   }) async {
     if (!Platform.isAndroid) return false;
+    final phoneNumbers = contacts
+        .map((contact) => contact.phone.trim())
+        .where((phone) => phone.isNotEmpty)
+        .toSet()
+        .toList();
+    if (phoneNumbers.isEmpty) return false;
 
     final permission = await Permission.sms.request();
     if (!permission.isGranted) return false;
@@ -24,13 +27,13 @@ class SOSSmsService {
     final mapsUrl =
         'https://maps.google.com/?q=${position.latitude},${position.longitude}';
     final message =
-        'Kaveri is in danger, please send help to her. '
+        'Kaveri is in danger, please send help to her immediately. '
         '${trackingUrl == null ? '' : 'Track live location: $trackingUrl '}'
         'Current location: $mapsUrl '
         'Coordinates: ${position.latitude}, ${position.longitude}';
 
     var sentCount = 0;
-    for (final phoneNumber in emergencyNumbers) {
+    for (final phoneNumber in phoneNumbers) {
       try {
         final sent = await _channel.invokeMethod<bool>('sendSms', {
           'phoneNumber': phoneNumber,

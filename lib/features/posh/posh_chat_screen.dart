@@ -18,6 +18,8 @@ class _POSHLegalPortalScreenState extends State<POSHLegalPortalScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = _POSHColors(context);
+
     return Scaffold(
       appBar: AppBar(title: const Text('POSH Legal Portal')),
       body: SingleChildScrollView(
@@ -26,40 +28,43 @@ class _POSHLegalPortalScreenState extends State<POSHLegalPortalScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             FadeInDown(
-              child: const Text(
+              child: Text(
                 'POSH Legal Portal',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: colors.text,
                 ),
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Access complete POSH Act guidance and file a structured complaint from one place.',
-              style: TextStyle(color: Colors.white70),
+              style: TextStyle(color: colors.mutedText),
             ),
             const SizedBox(height: 14),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.cardColor,
+                color: colors.card,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                border: Border.all(color: colors.border),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
-                      Icon(Icons.menu_book_rounded, color: AppTheme.primaryColor),
-                      SizedBox(width: 10),
+                      const Icon(
+                        Icons.menu_book_rounded,
+                        color: AppTheme.primaryColor,
+                      ),
+                      const SizedBox(width: 10),
                       Text(
                         'POSH Act Guide',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: colors.text,
                           fontWeight: FontWeight.w700,
                           fontSize: 17,
                         ),
@@ -67,9 +72,9 @@ class _POSHLegalPortalScreenState extends State<POSHLegalPortalScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Detailed guide includes: origin of the law, scope, definitions, IC process, timelines, evidence, conciliation, inquiry, police escalation, penalties, false complaints boundaries, and practical implementation checklist.',
-                    style: TextStyle(color: Colors.white70, height: 1.35),
+                    style: TextStyle(color: colors.mutedText, height: 1.35),
                   ),
                   const SizedBox(height: 12),
                   SizedBox(
@@ -89,18 +94,18 @@ class _POSHLegalPortalScreenState extends State<POSHLegalPortalScreen> {
               ),
             ),
             const SizedBox(height: 22),
-            const Text(
+            Text(
               'File Workplace Complaint',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
-                color: Colors.white,
+                color: colors.text,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Use this to prepare and submit a detailed complaint record. In immediate danger, call 112 first.',
-              style: TextStyle(color: Colors.white70),
+              style: TextStyle(color: colors.mutedText),
             ),
             const SizedBox(height: 14),
             _complaintFormCard(context),
@@ -111,6 +116,7 @@ class _POSHLegalPortalScreenState extends State<POSHLegalPortalScreen> {
   }
 
   Widget _complaintFormCard(BuildContext context) {
+    final colors = _POSHColors(context);
     final complainantNameController = TextEditingController();
     final complainantPhoneController = TextEditingController();
     final complainantEmailController = TextEditingController();
@@ -123,65 +129,85 @@ class _POSHLegalPortalScreenState extends State<POSHLegalPortalScreen> {
 
     InputDecoration fieldDecoration(String label) => InputDecoration(
       labelText: label,
+      labelStyle: TextStyle(color: colors.mutedText),
+      floatingLabelStyle: const TextStyle(color: AppTheme.primaryColor),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: colors.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppTheme.primaryColor, width: 1.4),
+      ),
       filled: true,
-      fillColor: Colors.white.withValues(alpha: 0.04),
+      fillColor: colors.fieldFill,
     );
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.cardColor,
+        color: colors.card,
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         children: [
           TextField(
             controller: complainantNameController,
+            style: TextStyle(color: colors.text),
             decoration: fieldDecoration('Your Full Name'),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: complainantPhoneController,
             keyboardType: TextInputType.phone,
+            style: TextStyle(color: colors.text),
             decoration: fieldDecoration('Your Phone Number'),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: complainantEmailController,
             keyboardType: TextInputType.emailAddress,
+            style: TextStyle(color: colors.text),
             decoration: fieldDecoration('Your Email Address'),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: accusedNameController,
+            style: TextStyle(color: colors.text),
             decoration: fieldDecoration('Accused Person Name'),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: companyController,
+            style: TextStyle(color: colors.text),
             decoration: fieldDecoration('Company / Workplace Name'),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: incidentDateController,
+            style: TextStyle(color: colors.text),
             decoration: fieldDecoration('Incident Date (DD/MM/YYYY)'),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: incidentLocationController,
+            style: TextStyle(color: colors.text),
             decoration: fieldDecoration('Incident Location'),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: witnessesController,
+            style: TextStyle(color: colors.text),
             decoration: fieldDecoration('Witnesses (if any)'),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: detailsController,
             maxLines: 5,
+            style: TextStyle(color: colors.text),
             decoration: fieldDecoration('Detailed Incident Description'),
           ),
           const SizedBox(height: 14),
@@ -191,13 +217,17 @@ class _POSHLegalPortalScreenState extends State<POSHLegalPortalScreen> {
               onPressed: _submitting
                   ? null
                   : () async {
-                      final complainantName = complainantNameController.text.trim();
-                      final complainantPhone = complainantPhoneController.text.trim();
-                      final complainantEmail = complainantEmailController.text.trim();
+                      final complainantName = complainantNameController.text
+                          .trim();
+                      final complainantPhone = complainantPhoneController.text
+                          .trim();
+                      final complainantEmail = complainantEmailController.text
+                          .trim();
                       final accusedName = accusedNameController.text.trim();
                       final workplace = companyController.text.trim();
                       final incidentDate = incidentDateController.text.trim();
-                      final incidentLocation = incidentLocationController.text.trim();
+                      final incidentLocation = incidentLocationController.text
+                          .trim();
                       final witnesses = witnessesController.text.trim();
                       final details = detailsController.text.trim();
 
@@ -206,12 +236,15 @@ class _POSHLegalPortalScreenState extends State<POSHLegalPortalScreen> {
                           accusedName.isEmpty ||
                           details.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Please fill all required details.')),
+                          const SnackBar(
+                            content: Text('Please fill all required details.'),
+                          ),
                         );
                         return;
                       }
 
-                      final compiledDescription = '''
+                      final compiledDescription =
+                          '''
 POSH Workplace Complaint (Police Filing Intent)
 Complainant: $complainantName
 Phone: $complainantPhone
@@ -235,14 +268,20 @@ Complaint Details: $details
                         );
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Complaint submitted successfully.')),
+                            const SnackBar(
+                              content: Text(
+                                'Complaint submitted successfully.',
+                              ),
+                            ),
                           );
                         }
                       } on DioException {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('Submission failed. Please try again.'),
+                              content: Text(
+                                'Submission failed. Please try again.',
+                              ),
                             ),
                           );
                         }
@@ -252,7 +291,9 @@ Complaint Details: $details
                     },
               icon: const Icon(Icons.report_gmailerrorred),
               label: Text(_submitting ? 'Submitting...' : 'SUBMIT COMPLAINT'),
-              style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 54)),
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 54),
+              ),
             ),
           ),
         ],
@@ -371,15 +412,18 @@ class _GuideIntro extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = _POSHColors(context);
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.cardColor,
+        color: colors.card,
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.border),
       ),
-      child: const Text(
+      child: Text(
         'This guide is educational and operational. It helps you understand process, boundaries, documentation, and escalation under the POSH framework in India.',
-        style: TextStyle(color: Colors.white70, height: 1.35),
+        style: TextStyle(color: colors.mutedText, height: 1.35),
       ),
     );
   }
@@ -393,25 +437,50 @@ class _GuideSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = _POSHColors(context);
+
     return ExpansionTile(
       tilePadding: const EdgeInsets.symmetric(horizontal: 10),
-      collapsedBackgroundColor: AppTheme.cardColor,
-      backgroundColor: AppTheme.cardColor,
+      collapsedBackgroundColor: colors.card,
+      backgroundColor: colors.card,
+      iconColor: AppTheme.primaryColor,
+      collapsedIconColor: colors.mutedText,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      collapsedShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      collapsedShape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: colors.border),
+      ),
       title: Text(
         title,
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+        style: TextStyle(color: colors.text, fontWeight: FontWeight.w700),
       ),
       childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       children: [
-        Text(
-          body,
-          style: const TextStyle(color: Colors.white70, height: 1.35),
-        ),
+        Text(body, style: TextStyle(color: colors.mutedText, height: 1.35)),
       ],
     );
   }
+}
+
+class _POSHColors {
+  final Color card;
+  final Color fieldFill;
+  final Color text;
+  final Color mutedText;
+  final Color border;
+
+  _POSHColors(BuildContext context)
+    : card = Theme.of(context).colorScheme.surface,
+      fieldFill = Theme.of(context).brightness == Brightness.dark
+          ? Colors.white.withValues(alpha: 0.04)
+          : const Color(0xFFF1F5FB),
+      text = Theme.of(context).colorScheme.onSurface,
+      mutedText = Theme.of(context).brightness == Brightness.dark
+          ? AppTheme.textSecondary
+          : const Color(0xFF4E5F79),
+      border = Theme.of(context).brightness == Brightness.dark
+          ? Colors.white.withValues(alpha: 0.12)
+          : const Color(0xFFD8E0EC);
 }
 
 class _GuideDisclaimer extends StatelessWidget {
