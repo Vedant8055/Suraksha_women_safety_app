@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -24,6 +25,8 @@ final _localProfilePhotoPathProvider = FutureProvider<String?>((ref) async {
   final prefs = await SharedPreferences.getInstance();
   return prefs.getString(key);
 });
+
+final _manualSosLaunchingProvider = StateProvider<bool>((ref) => false);
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -324,6 +327,7 @@ class DashboardScreen extends ConsumerWidget {
 
   Widget _buildSOSButton(BuildContext context, WidgetRef ref) {
     final sosState = ref.watch(sosProvider);
+    final isLaunching = ref.watch(_manualSosLaunchingProvider);
 
     final button = Container(
       width: 172,
@@ -345,10 +349,10 @@ class DashboardScreen extends ConsumerWidget {
         boxShadow: [
           BoxShadow(
             color: AppTheme.accentColor.withValues(
-              alpha: sosState.isActive ? 0.48 : 0.24,
+              alpha: sosState.isActive || isLaunching ? 0.48 : 0.24,
             ),
-            blurRadius: sosState.isActive ? 36 : 16,
-            spreadRadius: sosState.isActive ? 10 : 3,
+            blurRadius: sosState.isActive || isLaunching ? 36 : 16,
+            spreadRadius: sosState.isActive || isLaunching ? 10 : 3,
           ),
         ],
       ),
@@ -375,14 +379,26 @@ class DashboardScreen extends ConsumerWidget {
     return Center(
       child: GestureDetector(
         onTap: () async {
-          await ref.read(sosProvider.notifier).triggerSOS();
+          if (isLaunching) return;
+          if (sosState.isActive) {
+            _pushPremium(context, const EmergencyModeScreen());
+            return;
+          }
+          ref.read(_manualSosLaunchingProvider.notifier).state = true;
+          unawaited(ref.read(sosProvider.notifier).triggerSOS());
+          await Future<void>.delayed(const Duration(milliseconds: 3200));
+          ref.read(_manualSosLaunchingProvider.notifier).state = false;
           if (!context.mounted) {
             return;
           }
           _pushPremium(context, const EmergencyModeScreen());
         },
-        child: sosState.isActive
-            ? Pulse(infinite: true, child: button)
+        child: sosState.isActive || isLaunching
+            ? Pulse(
+                infinite: true,
+                duration: const Duration(milliseconds: 800),
+                child: button,
+              )
             : button,
       ),
     );
@@ -453,66 +469,12 @@ class DashboardScreen extends ConsumerWidget {
     Widget? screen,
     double width,
   ) {
-    final isLight = Theme.of(context).brightness == Brightness.light;
-    return GestureDetector(
-      onTap: screen != null ? () => _pushPremium(context, screen) : null,
-      child: Container(
-        width: width,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              isLight
-                  ? const Color(0xFFFFFFFF)
-                  : AppTheme.cardColor.withValues(alpha: 0.95),
-              isLight ? const Color(0xFFF2F6FF) : const Color(0xFF0C182D),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isLight
-                ? const Color(0xFFDCE5F6)
-                : Colors.white.withValues(alpha: 0.14),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: isLight
-                  ? const Color(0xFF8A9FBE).withValues(alpha: 0.18)
-                  : Colors.black.withValues(alpha: 0.26),
-              blurRadius: isLight ? 12 : 18,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(icon, color: color, size: 24),
-            ),
-            const SizedBox(width: 13),
-            Expanded(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: isLight ? Color(0xFF172235) : Colors.white,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+    return _PoppingActionCard(
+      icon: icon,
+      label: label,
+      color: color,
+      width: width,
+      onTap: screen == null ? null : () => _pushPremium(context, screen),
     );
   }
 
@@ -1329,6 +1291,216 @@ class DashboardScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PoppingActionCard extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final double width;
+  final VoidCallback? onTap;
+
+  const _PoppingActionCard({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.width,
+    required this.onTap,
+  });
+
+  @override
+  State<_PoppingActionCard> createState() => _PoppingActionCardState();
+}
+
+class _PoppingActionCardState extends State<_PoppingActionCard> {
+  bool _pressed = false;
+  bool _popped = false;
+
+  Future<void> _handleTap() async {
+    if (widget.onTap == null) return;
+
+    setState(() {
+      _pressed = false;
+      _popped = true;
+    });
+    await Future<void>.delayed(const Duration(milliseconds: 135));
+    if (!mounted) return;
+
+    setState(() => _popped = false);
+    await Future<void>.delayed(const Duration(milliseconds: 55));
+    if (!mounted) return;
+
+    widget.onTap?.call();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final textColor = isLight ? const Color(0xFF172235) : Colors.white;
+    final mutedIconColor = isLight
+        ? const Color(0xFF60708B)
+        : Colors.white.withValues(alpha: 0.66);
+    final scale = _pressed ? 0.96 : (_popped ? 1.07 : 1.0);
+    final lift = _popped ? -5.0 : (_pressed ? 2.0 : 0.0);
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: widget.onTap == null
+          ? null
+          : (_) => setState(() => _pressed = true),
+      onTapCancel: widget.onTap == null
+          ? null
+          : () => setState(() => _pressed = false),
+      onTapUp: widget.onTap == null
+          ? null
+          : (_) => setState(() => _pressed = false),
+      onTap: _handleTap,
+      child: AnimatedScale(
+        scale: scale,
+        duration: const Duration(milliseconds: 165),
+        curve: Curves.easeOutBack,
+        child: AnimatedSlide(
+          offset: Offset(0, lift / 100),
+          duration: const Duration(milliseconds: 165),
+          curve: Curves.easeOutCubic,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 190),
+            curve: Curves.easeOutCubic,
+            width: widget.width,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  isLight
+                      ? Color.lerp(Colors.white, widget.color, 0.08)!
+                      : Color.lerp(AppTheme.cardColor, widget.color, 0.18)!,
+                  isLight
+                      ? Color.lerp(const Color(0xFFF8FBFF), widget.color, 0.16)!
+                      : Color.lerp(
+                          const Color(0xFF0C182D),
+                          widget.color,
+                          0.26,
+                        )!,
+                  isLight
+                      ? Color.lerp(
+                          const Color(0xFFF2F6FF),
+                          widget.color,
+                          _popped ? 0.22 : 0.13,
+                        )!
+                      : Color.lerp(
+                          const Color(0xFF071121),
+                          widget.color,
+                          _popped ? 0.34 : 0.22,
+                        )!,
+                ],
+                stops: const [0.0, 0.58, 1.0],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: _popped
+                    ? widget.color.withValues(alpha: isLight ? 0.42 : 0.48)
+                    : widget.color.withValues(alpha: isLight ? 0.20 : 0.26),
+                width: _popped ? 1.4 : 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: widget.color.withValues(
+                    alpha: isLight
+                        ? (_popped ? 0.22 : 0.12)
+                        : (_popped ? 0.30 : 0.18),
+                  ),
+                  blurRadius: _popped ? 24 : 14,
+                  spreadRadius: _popped ? 1 : 0,
+                  offset: Offset(0, _popped ? 11 : 7),
+                ),
+                BoxShadow(
+                  color: isLight
+                      ? Colors.white.withValues(alpha: 0.65)
+                      : Colors.black.withValues(alpha: 0.24),
+                  blurRadius: _popped ? 14 : 8,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned(
+                  right: -18,
+                  top: -22,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 190),
+                    width: _popped ? 72 : 58,
+                    height: _popped ? 72 : 58,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: widget.color.withValues(
+                        alpha: isLight ? 0.10 : 0.16,
+                      ),
+                    ),
+                  ),
+                ),
+                Row(
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 190),
+                      curve: Curves.easeOutCubic,
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            widget.color.withValues(
+                              alpha: isLight ? 0.22 : 0.28,
+                            ),
+                            widget.color.withValues(
+                              alpha: _popped ? 0.34 : 0.16,
+                            ),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: widget.color.withValues(alpha: 0.24),
+                        ),
+                      ),
+                      child: Icon(widget.icon, color: widget.color, size: 24),
+                    ),
+                    const SizedBox(width: 13),
+                    Expanded(
+                      child: Text(
+                        widget.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: textColor,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    AnimatedRotation(
+                      turns: _popped ? -0.08 : 0,
+                      duration: const Duration(milliseconds: 190),
+                      curve: Curves.easeOutBack,
+                      child: Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 19,
+                        color: _popped ? widget.color : mutedIconColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

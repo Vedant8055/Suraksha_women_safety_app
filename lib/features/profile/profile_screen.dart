@@ -10,6 +10,7 @@ import 'package:suraksha_women_safety_app/constants/api_constants.dart';
 import 'package:suraksha_women_safety_app/core/network/dio_client.dart';
 import 'package:suraksha_women_safety_app/features/auth/auth_provider.dart';
 import 'package:suraksha_women_safety_app/features/profile/emergency_contacts_provider.dart';
+import 'package:suraksha_women_safety_app/features/sos/sensor_service.dart';
 import 'package:suraksha_women_safety_app/features/sos/scream_detection_service.dart';
 import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
 import 'package:suraksha_women_safety_app/localization/locale_provider.dart';
@@ -45,6 +46,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       }
       return error.message ?? 'Network request failed';
     }
+    if (error is ArgumentError) {
+      return error.message?.toString() ?? 'Invalid details.';
+    }
     return error.toString();
   }
 
@@ -53,6 +57,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
     );
+  }
+
+  void _showSavedMessage() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Details are saved')));
   }
 
   @override
@@ -118,6 +129,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ? _localPhone!
         : (user?.phone ?? l10n.t('notProvided'));
     final contacts = ref.watch(emergencyContactsProvider);
+    final impactDetectionState = ref.watch(impactDetectionProvider);
     final screamDetectionState = ref.watch(screamDetectionProvider);
     final themeMode = ref.watch(appThemeModeProvider);
     final currentLocale = ref.watch(appLocaleProvider);
@@ -282,6 +294,38 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             const SizedBox(height: 12),
             Container(
+              decoration: BoxDecoration(
+                color: profileCard,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: profileBorder),
+              ),
+              child: SwitchListTile(
+                secondary: const Icon(
+                  Icons.car_crash,
+                  color: AppTheme.primaryColor,
+                ),
+                title: Text(
+                  'Impact Detection',
+                  style: TextStyle(
+                    color: profileText,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: Text(
+                  impactDetectionState.monitoring
+                      ? 'Motion sensors are watching for sudden impact.'
+                      : 'Motion sensors stay off while this is disabled.',
+                  style: TextStyle(color: profileMuted),
+                ),
+                value: impactDetectionState.enabled,
+                activeThumbColor: AppTheme.primaryColor,
+                onChanged: _isSaving
+                    ? null
+                    : (enabled) => _setImpactDetectionEnabled(enabled),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: profileCard,
@@ -346,6 +390,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               l10n.t('phoneNumber'),
               displayPhone,
               Icons.phone,
+              onTap: _isSaving
+                  ? null
+                  : () => _showEditPhoneDialog(
+                      displayPhone == l10n.t('notProvided') ? '' : displayPhone,
+                    ),
             ),
             const SizedBox(height: 16),
             _buildProfileItem(
@@ -403,39 +452,52 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     String title,
     String value,
     IconData icon,
+    {VoidCallback? onTap}
   ) {
     final isLight = Theme.of(context).brightness == Brightness.light;
     final textColor = isLight ? const Color(0xFF172235) : Colors.white;
     final mutedColor = isLight ? const Color(0xFF5F6F8A) : Colors.white38;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isLight ? Colors.white : AppTheme.cardColor,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isLight ? const Color(0xFFDCE5F6) : Colors.transparent,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: AppTheme.primaryColor),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: TextStyle(color: mutedColor, fontSize: 12)),
-                Text(
-                  value,
-                  style: TextStyle(
-                    color: textColor,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isLight ? Colors.white : AppTheme.cardColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isLight ? const Color(0xFFDCE5F6) : Colors.transparent,
             ),
           ),
-        ],
+          child: Row(
+            children: [
+              Icon(icon, color: AppTheme.primaryColor),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(color: mutedColor, fontSize: 12),
+                    ),
+                    Text(
+                      value,
+                      style: TextStyle(
+                        color: textColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (onTap != null)
+                Icon(Icons.edit, size: 18, color: mutedColor),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -505,6 +567,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Future<void> _setImpactDetectionEnabled(bool enabled) async {
+    final success = await ref
+        .read(impactDetectionProvider.notifier)
+        .setEnabled(enabled);
+    if (!mounted) return;
+
+    final state = ref.read(impactDetectionProvider);
+    final message = success
+        ? enabled
+              ? 'Impact detection enabled.'
+              : 'Impact detection disabled.'
+        : state.error ?? 'Could not enable impact detection.';
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Future<void> _showEditProfileDialog(
     UserModel? user, {
     required String displayName,
@@ -562,7 +641,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   phone: phoneController.text.trim(),
                   bloodGroup: bloodController.text.trim(),
                 );
-                if (mounted) navigator.pop();
+                if (mounted) {
+                  navigator.pop();
+                  _showSavedMessage();
+                }
               } catch (error) {
                 _showError(_extractError(error));
               }
@@ -574,66 +656,165 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  Future<void> _showEditPhoneDialog(String currentPhone) async {
+    final navigator = Navigator.of(context);
+    final phoneController = TextEditingController(text: currentPhone);
+    var saving = false;
+    var dialogClosed = false;
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Edit Phone Number'),
+          content: TextField(
+            controller: phoneController,
+            keyboardType: TextInputType.phone,
+            decoration: const InputDecoration(labelText: 'Phone Number'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: saving ? null : () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: saving
+                  ? null
+                  : () async {
+                      final phone = phoneController.text.trim();
+                      if (phone.isEmpty) {
+                        _showError('Phone number is required.');
+                        return;
+                      }
+
+                      setDialogState(() => saving = true);
+                      try {
+                        await _updateProfile(
+                          fullName:
+                              _localName ??
+                              (ref.read(authProvider).user?.name ?? ''),
+                          email:
+                              _localEmail ??
+                              (ref.read(authProvider).user?.email ?? ''),
+                          phone: phone,
+                          bloodGroup:
+                              _localBloodGroup ??
+                              (ref.read(authProvider).user?.bloodGroup ?? ''),
+                        );
+                        if (!mounted) return;
+                        dialogClosed = true;
+                        navigator.pop();
+                        _showSavedMessage();
+                      } catch (error) {
+                        _showError(_extractError(error));
+                      } finally {
+                        if (mounted && !dialogClosed) {
+                          setDialogState(() => saving = false);
+                        }
+                      }
+                    },
+              child: saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _showAddContactDialog() async {
     final navigator = Navigator.of(context);
     final nameController = TextEditingController();
     final phoneController = TextEditingController();
     final relationController = TextEditingController();
+    var saving = false;
 
     await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Emergency Contact'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(labelText: 'Name'),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Add Emergency Contact'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                enabled: !saving,
+                decoration: const InputDecoration(labelText: 'Name'),
+              ),
+              TextField(
+                controller: phoneController,
+                enabled: !saving,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(labelText: 'Phone Number'),
+              ),
+              TextField(
+                controller: relationController,
+                enabled: !saving,
+                decoration: const InputDecoration(labelText: 'Relation'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: saving ? null : () => Navigator.pop(context),
+              child: const Text('Cancel'),
             ),
-            TextField(
-              controller: phoneController,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'Phone Number'),
-            ),
-            TextField(
-              controller: relationController,
-              decoration: const InputDecoration(labelText: 'Relation'),
+            ElevatedButton(
+              onPressed: saving
+                  ? null
+                  : () async {
+                      final name = nameController.text.trim();
+                      final phone = phoneController.text.trim();
+                      final relation = relationController.text.trim();
+                      if (name.isEmpty || phone.isEmpty) {
+                        _showError('Name and phone number are required.');
+                        return;
+                      }
+
+                      setDialogState(() => saving = true);
+                      try {
+                        final saved = await ref
+                            .read(emergencyContactsProvider.notifier)
+                            .addContact(
+                              EmergencyContact(
+                                id: '',
+                                name: name,
+                                phone: phone,
+                                relation: relation.isEmpty
+                                    ? 'Emergency Contact'
+                                    : relation,
+                              ),
+                            );
+                        if (!mounted) return;
+                        if (!saved) {
+                          _showError('This phone number is already saved.');
+                          setDialogState(() => saving = false);
+                          return;
+                        }
+
+                        navigator.pop();
+                        _showSavedMessage();
+                      } catch (error) {
+                        _showError(_extractError(error));
+                        if (mounted) setDialogState(() => saving = false);
+                      }
+                    },
+              child: saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Save'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final name = nameController.text.trim();
-              final phone = phoneController.text.trim();
-              final relation = relationController.text.trim();
-              if (name.isEmpty || phone.isEmpty) return;
-              try {
-                await ref
-                    .read(emergencyContactsProvider.notifier)
-                    .addContact(
-                      EmergencyContact(
-                        id: '',
-                        name: name,
-                        phone: phone,
-                        relation: relation.isEmpty
-                            ? 'Emergency Contact'
-                            : relation,
-                      ),
-                    );
-                if (mounted) navigator.pop();
-              } catch (error) {
-                _showError(_extractError(error));
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
       ),
     );
   }
@@ -674,7 +855,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ElevatedButton(
             onPressed: () async {
               try {
-                await ref
+                final saved = await ref
                     .read(emergencyContactsProvider.notifier)
                     .updateContact(
                       EmergencyContact(
@@ -686,7 +867,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             : relationController.text.trim(),
                       ),
                     );
-                if (mounted) navigator.pop();
+                if (!mounted) return;
+                if (!saved) {
+                  _showError('This phone number is already saved.');
+                  return;
+                }
+                navigator.pop();
+                _showSavedMessage();
               } catch (error) {
                 _showError(_extractError(error));
               }

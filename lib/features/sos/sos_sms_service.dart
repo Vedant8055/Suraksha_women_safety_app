@@ -15,7 +15,7 @@ class SOSSmsService {
   }) async {
     if (!Platform.isAndroid) return false;
     final phoneNumbers = contacts
-        .map((contact) => contact.phone.trim())
+        .map((contact) => EmergencyContact.normalizePhoneNumber(contact.phone))
         .where((phone) => phone.isNotEmpty)
         .toSet()
         .toList();

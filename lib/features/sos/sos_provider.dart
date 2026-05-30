@@ -99,14 +99,25 @@ class SOSNotifier extends StateNotifier<SOSState> {
     _socket!.connect();
   }
 
-  Future<void> triggerSOS() async {
+  Future<void> triggerSOS({Position? fallbackPosition}) async {
     state = state.copyWith(isActive: true, isStreaming: true, error: null);
 
     try {
       // Get current location
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
+      final lastKnownPosition = await Geolocator.getLastKnownPosition();
+      if (lastKnownPosition != null) {
+        state = state.copyWith(currentPosition: lastKnownPosition);
+      }
+
+      Position position;
+      try {
+        position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+        );
+      } catch (_) {
+        if (fallbackPosition == null) rethrow;
+        position = fallbackPosition;
+      }
       state = state.copyWith(currentPosition: position);
 
       String? sosEventId;

@@ -7,6 +7,7 @@ import 'package:suraksha_women_safety_app/theme/app_theme.dart';
 import 'package:suraksha_women_safety_app/theme/theme_mode_provider.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/dashboard_screen.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/safety_monitor_provider.dart';
+import 'package:suraksha_women_safety_app/features/sos/sensor_service.dart';
 import 'package:suraksha_women_safety_app/features/sos/scream_detection_service.dart';
 import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
 import 'package:suraksha_women_safety_app/localization/locale_provider.dart';
@@ -27,6 +28,8 @@ class MyApp extends ConsumerStatefulWidget {
 
 class _MyAppState extends ConsumerState<MyApp> {
   late final _AppLifecycleHandler _lifecycleHandler;
+  final _navigatorKey = GlobalKey<NavigatorState>();
+  bool _impactDialogVisible = false;
 
   @override
   void initState() {
@@ -39,6 +42,7 @@ class _MyAppState extends ConsumerState<MyApp> {
         unawaited(
           ref.read(safetyMonitorProvider.notifier).start().catchError((_) {}),
         );
+        ref.read(impactDetectionProvider);
         ref.read(screamDetectionProvider);
       });
     }
@@ -52,9 +56,26 @@ class _MyAppState extends ConsumerState<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.startBackgroundServices) {
+      ref.listen<ImpactDetectionState>(impactDetectionProvider, (
+        previous,
+        next,
+      ) {
+        final wasActive = previous?.countdownActive ?? false;
+        if (next.countdownActive && !_impactDialogVisible) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _showImpactCountdownDialog();
+          });
+        } else if (wasActive && !next.countdownActive && _impactDialogVisible) {
+          _dismissImpactCountdownDialog();
+        }
+      });
+    }
+
     final appThemeMode = ref.watch(appThemeModeProvider);
     final appLocale = ref.watch(appLocaleProvider);
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       title: 'Suraksha',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
@@ -71,6 +92,70 @@ class _MyAppState extends ConsumerState<MyApp> {
       home: const DashboardScreen(),
     );
   }
+
+  Future<void> _showImpactCountdownDialog() async {
+    final dialogContext = _navigatorKey.currentContext;
+    if (dialogContext == null || _impactDialogVisible) return;
+
+    _impactDialogVisible = true;
+    await showDialog<void>(
+      context: dialogContext,
+      barrierDismissible: false,
+      builder: (context) => Consumer(
+        builder: (context, ref, _) {
+          final state = ref.watch(impactDetectionProvider);
+          return AlertDialog(
+            title: const Text('Impact detected'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('SOS will be sent in ${state.countdownSeconds} seconds.'),
+                const SizedBox(height: 8),
+                Text(
+                  state.lastImpactPosition == null
+                      ? 'Saving last known location...'
+                      : 'Last location saved for emergency help.',
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  ref
+                      .read(impactDetectionProvider.notifier)
+                      .cancelPendingImpact();
+                },
+                child: const Text('Cancel SOS'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  unawaited(
+                    ref
+                        .read(impactDetectionProvider.notifier)
+                        .confirmPendingImpact(),
+                  );
+                },
+                child: const Text('Send SOS now'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    _impactDialogVisible = false;
+  }
+
+  void _dismissImpactCountdownDialog() {
+    final navigator = _navigatorKey.currentState;
+    if (navigator == null || !navigator.canPop()) {
+      _impactDialogVisible = false;
+      return;
+    }
+
+    navigator.pop();
+    _impactDialogVisible = false;
+  }
 }
 
 class _AppLifecycleHandler extends WidgetsBindingObserver {
@@ -83,6 +168,12 @@ class _AppLifecycleHandler extends WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       unawaited(
         ref.read(safetyMonitorProvider.notifier).start().catchError((_) {}),
+      );
+      unawaited(
+        ref
+            .read(impactDetectionProvider.notifier)
+            .resumeIfEnabled()
+            .catchError((_) {}),
       );
     }
   }
