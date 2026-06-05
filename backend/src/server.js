@@ -5,7 +5,11 @@ const { connectDb } = require('./config/db');
 const { setupSockets } = require('./sockets');
 
 const start = async () => {
-  await connectDb(env.mongoUri);
+  await connectDb(env.mongoUri, {
+    maxRetries: env.mongoMaxRetries,
+    initialDelayMs: env.mongoInitialRetryDelayMs,
+    maxDelayMs: env.mongoMaxRetryDelayMs,
+  });
   const server = http.createServer(app);
   setupSockets(server);
   server.listen(env.port, () => {

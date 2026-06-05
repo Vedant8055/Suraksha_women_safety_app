@@ -35,9 +35,8 @@ migrate_working_dir/
 .env
 .env.*
 !.env.example
-server/.env
-server/.env.*
-!server/.env.example
+node_modules/
+**/node_modules/
 
 # Symbolication related
 app.*.symbols

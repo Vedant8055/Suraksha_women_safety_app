@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -10,9 +12,10 @@ import 'package:suraksha_women_safety_app/constants/api_constants.dart';
 import 'package:suraksha_women_safety_app/config/app_environment.dart';
 import 'package:suraksha_women_safety_app/core/network/dio_client.dart';
 import 'package:suraksha_women_safety_app/features/maps/widgets/live_safety_controls_sheet.dart';
+import 'package:suraksha_women_safety_app/features/routes/route_safety_provider.dart';
 import 'package:suraksha_women_safety_app/theme/app_theme.dart';
 
-class SafetyMapScreen extends StatefulWidget {
+class SafetyMapScreen extends ConsumerStatefulWidget {
   const SafetyMapScreen({
     super.key,
     this.initialTargetLatitude,
@@ -25,15 +28,10 @@ class SafetyMapScreen extends StatefulWidget {
   final String? initialTargetName;
 
   @override
-  State<SafetyMapScreen> createState() => _SafetyMapScreenState();
+  ConsumerState<SafetyMapScreen> createState() => _SafetyMapScreenState();
 }
 
-class _SafetyMapScreenState extends State<SafetyMapScreen> {
-  static const CameraPosition _defaultPosition = CameraPosition(
-    target: LatLng(28.6139, 77.2090),
-    zoom: 13,
-  );
-
+class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
   final _dio = DioClient().dio;
   final _searchController = TextEditingController();
   final _searchFocusNode = FocusNode();
@@ -44,6 +42,9 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
 
   GoogleMapController? _mapController;
   Position? _position;
+  LatLng? _selectedDestination;
+  String? _selectedDestinationName;
+  Position? _lastJourneyPosition;
   StreamSubscription<Position>? _liveLocationSubscription;
   Timer? _searchDebounce;
 
@@ -55,6 +56,12 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
   String? _statusText;
   bool _isSearchOpen = false;
   bool _isLoadingSuggestions = false;
+  bool _journeyActive = false;
+  double _coveredDistanceMeters = 0;
+  double? _routeDistanceMeters;
+  int? _routeEtaSeconds;
+  double? _remainingDistanceMeters;
+  int? _remainingEtaSeconds;
 
   @override
   void initState() {
@@ -161,6 +168,10 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
 
   Future<void> _showTargetOnMap(LatLng target, String title) async {
     setState(() {
+      _selectedDestination = target;
+      _selectedDestinationName = title;
+      _journeyActive = false;
+      _resetJourneyMetrics();
       _markers.removeWhere((m) => m.markerId.value == 'search_result');
       _markers.add(
         Marker(
@@ -175,9 +186,7 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
     });
 
     await _mapController?.animateCamera(
-      CameraUpdate.newCameraPosition(
-        CameraPosition(target: target, zoom: 15),
-      ),
+      CameraUpdate.newCameraPosition(CameraPosition(target: target, zoom: 15)),
     );
     _buildRouteTo(target);
   }
@@ -234,6 +243,10 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
             setState(() {
               _position = pos;
               _setOrUpdateSelfMarker(pos);
+              _updateJourneyProgress(pos);
+              _statusText = _journeyActive
+                  ? 'Journey tracking active'
+                  : 'Live tracking active';
             });
 
             if (_followMe && _mapController != null) {
@@ -241,9 +254,127 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
                 CameraUpdate.newLatLng(LatLng(pos.latitude, pos.longitude)),
               );
             }
-            setState(() => _statusText = 'Live tracking active');
           },
         );
+  }
+
+  void _selectDestination(LatLng target, String title) {
+    setState(() {
+      _selectedDestination = target;
+      _selectedDestinationName = title;
+      _journeyActive = false;
+      _resetJourneyMetrics();
+    });
+    _buildRouteTo(target);
+  }
+
+  void _startJourney() {
+    final pos = _position;
+    final destination = _selectedDestination;
+    if (pos == null || destination == null) return;
+
+    setState(() {
+      _journeyActive = true;
+      _followMe = true;
+      _coveredDistanceMeters = 0;
+      _lastJourneyPosition = pos;
+      _remainingDistanceMeters = _distanceBetween(
+        LatLng(pos.latitude, pos.longitude),
+        destination,
+      );
+      _remainingEtaSeconds = _estimateEtaSeconds(pos);
+      _statusText = 'Journey tracking active';
+    });
+
+    unawaited(ref.read(routeSafetyProvider.notifier).refreshNow());
+    _goToMyLocation();
+  }
+
+  void _stopJourney() {
+    setState(() {
+      _journeyActive = false;
+      _lastJourneyPosition = null;
+      _statusText = 'Journey stopped';
+    });
+    unawaited(ref.read(routeSafetyProvider.notifier).clearActiveMapRoute());
+  }
+
+  void _resetJourneyMetrics() {
+    _lastJourneyPosition = null;
+    _coveredDistanceMeters = 0;
+    _routeDistanceMeters = null;
+    _routeEtaSeconds = null;
+    _remainingDistanceMeters = null;
+    _remainingEtaSeconds = null;
+  }
+
+  void _updateJourneyProgress(Position pos) {
+    final destination = _selectedDestination;
+    if (!_journeyActive || destination == null) return;
+
+    final last = _lastJourneyPosition;
+    if (last != null) {
+      final moved = Geolocator.distanceBetween(
+        last.latitude,
+        last.longitude,
+        pos.latitude,
+        pos.longitude,
+      );
+      if (moved >= 3) {
+        _coveredDistanceMeters += moved;
+      }
+    }
+
+    _lastJourneyPosition = pos;
+    final directRemaining = _distanceBetween(
+      LatLng(pos.latitude, pos.longitude),
+      destination,
+    );
+    final routeRemaining = _routeDistanceMeters == null
+        ? null
+        : (_routeDistanceMeters! - _coveredDistanceMeters)
+              .clamp(0, double.infinity)
+              .toDouble();
+
+    _remainingDistanceMeters = routeRemaining == null
+        ? directRemaining
+        : routeRemaining < directRemaining
+        ? directRemaining
+        : routeRemaining;
+    _remainingEtaSeconds = _estimateEtaSeconds(pos);
+
+    if (directRemaining <= 35) {
+      _journeyActive = false;
+      _statusText = 'Destination reached';
+    }
+  }
+
+  int? _estimateEtaSeconds(Position pos) {
+    final remaining = _remainingDistanceMeters;
+    if (remaining == null) return _routeEtaSeconds;
+
+    if (pos.speed.isFinite && pos.speed > 1) {
+      return (remaining / pos.speed).round();
+    }
+
+    if (_routeDistanceMeters != null &&
+        _routeDistanceMeters! > 0 &&
+        _routeEtaSeconds != null) {
+      final progress = (remaining / _routeDistanceMeters!).clamp(0.0, 1.0);
+      return (_routeEtaSeconds! * progress).round();
+    }
+
+    const walkingSpeedMetersPerSecond = 1.4;
+    return (remaining / walkingSpeedMetersPerSecond).round();
+  }
+
+  double _distanceBetween(LatLng from, LatLng to) {
+    return Geolocator.distanceBetween(
+      from.latitude,
+      from.longitude,
+      to.latitude,
+      to.longitude,
+    );
   }
 
   Future<void> _fetchNearby(double lat, double lng) async {
@@ -275,11 +406,12 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
               icon: BitmapDescriptor.defaultMarkerWithHue(
                 BitmapDescriptor.hueBlue,
               ),
-              onTap: () => _buildRouteTo(
+              onTap: () => _selectDestination(
                 LatLng(
                   (coords[1] as num).toDouble(),
                   (coords[0] as num).toDouble(),
                 ),
+                p['name']?.toString() ?? 'Police Station',
               ),
             ),
           );
@@ -302,11 +434,12 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
               icon: BitmapDescriptor.defaultMarkerWithHue(
                 BitmapDescriptor.hueRed,
               ),
-              onTap: () => _buildRouteTo(
+              onTap: () => _selectDestination(
                 LatLng(
                   (coords[1] as num).toDouble(),
                   (coords[0] as num).toDouble(),
                 ),
+                h['name']?.toString() ?? 'Hospital',
               ),
             ),
           );
@@ -379,7 +512,9 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
       );
 
       final data = response.data;
-      final predictions = data is Map<String, dynamic> ? data['predictions'] : null;
+      final predictions = data is Map<String, dynamic>
+          ? data['predictions']
+          : null;
       if (predictions is! List) {
         if (!mounted) return;
         setState(() {
@@ -394,10 +529,12 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
           .map(
             (item) => _PlaceSuggestion(
               placeId: item['place_id']?.toString() ?? '',
-              title: item['structured_formatting']?['main_text']?.toString() ??
+              title:
+                  item['structured_formatting']?['main_text']?.toString() ??
                   item['description']?.toString() ??
                   '',
-              subtitle: item['structured_formatting']?['secondary_text']
+              subtitle:
+                  item['structured_formatting']?['secondary_text']
                       ?.toString() ??
                   '',
             ),
@@ -439,8 +576,12 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
       final result = response.data is Map<String, dynamic>
           ? response.data['result']
           : null;
-      final geometry = result is Map<String, dynamic> ? result['geometry'] : null;
-      final location = geometry is Map<String, dynamic> ? geometry['location'] : null;
+      final geometry = result is Map<String, dynamic>
+          ? result['geometry']
+          : null;
+      final location = geometry is Map<String, dynamic>
+          ? geometry['location']
+          : null;
       final lat = location is Map<String, dynamic>
           ? (location['lat'] as num?)?.toDouble()
           : null;
@@ -490,6 +631,12 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
           );
         _statusText = 'Road routing unavailable (missing Maps API key).';
       });
+      _publishMapRouteToGuard(
+        routePoints: [me, target],
+        destinationName: _selectedDestinationName ?? 'selected destination',
+        safetyScore: 50,
+        safetyReason: 'Direct fallback route without Google routing',
+      );
       return;
     }
 
@@ -513,11 +660,12 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
         throw StateError('No routes found');
       }
 
-      _DirectionRoute? bestRoute;
+      final parsedRoutes = <_DirectionRoute>[];
       for (final routeItem in routes.whereType<Map<String, dynamic>>()) {
         final overview = routeItem['overview_polyline'];
-        final points =
-            overview is Map<String, dynamic> ? overview['points']?.toString() : null;
+        final points = overview is Map<String, dynamic>
+            ? overview['points']?.toString()
+            : null;
         if (points == null || points.isEmpty) continue;
 
         final legs = routeItem['legs'];
@@ -527,40 +675,69 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
 
         final durationInTrafficValue =
             (firstLeg['duration_in_traffic'] is Map<String, dynamic>)
-                ? (firstLeg['duration_in_traffic']['value'] as num?)?.toInt()
-                : null;
+            ? (firstLeg['duration_in_traffic']['value'] as num?)?.toInt()
+            : null;
         final durationValue = (firstLeg['duration'] is Map<String, dynamic>)
             ? (firstLeg['duration']['value'] as num?)?.toInt()
             : null;
         final distanceText = (firstLeg['distance'] is Map<String, dynamic>)
             ? firstLeg['distance']['text']?.toString()
             : null;
-        final durationText = (firstLeg['duration_in_traffic'] is Map<String, dynamic>)
+        final distanceValue = (firstLeg['distance'] is Map<String, dynamic>)
+            ? (firstLeg['distance']['value'] as num?)?.toDouble()
+            : null;
+        final durationText =
+            (firstLeg['duration_in_traffic'] is Map<String, dynamic>)
             ? firstLeg['duration_in_traffic']['text']?.toString()
             : (firstLeg['duration'] is Map<String, dynamic>)
-                ? firstLeg['duration']['text']?.toString()
-                : null;
-
-        final route = _DirectionRoute(
-          encodedPolyline: points,
-          etaSeconds: durationInTrafficValue ?? durationValue ?? 1 << 30,
-          distanceText: distanceText ?? '',
-          durationText: durationText ?? '',
+            ? firstLeg['duration']['text']?.toString()
+            : null;
+        final routePoints = _decodePolyline(points);
+        if (routePoints.isEmpty) continue;
+        final routeScore = _scoreRouteSafety(
+          routePoints: routePoints,
+          etaSeconds: durationInTrafficValue ?? durationValue,
+          distanceMeters: distanceValue ?? _polylineDistance(routePoints),
         );
 
-        if (bestRoute == null || route.etaSeconds < bestRoute.etaSeconds) {
-          bestRoute = route;
-        }
+        parsedRoutes.add(
+          _DirectionRoute(
+            encodedPolyline: points,
+            etaSeconds: durationInTrafficValue ?? durationValue ?? 1 << 30,
+            distanceMeters: distanceValue,
+            distanceText: distanceText ?? '',
+            durationText: durationText ?? '',
+            safetyScore: routeScore.score,
+            safetyReason: routeScore.reason,
+          ),
+        );
       }
 
-      if (bestRoute == null) {
+      if (parsedRoutes.isEmpty) {
         throw StateError('No valid route geometry');
       }
-      final selectedRoute = bestRoute;
+      parsedRoutes.sort((a, b) {
+        final safetyCompare = b.safetyScore.compareTo(a.safetyScore);
+        if (safetyCompare != 0) return safetyCompare;
+        return a.etaSeconds.compareTo(b.etaSeconds);
+      });
+      final selectedRoute = parsedRoutes.first;
 
       final routePoints = _decodePolyline(selectedRoute.encodedPolyline);
       if (!mounted) return;
       setState(() {
+        _routeDistanceMeters =
+            selectedRoute.distanceMeters ?? _polylineDistance(routePoints);
+        _routeEtaSeconds = selectedRoute.etaSeconds;
+        final pos = _position;
+        if (_journeyActive && pos != null) {
+          _remainingDistanceMeters = _routeDistanceMeters == null
+              ? _distanceBetween(LatLng(pos.latitude, pos.longitude), target)
+              : (_routeDistanceMeters! - _coveredDistanceMeters)
+                    .clamp(0, double.infinity)
+                    .toDouble();
+          _remainingEtaSeconds = _estimateEtaSeconds(pos);
+        }
         _polylines
           ..clear()
           ..add(
@@ -572,11 +749,25 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
             ),
           );
         _statusText =
-            'Fastest route by live traffic: ${selectedRoute.distanceText} - ${selectedRoute.durationText}';
+            'Safest route selected: ${selectedRoute.distanceText} - ${selectedRoute.durationText} | score ${selectedRoute.safetyScore} | ${selectedRoute.safetyReason}';
       });
+      _publishMapRouteToGuard(
+        routePoints: routePoints,
+        destinationName: _selectedDestinationName ?? 'selected destination',
+        safetyScore: selectedRoute.safetyScore,
+        safetyReason: selectedRoute.safetyReason,
+      );
     } catch (_) {
       if (!mounted) return;
+      final fallbackPoints = [me, target];
+      final fallbackScore = _scoreRouteSafety(
+        routePoints: fallbackPoints,
+        etaSeconds: null,
+        distanceMeters: _distanceBetween(me, target),
+      );
       setState(() {
+        _routeDistanceMeters = _distanceBetween(me, target);
+        _routeEtaSeconds = null;
         _statusText = 'Road route unavailable, showing direct line fallback.';
         _polylines
           ..clear()
@@ -585,11 +776,45 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
               polylineId: const PolylineId('quick_route'),
               color: const Color(0xFF40C4FF),
               width: 5,
-              points: [me, target],
+              points: fallbackPoints,
             ),
           );
       });
+      _publishMapRouteToGuard(
+        routePoints: fallbackPoints,
+        destinationName: _selectedDestinationName ?? 'selected destination',
+        safetyScore: fallbackScore.score,
+        safetyReason: fallbackScore.reason,
+      );
     }
+  }
+
+  void _publishMapRouteToGuard({
+    required List<LatLng> routePoints,
+    required String destinationName,
+    required int safetyScore,
+    required String safetyReason,
+  }) {
+    if (routePoints.isEmpty) return;
+    final timestamp = DateTime.now();
+    unawaited(
+      ref
+          .read(routeSafetyProvider.notifier)
+          .setActiveMapRoute(
+            routePoints: routePoints
+                .map(
+                  (point) => RoutePoint(
+                    latitude: point.latitude,
+                    longitude: point.longitude,
+                    timestamp: timestamp,
+                  ),
+                )
+                .toList(growable: false),
+            destinationName: destinationName,
+            safetyScore: safetyScore,
+            safetyReason: safetyReason,
+          ),
+    );
   }
 
   List<LatLng> _decodePolyline(String encoded) {
@@ -631,6 +856,65 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
     return points;
   }
 
+  double _polylineDistance(List<LatLng> points) {
+    if (points.length < 2) return 0;
+
+    double total = 0;
+    for (var i = 1; i < points.length; i++) {
+      total += _distanceBetween(points[i - 1], points[i]);
+    }
+    return total;
+  }
+
+  _RouteSafetyScore _scoreRouteSafety({
+    required List<LatLng> routePoints,
+    required int? etaSeconds,
+    required double distanceMeters,
+  }) {
+    var score = 68;
+    final now = DateTime.now();
+    final isNight = now.hour >= 21 || now.hour < 6;
+    final emergencyMarkers = _markers.where(
+      (marker) =>
+          marker.markerId.value.startsWith('police_') ||
+          marker.markerId.value.startsWith('hospital_'),
+    );
+
+    var nearbyEmergencyCount = 0;
+    for (final marker in emergencyMarkers) {
+      final nearest = _nearestPointDistance(routePoints, marker.position);
+      if (nearest <= 700) nearbyEmergencyCount++;
+    }
+
+    score += min(nearbyEmergencyCount * 5, 22);
+    if (isNight) score -= 12;
+    if (distanceMeters > 12000) score -= 4;
+    if (etaSeconds != null && etaSeconds > 45 * 60) score -= 4;
+    score = score.clamp(0, 98);
+
+    final reason = nearbyEmergencyCount > 0
+        ? '$nearbyEmergencyCount emergency points near route'
+        : isNight
+        ? 'Night route, limited mapped emergency points'
+        : 'Balanced by route length and nearby services';
+
+    return _RouteSafetyScore(score: score, reason: reason);
+  }
+
+  double _nearestPointDistance(List<LatLng> routePoints, LatLng target) {
+    var nearest = double.infinity;
+    for (final point in routePoints) {
+      final distance = Geolocator.distanceBetween(
+        point.latitude,
+        point.longitude,
+        target.latitude,
+        target.longitude,
+      );
+      if (distance < nearest) nearest = distance;
+    }
+    return nearest;
+  }
+
   Future<void> _goToMyLocation() async {
     final pos = _position;
     if (pos == null || _mapController == null) return;
@@ -655,48 +939,55 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
         ),
       );
     });
-    _buildRouteTo(point);
+    _selectDestination(point, 'Custom Pin');
   }
 
   @override
   Widget build(BuildContext context) {
     final isLight = Theme.of(context).brightness == Brightness.light;
+    final position = _position;
     return Scaffold(
       appBar: AppBar(title: const Text('Safety Intelligence Map')),
       body: Stack(
         children: [
-          GoogleMap(
-            initialCameraPosition: _position == null
-                ? _defaultPosition
-                : CameraPosition(
-                    target: LatLng(_position!.latitude, _position!.longitude),
-                    zoom: 15,
-                  ),
-            onMapCreated: (controller) => _mapController = controller,
-            onTap: (_) {},
-            onLongPress: _dropPin,
-            onCameraMoveStarted: () {
-              if (_followMe) setState(() => _followMe = false);
-            },
-            markers: _markers,
-            circles: _circles,
-            polylines: _polylines,
-            trafficEnabled: _trafficEnabled,
-            compassEnabled: true,
-            myLocationEnabled: _locationPermissionGranted,
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
-            mapType: _mapType,
-          ),
-          _buildTopSearchBar(),
-          _buildQuickControls(),
+          if (position == null)
+            _buildLocatingView(isLight)
+          else
+            GoogleMap(
+              initialCameraPosition: CameraPosition(
+                target: LatLng(position.latitude, position.longitude),
+                zoom: 15,
+              ),
+              onMapCreated: (controller) => _mapController = controller,
+              onTap: (_) {},
+              onLongPress: _dropPin,
+              onCameraMoveStarted: () {
+                if (_followMe) setState(() => _followMe = false);
+              },
+              markers: _markers,
+              circles: _circles,
+              polylines: _polylines,
+              trafficEnabled: _trafficEnabled,
+              compassEnabled: true,
+              myLocationEnabled: _locationPermissionGranted,
+              myLocationButtonEnabled: false,
+              zoomControlsEnabled: false,
+              mapType: _mapType,
+            ),
+          if (position != null) ...[
+            _buildTopSearchBar(),
+            _buildQuickControls(),
+          ],
           Positioned(
             left: 16,
             right: 16,
-            bottom: 18,
+            bottom: _selectedDestination == null ? 18 : 166,
             child: IgnorePointer(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: isLight
                       ? const Color(0xFFFFFFFF).withValues(alpha: 0.9)
@@ -710,11 +1001,16 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.tips_and_updates_rounded, size: 17, color: AppTheme.secondaryColor),
+                    const Icon(
+                      Icons.tips_and_updates_rounded,
+                      size: 17,
+                      color: AppTheme.secondaryColor,
+                    ),
                     const SizedBox(width: 9),
                     Expanded(
                       child: Text(
-                        _statusText ?? 'Long press to drop pin. Tap markers to preview route.',
+                        _statusText ??
+                            'Long press to drop pin. Tap markers to preview route.',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -729,11 +1025,234 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
               ),
             ),
           ),
-          if (_isLoading)
+          if (_isLoading && position != null)
             const Center(
               child: CircularProgressIndicator(color: AppTheme.primaryColor),
             ),
+          if (position != null && _selectedDestination != null)
+            _buildJourneyPanel(isLight),
         ],
+      ),
+    );
+  }
+
+  Widget _buildJourneyPanel(bool isLight) {
+    final destinationName = _selectedDestinationName ?? 'Selected destination';
+    final remaining = _remainingDistanceMeters;
+    final eta = _remainingEtaSeconds;
+
+    return Positioned(
+      left: 16,
+      right: 16,
+      bottom: 18,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isLight
+              ? const Color(0xFFFFFFFF).withValues(alpha: 0.95)
+              : AppTheme.cardColor.withValues(alpha: 0.92),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isLight
+                ? const Color(0xFFDCE5F6)
+                : Colors.white.withValues(alpha: 0.14),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isLight ? 0.12 : 0.35),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    destinationName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: isLight ? const Color(0xFF172235) : Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                ElevatedButton.icon(
+                  onPressed: _journeyActive ? _stopJourney : _startJourney,
+                  icon: Icon(
+                    _journeyActive
+                        ? Icons.stop_rounded
+                        : Icons.play_arrow_rounded,
+                    size: 18,
+                  ),
+                  label: Text(_journeyActive ? 'Stop' : 'Start'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _journeyActive
+                        ? const Color(0xFFE53935)
+                        : AppTheme.primaryColor,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(92, 42),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _journeyStat(
+                    label: 'Covered',
+                    value: _formatDistance(_coveredDistanceMeters),
+                    isLight: isLight,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _journeyStat(
+                    label: 'Remaining',
+                    value: remaining == null
+                        ? '--'
+                        : _formatDistance(remaining),
+                    isLight: isLight,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _journeyStat(
+                    label: 'ETA',
+                    value: eta == null ? '--' : _formatDuration(eta),
+                    isLight: isLight,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _journeyStat({
+    required String label,
+    required String value,
+    required bool isLight,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: isLight
+            ? const Color(0xFFF4F7FB)
+            : Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: isLight ? const Color(0xFF65758F) : Colors.white60,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: isLight ? const Color(0xFF172235) : Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDistance(double meters) {
+    if (meters >= 1000) {
+      return '${(meters / 1000).toStringAsFixed(meters >= 10000 ? 0 : 1)} km';
+    }
+    return '${meters.round()} m';
+  }
+
+  String _formatDuration(int seconds) {
+    if (seconds < 60) return '<1 min';
+
+    final minutes = (seconds / 60).round();
+    if (minutes < 60) return '$minutes min';
+
+    final hours = minutes ~/ 60;
+    final remainingMinutes = minutes % 60;
+    if (remainingMinutes == 0) return '${hours}h';
+    return '${hours}h ${remainingMinutes}m';
+  }
+
+  Widget _buildLocatingView(bool isLight) {
+    final canRetry = !_isLoading && _statusText != null;
+
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: isLight ? const Color(0xFFF4F7FB) : AppTheme.backgroundColor,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_isLoading)
+                const CircularProgressIndicator(color: AppTheme.primaryColor)
+              else
+                Icon(
+                  Icons.location_searching_rounded,
+                  size: 42,
+                  color: isLight ? AppTheme.primaryColor : Colors.white70,
+                ),
+              const SizedBox(height: 18),
+              Text(
+                _statusText ?? 'Fetching your current location...',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: isLight ? const Color(0xFF26364D) : Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'The map will open directly around you once GPS is ready.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: isLight ? const Color(0xFF65758F) : Colors.white70,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (canRetry) ...[
+                const SizedBox(height: 18),
+                ElevatedButton.icon(
+                  onPressed: _initializeMap,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Try again'),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -885,7 +1404,9 @@ class _SafetyMapScreenState extends State<SafetyMapScreen> {
                 color: isLight
                     ? const Color(0xFFFFFFFF).withValues(alpha: 0.94)
                     : AppTheme.cardColor.withValues(alpha: 0.85),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 elevation: 5,
                 child: InkWell(
                   borderRadius: BorderRadius.circular(16),
@@ -997,12 +1518,25 @@ class _DirectionRoute {
   const _DirectionRoute({
     required this.encodedPolyline,
     required this.etaSeconds,
+    required this.distanceMeters,
     required this.distanceText,
     required this.durationText,
+    required this.safetyScore,
+    required this.safetyReason,
   });
 
   final String encodedPolyline;
   final int etaSeconds;
+  final double? distanceMeters;
   final String distanceText;
   final String durationText;
+  final int safetyScore;
+  final String safetyReason;
+}
+
+class _RouteSafetyScore {
+  const _RouteSafetyScore({required this.score, required this.reason});
+
+  final int score;
+  final String reason;
 }

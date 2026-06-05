@@ -18,6 +18,8 @@ import 'package:suraksha_women_safety_app/features/posh/posh_chat_screen.dart';
 import 'package:suraksha_women_safety_app/features/profile/profile_screen.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/community_alerts_provider.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/nearby_places_provider.dart';
+import 'package:suraksha_women_safety_app/features/dashboard/safety_monitor_provider.dart';
+import 'package:suraksha_women_safety_app/features/routes/route_safety_provider.dart';
 import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
 
 final _localProfilePhotoPathProvider = FutureProvider<String?>((ref) async {
@@ -156,6 +158,13 @@ class DashboardScreen extends ConsumerWidget {
                     duration: const Duration(milliseconds: 430),
                     from: 10,
                     child: _buildWomenHelplineCard(context),
+                  ),
+                  const SizedBox(height: 24),
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 270),
+                    duration: const Duration(milliseconds: 430),
+                    from: 10,
+                    child: _buildRouteSafetyCard(context, ref),
                   ),
                   const SizedBox(height: 24),
                   FadeInUp(
@@ -476,6 +485,305 @@ class DashboardScreen extends ConsumerWidget {
       width: width,
       onTap: screen == null ? null : () => _pushPremium(context, screen),
     );
+  }
+
+  Widget _buildRouteSafetyCard(BuildContext context, WidgetRef ref) {
+    final routeState = ref.watch(routeSafetyProvider);
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final danger = routeState.pendingSafetyCheck || routeState.safetyScore < 60;
+    final tone = routeState.pendingSafetyCheck
+        ? const Color(0xFFE53935)
+        : routeState.safetyScore >= 80
+        ? const Color(0xFF2FB79E)
+        : routeState.safetyScore >= 60
+        ? const Color(0xFFF3B13E)
+        : const Color(0xFFE66E41);
+    final countdownText = _formatRouteCountdown(routeState.countdownSeconds);
+    final deviation = routeState.deviationMeters;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isLight
+              ? [
+                  const Color(0xFFFFFFFF),
+                  Color.lerp(const Color(0xFFF5FAFF), tone, 0.08)!,
+                ]
+              : [
+                  Color.lerp(AppTheme.cardColor, tone, danger ? 0.2 : 0.08)!,
+                  const Color(0xFF101827),
+                ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: danger
+              ? tone.withValues(alpha: 0.54)
+              : isLight
+              ? const Color(0xFFDCE5F6)
+              : Colors.white.withValues(alpha: 0.12),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: tone.withValues(alpha: isLight ? 0.15 : 0.24),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(Icons.route_rounded, color: tone),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      routeState.pendingSafetyCheck
+                          ? 'Safe route changed'
+                          : 'Daily Route Guard',
+                      style: TextStyle(
+                        color: isLight ? const Color(0xFF172235) : Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      routeState.statusMessage,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: isLight
+                            ? const Color(0xFF627491)
+                            : Colors.white.withValues(alpha: 0.7),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                '${routeState.safetyScore}',
+                style: TextStyle(
+                  color: tone,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _routeChip(
+                context,
+                icon: Icons.shield_rounded,
+                label: routeState.riskLabel,
+                color: tone,
+              ),
+              _routeChip(
+                context,
+                icon: routeState.hasLearnedRoute
+                    ? Icons.task_alt_rounded
+                    : Icons.sync_rounded,
+                label: routeState.monitoringMapRoute
+                    ? '${routeState.activeMapRoutePointCount} map points'
+                    : routeState.hasLearnedRoute
+                    ? '${routeState.routeLogCount} route logs'
+                    : 'Learning route',
+                color: const Color(0xFF3B82F6),
+              ),
+              if (routeState.activeMapRouteScore != null)
+                _routeChip(
+                  context,
+                  icon: Icons.map_rounded,
+                  label: 'Map score ${routeState.activeMapRouteScore}',
+                  color: const Color(0xFF2FB79E),
+                ),
+              if (deviation != null)
+                _routeChip(
+                  context,
+                  icon: Icons.social_distance_rounded,
+                  label: '${deviation.round()} m from pattern',
+                  color: routeState.pendingSafetyCheck
+                      ? const Color(0xFFE53935)
+                      : const Color(0xFF8E7CF4),
+                ),
+            ],
+          ),
+          if (routeState.riskFactors.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              routeState.riskFactors.take(3).join(' | '),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: isLight
+                    ? const Color(0xFF546784)
+                    : Colors.white.withValues(alpha: 0.64),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          if (routeState.monitoringMapRoute &&
+              routeState.activeMapRouteReason != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              routeState.activeMapRouteReason!,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: isLight
+                    ? const Color(0xFF546784)
+                    : Colors.white.withValues(alpha: 0.64),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    unawaited(
+                      ref
+                          .read(safetyMonitorProvider.notifier)
+                          .start()
+                          .catchError((_) {}),
+                    );
+                    await ref.read(routeSafetyProvider.notifier).refreshNow();
+                  },
+                  icon: const Icon(Icons.refresh_rounded, size: 17),
+                  label: const Text('Refresh'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _pushPremium(context, const SafetyMapScreen()),
+                  icon: const Icon(Icons.map_rounded, size: 17),
+                  label: const Text('Open map'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: TextButton.icon(
+              onPressed: () async {
+                await ref.read(routeSafetyProvider.notifier).resetLearnedRoute();
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Home-workplace route learning reset.'),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.restart_alt_rounded, size: 17),
+              label: const Text('Reset home-workplace route learning'),
+            ),
+          ),
+          if (routeState.pendingSafetyCheck) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE53935).withValues(
+                  alpha: isLight ? 0.09 : 0.18,
+                ),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'SOS auto-triggers in $countdownText without confirmation.',
+                      style: TextStyle(
+                        color: isLight
+                            ? const Color(0xFF6B1D1D)
+                            : Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  ElevatedButton.icon(
+                    onPressed: () => ref
+                        .read(routeSafetyProvider.notifier)
+                        .markUserSafe(),
+                    icon: const Icon(Icons.check_circle_rounded, size: 18),
+                    label: const Text('I am safe'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2FB79E),
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(116, 42),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _routeChip(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isLight ? 0.1 : 0.18),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: isLight ? const Color(0xFF334158) : Colors.white70,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatRouteCountdown(int seconds) {
+    if (seconds <= 0) return '0s';
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    if (minutes == 0) return '${remainingSeconds}s';
+    return '${minutes}m ${remainingSeconds.toString().padLeft(2, '0')}s';
   }
 
   Widget _buildRecentAlerts(BuildContext context, WidgetRef ref) {

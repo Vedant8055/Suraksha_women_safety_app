@@ -27,7 +27,7 @@ Suraksha is a futuristic, production-ready women's safety platform built with Fl
 - `features/`: Modular features (Auth, SOS, Maps, Cybercrime, AI).
 - `widgets/`: Reusable futuristic UI components.
 
-### Backend (server/)
+### Backend (backend/)
 - `controllers/`: Business logic.
 - `models/`: MongoDB schemas (User, SOS, CyberReport).
 - `sockets/`: Real-time communication logic.
@@ -51,10 +51,10 @@ Suraksha is a futuristic, production-ready women's safety platform built with Fl
 
 2. **Backend Setup**:
    ```bash
-   cd server
+   cd backend
    npm install
-   # Create a .env file with your variables (MONGODB_URI, JWT_SECRET, etc.)
-   node server.js
+   # Create a .env file with your variables (MONGO_URI, JWT_SECRET, etc.)
+   node src/server.js
    ```
 
 3. **Frontend Setup**:

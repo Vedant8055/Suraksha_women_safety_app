@@ -7,6 +7,7 @@ import 'package:suraksha_women_safety_app/theme/app_theme.dart';
 import 'package:suraksha_women_safety_app/theme/theme_mode_provider.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/dashboard_screen.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/safety_monitor_provider.dart';
+import 'package:suraksha_women_safety_app/features/routes/route_safety_provider.dart';
 import 'package:suraksha_women_safety_app/features/sos/sensor_service.dart';
 import 'package:suraksha_women_safety_app/features/sos/scream_detection_service.dart';
 import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
@@ -41,6 +42,9 @@ class _MyAppState extends ConsumerState<MyApp> {
         if (!mounted) return;
         unawaited(
           ref.read(safetyMonitorProvider.notifier).start().catchError((_) {}),
+        );
+        unawaited(
+          ref.read(routeSafetyProvider.notifier).start().catchError((_) {}),
         );
         ref.read(impactDetectionProvider);
         ref.read(screamDetectionProvider);
@@ -168,6 +172,9 @@ class _AppLifecycleHandler extends WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       unawaited(
         ref.read(safetyMonitorProvider.notifier).start().catchError((_) {}),
+      );
+      unawaited(
+        ref.read(routeSafetyProvider.notifier).start().catchError((_) {}),
       );
       unawaited(
         ref

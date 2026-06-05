@@ -24,8 +24,19 @@ class AppEnvironment {
     defaultValue: 'gemini-1.5-flash',
   );
 
-  static const String googleMapsApiKey = String.fromEnvironment(
+  static const String _googleMapsApiKey = String.fromEnvironment(
     'GOOGLE_MAPS_API_KEY',
-    defaultValue: 'AIzaSyAHuQ735KTsOI98USg1auNELNf4tY8AwK4',
+    defaultValue: '',
   );
+
+  static const String _viteGoogleMapsApiKey = String.fromEnvironment(
+    'VITE_GOOGLE_MAPS_API_KEY',
+    defaultValue: '',
+  );
+
+  static String get googleMapsApiKey {
+    if (_googleMapsApiKey.isNotEmpty) return _googleMapsApiKey;
+    if (_viteGoogleMapsApiKey.isNotEmpty) return _viteGoogleMapsApiKey;
+    return 'AIzaSyAHuQ735KTsOI98USg1auNELNf4tY8AwK4';
+  }
 }
