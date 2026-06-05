@@ -157,11 +157,18 @@ class DashboardScreen extends ConsumerWidget {
                     delay: const Duration(milliseconds: 240),
                     duration: const Duration(milliseconds: 430),
                     from: 10,
+                    child: _buildPoliceNumberCard(context),
+                  ),
+                  const SizedBox(height: 14),
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 260),
+                    duration: const Duration(milliseconds: 430),
+                    from: 10,
                     child: _buildWomenHelplineCard(context),
                   ),
                   const SizedBox(height: 24),
                   FadeInUp(
-                    delay: const Duration(milliseconds: 270),
+                    delay: const Duration(milliseconds: 290),
                     duration: const Duration(milliseconds: 430),
                     from: 10,
                     child: _buildRouteSafetyCard(context, ref),
@@ -910,6 +917,78 @@ class DashboardScreen extends ConsumerWidget {
         ),
       );
     }
+  }
+
+  Widget _buildPoliceNumberCard(BuildContext context) {
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isLight
+              ? const [Color(0xFFFFFFFF), Color(0xFFF2F6FF)]
+              : const [AppTheme.cardColor, AppTheme.cardColor],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isLight
+              ? const Color(0xFFDCE5F6)
+              : Colors.white.withValues(alpha: 0.08),
+        ),
+        boxShadow: isLight
+            ? [
+                BoxShadow(
+                  color: const Color(0xFF8A9FBE).withValues(alpha: 0.16),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ]
+            : null,
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF3B82F6).withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.local_police_rounded,
+              color: Color(0xFF3B82F6),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Police Emergency',
+                  style: TextStyle(
+                    color: isLight ? const Color(0xFF172235) : Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const Text(
+                  '100',
+                  style: TextStyle(
+                    color: Color(0xFF3B82F6),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: () => _openDialPad(context, '100'),
+            icon: const Icon(Icons.call, color: Colors.green),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildWomenHelplineCard(BuildContext context) {
