@@ -736,29 +736,36 @@ class _EvidenceVaultTabState extends State<_EvidenceVaultTab> {
                 hint: 'Threat screenshot, UPI proof...',
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _category,
-                      decoration: _inputDecoration('Category'),
-                      items: _categories
-                          .where((item) => item != 'All')
-                          .map((item) => DropdownMenuItem(value: item, child: Text(item)))
-                          .toList(),
-                      onChanged: (value) => setState(() => _category = value ?? _category),
+              DropdownButtonFormField<String>(
+                initialValue: _category,
+                decoration: _inputDecoration('Category'),
+                items: _categories
+                    .where((item) => item != 'All')
+                    .map((item) => DropdownMenuItem(value: item, child: Text(item)))
+                    .toList(),
+                onChanged: (value) => setState(() => _category = value ?? _category),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceSoft.withValues(alpha: 0.72),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Private',
+                        style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
+                    Switch(
                       value: _privateMode,
                       onChanged: (value) => setState(() => _privateMode = value),
-                      title: const Text('Private', style: TextStyle(color: Colors.white70)),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               const SizedBox(height: 12),
               _TextInput(
