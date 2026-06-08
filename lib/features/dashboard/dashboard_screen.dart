@@ -466,7 +466,7 @@ class DashboardScreen extends ConsumerWidget {
             _buildActionCard(
               context,
               Icons.gavel_rounded,
-              l10n.t('poshPortal'),
+              'POSH',
               const Color(0xFF2FB79E),
               const POSHLegalPortalScreen(),
               cardWidth,
@@ -683,7 +683,8 @@ class DashboardScreen extends ConsumerWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () => _pushPremium(context, const SafetyMapScreen()),
+                  onPressed: () =>
+                      _pushPremium(context, const SafetyMapScreen()),
                   icon: const Icon(Icons.map_rounded, size: 17),
                   label: const Text('Open map'),
                 ),
@@ -695,7 +696,9 @@ class DashboardScreen extends ConsumerWidget {
             width: double.infinity,
             child: TextButton.icon(
               onPressed: () async {
-                await ref.read(routeSafetyProvider.notifier).resetLearnedRoute();
+                await ref
+                    .read(routeSafetyProvider.notifier)
+                    .resetLearnedRoute();
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
@@ -713,9 +716,9 @@ class DashboardScreen extends ConsumerWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(13),
               decoration: BoxDecoration(
-                color: const Color(0xFFE53935).withValues(
-                  alpha: isLight ? 0.09 : 0.18,
-                ),
+                color: const Color(
+                  0xFFE53935,
+                ).withValues(alpha: isLight ? 0.09 : 0.18),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Row(
@@ -724,9 +727,7 @@ class DashboardScreen extends ConsumerWidget {
                     child: Text(
                       'SOS auto-triggers in $countdownText without confirmation.',
                       style: TextStyle(
-                        color: isLight
-                            ? const Color(0xFF6B1D1D)
-                            : Colors.white,
+                        color: isLight ? const Color(0xFF6B1D1D) : Colors.white,
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
                       ),
@@ -734,9 +735,8 @@ class DashboardScreen extends ConsumerWidget {
                   ),
                   const SizedBox(width: 10),
                   ElevatedButton.icon(
-                    onPressed: () => ref
-                        .read(routeSafetyProvider.notifier)
-                        .markUserSafe(),
+                    onPressed: () =>
+                        ref.read(routeSafetyProvider.notifier).markUserSafe(),
                     icon: const Icon(Icons.check_circle_rounded, size: 18),
                     label: const Text('I am safe'),
                     style: ElevatedButton.styleFrom(
@@ -885,8 +885,8 @@ class DashboardScreen extends ConsumerWidget {
         return Icons.volume_off_rounded;
       case CommunityAlertKind.roadBlock:
         return Icons.construction_rounded;
-      case CommunityAlertKind.safetyContext:
-        return Icons.info_outline_rounded;
+      case CommunityAlertKind.lighting:
+        return Icons.lightbulb_circle_rounded;
     }
   }
 
@@ -902,8 +902,8 @@ class DashboardScreen extends ConsumerWidget {
         return const Color(0xFF8E7CF4);
       case CommunityAlertKind.roadBlock:
         return const Color(0xFFE66E41);
-      case CommunityAlertKind.safetyContext:
-        return const Color(0xFF26BF96);
+      case CommunityAlertKind.lighting:
+        return const Color(0xFFF4C542);
     }
   }
 
@@ -1127,10 +1127,6 @@ class DashboardScreen extends ConsumerWidget {
               ],
             ),
           ),
-          Icon(
-            Icons.chevron_right,
-            color: isLight ? const Color(0xFF8FA2BE) : Colors.white24,
-          ),
         ],
       ),
     );
@@ -1252,7 +1248,7 @@ class DashboardScreen extends ConsumerWidget {
                         activeType == NearbyPlaceType.hospitals,
                     onPressed: () => ref
                         .read(nearbyPlacesProvider.notifier)
-                        .fetchNearby(NearbyPlaceType.hospitals),
+                        .toggleNearby(NearbyPlaceType.hospitals),
                   ),
                   _nearbyServiceTile(
                     context: context,
@@ -1266,7 +1262,7 @@ class DashboardScreen extends ConsumerWidget {
                         activeType == NearbyPlaceType.policeStations,
                     onPressed: () => ref
                         .read(nearbyPlacesProvider.notifier)
-                        .fetchNearby(NearbyPlaceType.policeStations),
+                        .toggleNearby(NearbyPlaceType.policeStations),
                   ),
                   _nearbyServiceTile(
                     context: context,
@@ -1280,7 +1276,7 @@ class DashboardScreen extends ConsumerWidget {
                         activeType == NearbyPlaceType.washrooms,
                     onPressed: () => ref
                         .read(nearbyPlacesProvider.notifier)
-                        .fetchNearby(NearbyPlaceType.washrooms),
+                        .toggleNearby(NearbyPlaceType.washrooms),
                   ),
                   _nearbyServiceTile(
                     context: context,
@@ -1294,7 +1290,7 @@ class DashboardScreen extends ConsumerWidget {
                         activeType == NearbyPlaceType.bloodBanks,
                     onPressed: () => ref
                         .read(nearbyPlacesProvider.notifier)
-                        .fetchNearby(NearbyPlaceType.bloodBanks),
+                        .toggleNearby(NearbyPlaceType.bloodBanks),
                   ),
                 ],
               );
@@ -1732,6 +1728,12 @@ class _PoppingActionCardState extends State<_PoppingActionCard> {
         : Colors.white.withValues(alpha: 0.66);
     final scale = _pressed ? 0.96 : (_popped ? 1.07 : 1.0);
     final lift = _popped ? -5.0 : (_pressed ? 2.0 : 0.0);
+    final compact = widget.width < 176;
+    final horizontalPadding = compact ? 12.0 : 16.0;
+    final iconBoxSize = compact ? 42.0 : 46.0;
+    final labelFontSize = compact ? 13.5 : 15.0;
+    final gap = compact ? 10.0 : 13.0;
+    final arrowSize = compact ? 17.0 : 19.0;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -1757,7 +1759,10 @@ class _PoppingActionCardState extends State<_PoppingActionCard> {
             duration: const Duration(milliseconds: 190),
             curve: Curves.easeOutCubic,
             width: widget.width,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            padding: EdgeInsets.symmetric(
+              horizontal: horizontalPadding,
+              vertical: 16,
+            ),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
@@ -1837,8 +1842,8 @@ class _PoppingActionCardState extends State<_PoppingActionCard> {
                     AnimatedContainer(
                       duration: const Duration(milliseconds: 190),
                       curve: Curves.easeOutCubic,
-                      width: 46,
-                      height: 46,
+                      width: iconBoxSize,
+                      height: iconBoxSize,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
@@ -1857,28 +1862,40 @@ class _PoppingActionCardState extends State<_PoppingActionCard> {
                           color: widget.color.withValues(alpha: 0.24),
                         ),
                       ),
-                      child: Icon(widget.icon, color: widget.color, size: 24),
+                      child: Icon(
+                        widget.icon,
+                        color: widget.color,
+                        size: compact ? 22 : 24,
+                      ),
                     ),
-                    const SizedBox(width: 13),
+                    SizedBox(width: gap),
                     Expanded(
-                      child: Text(
-                        widget.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: textColor,
-                          fontWeight: FontWeight.w800,
+                      child: SizedBox(
+                        height: 22,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            widget.label,
+                            maxLines: 1,
+                            softWrap: false,
+                            style: TextStyle(
+                              fontSize: labelFontSize,
+                              color: textColor,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                         ),
                       ),
                     ),
+                    SizedBox(width: compact ? 6 : 8),
                     AnimatedRotation(
                       turns: _popped ? -0.08 : 0,
                       duration: const Duration(milliseconds: 190),
                       curve: Curves.easeOutBack,
                       child: Icon(
                         Icons.arrow_forward_rounded,
-                        size: 19,
+                        size: arrowSize,
                         color: _popped ? widget.color : mutedIconColor,
                       ),
                     ),

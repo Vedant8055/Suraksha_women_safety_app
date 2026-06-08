@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:suraksha_women_safety_app/config/app_environment.dart';
@@ -74,6 +75,22 @@ class NearbyPlacesNotifier extends StateNotifier<NearbyPlacesState> {
 
   final Ref _ref;
   final Dio _dio = Dio();
+
+  @visibleForTesting
+  void debugSetState(NearbyPlacesState newState) {
+    state = newState;
+  }
+
+  void toggleNearby(NearbyPlaceType type) {
+    if (state.isLoading) return;
+
+    if (state.activeType == type) {
+      state = const NearbyPlacesState();
+      return;
+    }
+
+    fetchNearby(type);
+  }
 
   Future<void> fetchNearby(NearbyPlaceType type) async {
     final monitor = _ref.read(safetyMonitorProvider);

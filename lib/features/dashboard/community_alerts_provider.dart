@@ -12,7 +12,7 @@ enum CommunityAlertKind {
   lonelyRoad,
   silentZone,
   roadBlock,
-  safetyContext,
+  lighting,
 }
 
 class CommunityAlertItem {
@@ -226,14 +226,25 @@ class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
   Future<_NearbySignals> _nearbyCounts(Position position, String apiKey) async {
     final responses = await Future.wait([
       _nearbySearch(position, apiKey, type: 'bus_station'),
+      _nearbySearch(position, apiKey, keyword: 'bus stop'),
+      _nearbySearch(position, apiKey, type: 'transit_station'),
       _nearbySearch(position, apiKey, type: 'train_station'),
       _nearbySearch(position, apiKey, type: 'subway_station'),
       _nearbySearch(position, apiKey, type: 'taxi_stand'),
+      _nearbySearch(position, apiKey, keyword: 'auto rickshaw stand'),
+      _nearbySearch(position, apiKey, keyword: 'rickshaw stand'),
+      _nearbySearch(position, apiKey, keyword: 'cab stand'),
       _nearbySearch(
         position,
         apiKey,
         keyword: 'restaurant OR cafe OR store OR mall',
       ),
+      _nearbySearch(position, apiKey, type: 'restaurant'),
+      _nearbySearch(position, apiKey, type: 'cafe'),
+      _nearbySearch(position, apiKey, type: 'shopping_mall'),
+      _nearbySearch(position, apiKey, type: 'convenience_store'),
+      _nearbySearch(position, apiKey, type: 'gas_station'),
+      _nearbySearch(position, apiKey, type: 'parking'),
       _nearbySearch(position, apiKey, type: 'hospital'),
       _nearbySearch(position, apiKey, type: 'school'),
       _nearbySearch(position, apiKey, type: 'courthouse'),
@@ -242,14 +253,25 @@ class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
 
     return _NearbySignals(
       busStops: responses[0],
-      trainStations: responses[1],
-      metroStations: responses[2],
-      taxiStands: responses[3],
-      activePlaces: responses[4],
-      hospitals: responses[5],
-      schools: responses[6],
-      courts: responses[7],
-      policeStations: responses[8],
+      busStopKeywords: responses[1],
+      transitStations: responses[2],
+      trainStations: responses[3],
+      metroStations: responses[4],
+      taxiStands: responses[5],
+      autoRickshawStands: responses[6],
+      rickshawStandKeywords: responses[7],
+      cabStands: responses[8],
+      activePlaces: responses[9],
+      restaurants: responses[10],
+      cafes: responses[11],
+      malls: responses[12],
+      convenienceStores: responses[13],
+      gasStations: responses[14],
+      parkingAreas: responses[15],
+      hospitals: responses[16],
+      schools: responses[17],
+      courts: responses[18],
+      policeStations: responses[19],
     );
   }
 
@@ -291,9 +313,10 @@ class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
   ) {
     final alerts = <CommunityAlertItem>[];
     final isLateNight = now.hour >= 22 || now.hour < 5;
-    final transitCount =
-        nearby.busStops + nearby.trainStations + nearby.metroStations;
+    final transitCount = nearby.transitPointCount;
     final silentZoneCount = nearby.hospitals + nearby.schools + nearby.courts;
+    final transportSummary = _buildTransportSummary(nearby);
+    final lightingSummary = _buildLightingSummary(nearby, isLateNight);
 
     if (traffic.sampledRoutes == 0) {
       alerts.add(
@@ -345,7 +368,17 @@ class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
           kind: CommunityAlertKind.transport,
           title: 'Late-night transport scarcity',
           detail:
-              'Few transit points and no taxi stands found within about 1.2 km.',
+              '${transportSummary.summary}. Fewer transport options look active within about 1.2 km.',
+          updatedAt: now,
+        ),
+      );
+    } else if (transportSummary.hasStrongAvailability) {
+      alerts.add(
+        CommunityAlertItem(
+          kind: CommunityAlertKind.transport,
+          title: 'Public transport active nearby',
+          detail:
+              '${transportSummary.summary}. Area access looks good for quick movement.',
           updatedAt: now,
         ),
       );
@@ -355,7 +388,7 @@ class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
           kind: CommunityAlertKind.transport,
           title: 'Public transport availability',
           detail:
-              '$transitCount transit points and ${nearby.taxiStands} taxi stands found nearby.',
+              '${transportSummary.summary}. Availability looks moderate around your location.',
           updatedAt: now,
         ),
       );
@@ -387,15 +420,83 @@ class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
 
     alerts.add(
       CommunityAlertItem(
-        kind: CommunityAlertKind.safetyContext,
-        title: 'Crime activity feed not connected',
-        detail:
-            'Google Maps does not provide verified crime-frequency alerts. Connect police/community reports for this signal.',
+        kind: CommunityAlertKind.lighting,
+        title: lightingSummary.title,
+        detail: lightingSummary.detail,
         updatedAt: now,
       ),
     );
 
     return alerts.take(5).toList();
+  }
+
+  _TransportSummary _buildTransportSummary(_NearbySignals nearby) {
+    final busAccess = nearby.busStops + nearby.busStopKeywords;
+    final railAccess =
+        nearby.transitStations + nearby.trainStations + nearby.metroStations;
+    final taxiAccess =
+        nearby.taxiStands +
+        nearby.autoRickshawStands +
+        nearby.rickshawStandKeywords +
+        nearby.cabStands;
+
+    final parts = <String>[];
+    if (busAccess > 0) {
+      parts.add('$busAccess bus access points');
+    }
+    if (railAccess > 0) {
+      parts.add('$railAccess rail or metro points');
+    }
+    if (taxiAccess > 0) {
+      parts.add('$taxiAccess taxi or auto stands');
+    }
+    if (parts.isEmpty) {
+      parts.add('No bus, rail, taxi, or auto stands were found nearby');
+    }
+
+    return _TransportSummary(
+      summary: parts.join(', '),
+      hasStrongAvailability:
+          busAccess >= 2 || railAccess >= 1 || taxiAccess >= 2,
+    );
+  }
+
+  _LightingSummary _buildLightingSummary(
+    _NearbySignals nearby,
+    bool isLateNight,
+  ) {
+    final lightingSupportScore =
+        nearby.restaurants +
+        nearby.cafes +
+        nearby.malls +
+        nearby.convenienceStores +
+        nearby.gasStations * 2 +
+        nearby.parkingAreas +
+        nearby.transitPointCount;
+
+    if (lightingSupportScore >= 14) {
+      return _LightingSummary(
+        title: 'Lighting looks strong nearby',
+        detail:
+            '${nearby.nightActivityCount} active public places and ${nearby.transitPointCount} transport points suggest well-used, better-lit roads around you.',
+      );
+    }
+
+    if (lightingSupportScore >= 7) {
+      return _LightingSummary(
+        title: 'Lighting looks moderate nearby',
+        detail:
+            '${nearby.nightActivityCount} public venues and ${nearby.transitPointCount} transport points were found nearby, so main roads may stay reasonably lit.',
+      );
+    }
+
+    return _LightingSummary(
+      title: isLateNight
+          ? 'Lighting may be limited nearby'
+          : 'Lighting coverage looks limited',
+      detail:
+          'Few public venues, fuel stops, parking areas, or transit points were found nearby. Prefer brighter main roads if you move out.',
+    );
   }
 
   List<(double, double)> _destinationSamples(Position position) {
@@ -430,10 +531,21 @@ class _TrafficSignals {
 
 class _NearbySignals {
   final int busStops;
+  final int busStopKeywords;
+  final int transitStations;
   final int trainStations;
   final int metroStations;
   final int taxiStands;
+  final int autoRickshawStands;
+  final int rickshawStandKeywords;
+  final int cabStands;
   final int activePlaces;
+  final int restaurants;
+  final int cafes;
+  final int malls;
+  final int convenienceStores;
+  final int gasStations;
+  final int parkingAreas;
   final int hospitals;
   final int schools;
   final int courts;
@@ -441,13 +553,61 @@ class _NearbySignals {
 
   const _NearbySignals({
     required this.busStops,
+    required this.busStopKeywords,
+    required this.transitStations,
     required this.trainStations,
     required this.metroStations,
     required this.taxiStands,
+    required this.autoRickshawStands,
+    required this.rickshawStandKeywords,
+    required this.cabStands,
     required this.activePlaces,
+    required this.restaurants,
+    required this.cafes,
+    required this.malls,
+    required this.convenienceStores,
+    required this.gasStations,
+    required this.parkingAreas,
     required this.hospitals,
     required this.schools,
     required this.courts,
     required this.policeStations,
   });
+
+  int get transitPointCount =>
+      busStops +
+      busStopKeywords +
+      transitStations +
+      trainStations +
+      metroStations +
+      taxiStands +
+      autoRickshawStands +
+      rickshawStandKeywords +
+      cabStands;
+
+  int get nightActivityCount =>
+      activePlaces +
+      restaurants +
+      cafes +
+      malls +
+      convenienceStores +
+      gasStations +
+      parkingAreas;
+}
+
+class _TransportSummary {
+  final String summary;
+  final bool hasStrongAvailability;
+
+  const _TransportSummary({
+    required this.summary,
+    required this.hasStrongAvailability,
+  });
+}
+
+class _LightingSummary {
+  final String title;
+  final String detail;
+
+  const _LightingSummary({required this.title, required this.detail});
 }

@@ -62,6 +62,10 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
   int? _routeEtaSeconds;
   double? _remainingDistanceMeters;
   int? _remainingEtaSeconds;
+  double? _smoothedTravelSpeedMps;
+  int? _stableEtaSeconds;
+  DateTime? _lastEtaUpdateAt;
+  int _routeRequestId = 0;
 
   @override
   void initState() {
@@ -134,17 +138,14 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
 
       setState(() {
         _position = current;
+        _isLoading = false;
+        _statusText = 'Loading nearby safety points...';
       });
 
       _setOrUpdateSelfMarker(current);
-      await _fetchNearby(current.latitude, current.longitude);
       _startLiveLocationStream();
       _applyInitialTargetIfAny();
-
-      setState(() {
-        _isLoading = false;
-        _statusText = null;
-      });
+      unawaited(_fetchNearby(current.latitude, current.longitude));
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -278,11 +279,14 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
       _followMe = true;
       _coveredDistanceMeters = 0;
       _lastJourneyPosition = pos;
+      _smoothedTravelSpeedMps = null;
+      _lastEtaUpdateAt = null;
       _remainingDistanceMeters = _distanceBetween(
         LatLng(pos.latitude, pos.longitude),
         destination,
       );
-      _remainingEtaSeconds = _estimateEtaSeconds(pos);
+      _stableEtaSeconds = _routeEtaSeconds;
+      _remainingEtaSeconds = _computeStableEtaSeconds(pos);
       _statusText = 'Journey tracking active';
     });
 
@@ -294,6 +298,9 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
     setState(() {
       _journeyActive = false;
       _lastJourneyPosition = null;
+      _smoothedTravelSpeedMps = null;
+      _stableEtaSeconds = null;
+      _lastEtaUpdateAt = null;
       _statusText = 'Journey stopped';
     });
     unawaited(ref.read(routeSafetyProvider.notifier).clearActiveMapRoute());
@@ -306,6 +313,9 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
     _routeEtaSeconds = null;
     _remainingDistanceMeters = null;
     _remainingEtaSeconds = null;
+    _smoothedTravelSpeedMps = null;
+    _stableEtaSeconds = null;
+    _lastEtaUpdateAt = null;
   }
 
   void _updateJourneyProgress(Position pos) {
@@ -341,10 +351,11 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
         : routeRemaining < directRemaining
         ? directRemaining
         : routeRemaining;
-    _remainingEtaSeconds = _estimateEtaSeconds(pos);
+    _remainingEtaSeconds = _computeStableEtaSeconds(pos);
 
     if (directRemaining <= 35) {
       _journeyActive = false;
+      _stableEtaSeconds = 0;
       _statusText = 'Destination reached';
     }
   }
@@ -366,6 +377,70 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
 
     const walkingSpeedMetersPerSecond = 1.4;
     return (remaining / walkingSpeedMetersPerSecond).round();
+  }
+
+  int? _computeStableEtaSeconds(Position pos) {
+    final estimated = _estimateEtaSeconds(pos);
+    if (estimated == null) return _stableEtaSeconds ?? _routeEtaSeconds;
+
+    final remaining = _remainingDistanceMeters;
+    if (remaining == null) return estimated;
+
+    final now = DateTime.now();
+    final rawSpeed = pos.speed.isFinite ? pos.speed : 0;
+    final trustworthySpeed = rawSpeed >= 1.8 && rawSpeed <= 33;
+    if (trustworthySpeed) {
+      final previous = _smoothedTravelSpeedMps ?? rawSpeed;
+      _smoothedTravelSpeedMps = (previous * 0.72) + (rawSpeed * 0.28);
+    }
+
+    final routeBasedEta =
+        (_routeDistanceMeters != null &&
+            _routeDistanceMeters! > 0 &&
+            _routeEtaSeconds != null)
+        ? (_routeEtaSeconds! *
+                  (remaining / _routeDistanceMeters!).clamp(0.0, 1.0))
+              .round()
+        : null;
+    final speedBasedEta =
+        (_smoothedTravelSpeedMps != null && _smoothedTravelSpeedMps! >= 1.8)
+        ? (remaining / _smoothedTravelSpeedMps!).round()
+        : null;
+
+    var candidate = routeBasedEta ?? estimated;
+    if (speedBasedEta != null && routeBasedEta != null) {
+      candidate = ((routeBasedEta * 0.7) + (speedBasedEta * 0.3)).round();
+    } else if (speedBasedEta != null) {
+      candidate = speedBasedEta;
+    }
+
+    final lastStable = _stableEtaSeconds;
+    if (lastStable == null) {
+      _stableEtaSeconds = candidate;
+      _lastEtaUpdateAt = now;
+      return candidate;
+    }
+
+    final elapsedSeconds = _lastEtaUpdateAt == null
+        ? 999
+        : now.difference(_lastEtaUpdateAt!).inSeconds;
+    if (elapsedSeconds < 6) {
+      return lastStable;
+    }
+
+    final delta = candidate - lastStable;
+    final maxStep = lastStable > 20 * 60 ? 90 : 45;
+    final bounded = delta.abs() <= maxStep
+        ? candidate
+        : lastStable + (delta.isNegative ? -maxStep : maxStep);
+    final progressAdjusted = min(lastStable, bounded);
+    final floorProtected = remaining <= 80
+        ? min(progressAdjusted, 60)
+        : progressAdjusted;
+
+    _stableEtaSeconds = floorProtected.clamp(0, 24 * 60 * 60);
+    _lastEtaUpdateAt = now;
+    return _stableEtaSeconds;
   }
 
   double _distanceBetween(LatLng from, LatLng to) {
@@ -453,6 +528,10 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
               m.markerId.value.startsWith('hospital_'),
         );
         _markers.addAll(markers);
+        if (!_journeyActive &&
+            (_statusText?.contains('Loading nearby safety points') ?? false)) {
+          _statusText = 'Live tracking active';
+        }
       });
     } on DioException {
       if (!mounted) return;
@@ -615,6 +694,29 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
     if (_position == null) return;
     final apiKey = AppEnvironment.googleMapsApiKey;
     final me = LatLng(_position!.latitude, _position!.longitude);
+    final requestId = ++_routeRequestId;
+
+    setState(() {
+      final directDistance = _distanceBetween(me, target);
+      _routeDistanceMeters = directDistance;
+      _routeEtaSeconds = null;
+      _remainingDistanceMeters = directDistance;
+      _remainingEtaSeconds = _journeyActive && _position != null
+          ? _computeStableEtaSeconds(_position!)
+          : null;
+      _polylines
+        ..clear()
+        ..add(
+          Polyline(
+            polylineId: const PolylineId('quick_route_preview'),
+            color: const Color(0xFF6DD3FF),
+            width: 4,
+            points: [me, target],
+            patterns: [PatternItem.dash(18), PatternItem.gap(10)],
+          ),
+        );
+      _statusText = 'Loading best route...';
+    });
 
     if (apiKey.isEmpty) {
       if (!mounted) return;
@@ -724,7 +826,7 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
       final selectedRoute = parsedRoutes.first;
 
       final routePoints = _decodePolyline(selectedRoute.encodedPolyline);
-      if (!mounted) return;
+      if (!mounted || requestId != _routeRequestId) return;
       setState(() {
         _routeDistanceMeters =
             selectedRoute.distanceMeters ?? _polylineDistance(routePoints);
@@ -736,7 +838,10 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
               : (_routeDistanceMeters! - _coveredDistanceMeters)
                     .clamp(0, double.infinity)
                     .toDouble();
-          _remainingEtaSeconds = _estimateEtaSeconds(pos);
+          _remainingEtaSeconds = _computeStableEtaSeconds(pos);
+        } else {
+          _remainingDistanceMeters = _routeDistanceMeters;
+          _remainingEtaSeconds = _routeEtaSeconds;
         }
         _polylines
           ..clear()
@@ -758,7 +863,7 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
         safetyReason: selectedRoute.safetyReason,
       );
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || requestId != _routeRequestId) return;
       final fallbackPoints = [me, target];
       final fallbackScore = _scoreRouteSafety(
         routePoints: fallbackPoints,
@@ -1040,28 +1145,43 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
     final destinationName = _selectedDestinationName ?? 'Selected destination';
     final remaining = _remainingDistanceMeters;
     final eta = _remainingEtaSeconds;
+    final routeDistance = _routeDistanceMeters;
+    final progress = (routeDistance != null && routeDistance > 0)
+        ? (_coveredDistanceMeters / routeDistance).clamp(0.0, 1.0)
+        : 0.0;
+    final topGradient = isLight
+        ? const [Color(0xFFFFFFFF), Color(0xFFF4F8FF), Color(0xFFE9F1FF)]
+        : const [Color(0xFF1A2337), Color(0xFF121B2D), Color(0xFF0A1221)];
+    final accentGradient = _journeyActive
+        ? const [Color(0xFF22C55E), Color(0xFF14B8A6)]
+        : const [Color(0xFF3B82F6), Color(0xFF6366F1)];
+    final etaTone = _journeyActive
+        ? const Color(0xFF22C55E)
+        : const Color(0xFF3B82F6);
 
     return Positioned(
       left: 16,
       right: 16,
       bottom: 18,
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
         decoration: BoxDecoration(
-          color: isLight
-              ? const Color(0xFFFFFFFF).withValues(alpha: 0.95)
-              : AppTheme.cardColor.withValues(alpha: 0.92),
-          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            colors: topGradient,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(
             color: isLight
-                ? const Color(0xFFDCE5F6)
-                : Colors.white.withValues(alpha: 0.14),
+                ? const Color(0xFFD6E4FB)
+                : Colors.white.withValues(alpha: 0.12),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: isLight ? 0.12 : 0.35),
-              blurRadius: 18,
-              offset: const Offset(0, 8),
+              color: Colors.black.withValues(alpha: isLight ? 0.12 : 0.38),
+              blurRadius: 28,
+              offset: const Offset(0, 14),
             ),
           ],
         ),
@@ -1070,40 +1190,141 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: Text(
-                    destinationName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: isLight ? const Color(0xFF172235) : Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: accentGradient,
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          _journeyActive ? 'Live navigation' : 'Route preview',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        destinationName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: isLight
+                              ? const Color(0xFF172235)
+                              : Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        _journeyActive
+                            ? 'Following your route with live progress'
+                            : 'Ready with distance and estimated travel time',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: isLight
+                              ? const Color(0xFF60708B)
+                              : Colors.white70,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 10),
-                ElevatedButton.icon(
-                  onPressed: _journeyActive ? _stopJourney : _startJourney,
-                  icon: Icon(
-                    _journeyActive
-                        ? Icons.stop_rounded
-                        : Icons.play_arrow_rounded,
-                    size: 18,
-                  ),
-                  label: Text(_journeyActive ? 'Stop' : 'Start'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _journeyActive
-                        ? const Color(0xFFE53935)
-                        : AppTheme.primaryColor,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(92, 42),
+                const SizedBox(width: 12),
+                SizedBox(
+                  height: 54,
+                  child: FilledButton.icon(
+                    onPressed: _journeyActive ? _stopJourney : _startJourney,
+                    icon: Icon(
+                      _journeyActive
+                          ? Icons.stop_circle_rounded
+                          : Icons.play_circle_fill_rounded,
+                      size: 18,
+                    ),
+                    label: Text(_journeyActive ? 'Stop' : 'Start'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _journeyActive
+                          ? const Color(0xFFEF4444)
+                          : const Color(0xFF2563EB),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                minHeight: 7,
+                value: progress,
+                backgroundColor: isLight
+                    ? const Color(0xFFDDE7F6)
+                    : Colors.white.withValues(alpha: 0.1),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  _journeyActive
+                      ? const Color(0xFF14B8A6)
+                      : const Color(0xFF3B82F6),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  Icons.route_rounded,
+                  size: 15,
+                  color: isLight ? const Color(0xFF60708B) : Colors.white60,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    routeDistance == null
+                        ? 'Calculating route distance'
+                        : '${_formatDistance(routeDistance)} total route',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: isLight ? const Color(0xFF60708B) : Colors.white60,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${(progress * 100).round()}%',
+                  style: TextStyle(
+                    color: isLight ? const Color(0xFF344256) : Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
             Row(
               children: [
                 Expanded(
@@ -1111,6 +1332,8 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
                     label: 'Covered',
                     value: _formatDistance(_coveredDistanceMeters),
                     isLight: isLight,
+                    icon: Icons.explore_rounded,
+                    accent: const Color(0xFF14B8A6),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -1121,6 +1344,8 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
                         ? '--'
                         : _formatDistance(remaining),
                     isLight: isLight,
+                    icon: Icons.alt_route_rounded,
+                    accent: const Color(0xFF3B82F6),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -1129,6 +1354,9 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
                     label: 'ETA',
                     value: eta == null ? '--' : _formatDuration(eta),
                     isLight: isLight,
+                    icon: Icons.schedule_rounded,
+                    accent: etaTone,
+                    emphasizeValue: true,
                   ),
                 ),
               ],
@@ -1143,38 +1371,67 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
     required String label,
     required String value,
     required bool isLight,
+    required IconData icon,
+    required Color accent,
+    bool emphasizeValue = false,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
       decoration: BoxDecoration(
-        color: isLight
-            ? const Color(0xFFF4F7FB)
-            : Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(
+          colors: isLight
+              ? [
+                  const Color(0xFFF8FBFF),
+                  Color.lerp(const Color(0xFFF0F6FF), accent, 0.10)!,
+                ]
+              : [
+                  Colors.white.withValues(alpha: 0.05),
+                  accent.withValues(alpha: 0.12),
+                ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: accent.withValues(alpha: isLight ? 0.18 : 0.22),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: isLight ? const Color(0xFF65758F) : Colors.white60,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
+          Row(
+            children: [
+              Icon(icon, size: 15, color: accent),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isLight ? const Color(0xFF65758F) : Colors.white60,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: isLight ? const Color(0xFF172235) : Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.w900,
+          const SizedBox(height: 8),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: isLight ? const Color(0xFF172235) : Colors.white,
+                fontSize: emphasizeValue ? 16 : 14,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0,
+              ),
             ),
           ),
         ],
