@@ -1,75 +1,94 @@
-# Suraksha - AI-Powered Women Safety Ecosystem
+# Suraksha Monorepo
 
-Suraksha is a futuristic, production-ready women's safety platform built with Flutter, Node.js, and MongoDB. It integrates AI-driven assistance, real-time emergency systems, and sensor-based detection to provide a comprehensive safety net.
+This repository now keeps the Flutter mobile app and the Node.js backend as clean, independent siblings:
 
-## 🚀 Features
+```text
+project-root/
+├── app/        Flutter application
+├── backend/    Node.js + Express API
+├── docs/
+├── scripts/
+└── infrastructure/
+```
 
-- **Advanced SOS System**: One-tap emergency trigger with real-time location sharing via Socket.IO.
-- **AI Safety Assistant**: Gemini-powered POSH legal advisor and safety intelligence.
-- **Safety Pulse Radar**: Futuristic visualization of nearby safe zones and activity.
-- **Sensor-based Detection**: Automated SOS triggers for impacts and screams.
-- **Cyber Crime Module**: Integrated reporting for financial fraud, stalking, and harassment.
-- **Medical Health Vault**: Digital emergency medical ID and QR code access.
-- **Safety Intelligence Map**: Dark-themed map with safe/risk zone indicators.
+## App Setup
 
-## 🛠 Tech Stack
+```bash
+cd app
+flutter pub get
+flutter run
+```
 
-- **Frontend**: Flutter (Material 3, Clean Architecture, Riverpod, GoRouter, Socket.IO Client).
-- **Backend**: Node.js, Express.js, Socket.IO, JWT Auth, Mongoose.
-- **Database**: MongoDB Atlas.
-- **AI**: Google Gemini API.
-- **Media**: Cloudinary for evidence storage.
+Environment files live in `app/`:
 
-## 📂 Project Structure
+- `.env`
+- `.env.development`
+- `.env.production`
 
-### Flutter (lib/)
-- `core/`: Network, theme, and common utils.
-- `features/`: Modular features (Auth, SOS, Maps, Cybercrime, AI).
-- `widgets/`: Reusable futuristic UI components.
+Example values:
 
-### Backend (backend/)
-- `controllers/`: Business logic.
-- `models/`: MongoDB schemas (User, SOS, CyberReport).
-- `sockets/`: Real-time communication logic.
-- `routes/`: API endpoints.
+```env
+APP_ENV=development
+BASE_URL=http://10.0.2.2:5000/api
+SOCKET_URL=http://10.0.2.2:5000
+GOOGLE_MAPS_API_KEY=
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-1.5-flash
+```
 
-## 🏁 Getting Started
+For LAN device testing:
 
-### Prerequisites
-- Flutter SDK
-- Node.js & npm
-- MongoDB Atlas account (or local MongoDB)
-- Google Gemini API Key
-- Google Maps API Key
+```bash
+pwsh ./scripts/run_flutter_device.ps1 -PcIpv4 192.168.1.5
+```
 
-### Installation
+## Backend Setup
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/yourusername/suraksha.git
-   ```
+```bash
+cd backend
+npm install
+copy .env.example .env
+npm run dev
+```
 
-2. **Backend Setup**:
-   ```bash
-   cd backend
-   npm install
-   # Create a .env file with your variables (MONGO_URI, JWT_SECRET, etc.)
-   node src/server.js
-   ```
+Core expectations:
 
-3. **Frontend Setup**:
-   ```bash
-   cd ..
-   flutter pub get
-   # Configure ApiConstants.baseUrl in lib/constants/api_constants.dart
-   flutter run
-   ```
+- `backend/.env` contains MongoDB, JWT, and optional Cloudinary/OpenAI settings.
+- backend starts independently from `backend/`.
+- API base path stays `/api`.
 
-## 🔒 Security
-- JWT-based stateless authentication.
-- Encrypted storage for sensitive tokens.
-- Secure evidence uploading to Cloudinary.
-- Helmet & Rate-limiting on the backend.
+## Environment Model
 
-## 📜 License
-This project is licensed under the MIT License.
+Flutter reads runtime env values from `flutter_dotenv` and supports:
+
+- `.env.development`
+- `.env.production`
+- fallback `.env`
+
+Backend reads `backend/.env` via `dotenv`.
+
+## Validation Commands
+
+App:
+
+```bash
+cd app
+flutter analyze
+flutter test
+```
+
+Backend:
+
+```bash
+cd backend
+npm install
+npm test
+npm run dev
+```
+
+## Production Notes
+
+- No app API base URLs should be hardcoded in feature code.
+- Uploaded backend files are written under `backend/uploads/`.
+- `helmet`, `cors`, rate limiting, and centralized error handling remain enabled.
+- Graceful backend shutdown is wired for `SIGINT` and `SIGTERM`.

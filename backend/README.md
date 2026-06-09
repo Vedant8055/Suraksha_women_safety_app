@@ -1,28 +1,41 @@
-# Suraksha Backend MVP
+# Suraksha Backend
 
-## Setup
-1. `cd backend`
-2. `npm install`
-3. Copy `.env.example` to `.env` and fill values.
-4. `npm run dev`
+## Run Locally
 
-## Core APIs
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `POST /api/sos/create`
-- `GET /api/sos/active`
-- `POST /api/location/update`
-- `POST /api/incident/report`
-- `GET /api/nearby/police?lat=..&lng=..`
-- `GET /api/nearby/hospitals?lat=..&lng=..`
-- `POST /api/ai/chat`
-- `POST /api/media/upload`
-- `GET /api/notifications`
-- `GET /api/profile`
-- `GET /api/profile/contacts`
-- `POST /api/profile/contacts`
+```bash
+cd backend
+npm install
+copy .env.example .env
+npm run dev
+```
 
-## Notes
-- MongoDB Atlas is used via `MONGO_URI`.
-- Socket.IO events: `trigger_sos`, `update_location`, `cancel_sos`.
-- Use separate git repo for backend and frontend when deploying.
+The backend is now fully independent from the Flutter app folder structure.
+
+## Scripts
+
+- `npm run dev` starts `nodemon src/server.js`
+- `npm start` starts the production server
+- `npm test` runs backend tests
+
+## Required Environment Variables
+
+- `MONGO_URI`
+- `JWT_SECRET`
+- `JWT_REFRESH_SECRET`
+
+Useful optional values:
+
+- `CLIENT_ORIGINS`
+- `REQUEST_TIMEOUT_MS`
+- `OPENAI_API_KEY`
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
+- `FCM_SERVICE_ACCOUNT_JSON`
+
+## Runtime Notes
+
+- API routes are mounted under `/api`
+- uploads are written under `backend/uploads/`
+- graceful shutdown handles `SIGINT` and `SIGTERM`
+- CORS and Helmet remain enabled

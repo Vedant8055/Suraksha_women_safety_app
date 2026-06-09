@@ -1,0 +1,5 @@
+{
+  "dart.projectSearchDepth": 5,
+  "dart.debugSdkLibraries": false,
+  "dart.debugExternalPackageLibraries": false
+}

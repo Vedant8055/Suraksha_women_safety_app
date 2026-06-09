@@ -91,6 +91,62 @@ void main() {
         true,
       );
     });
+
+    test(
+      'measures distance to route polyline instead of only stored points',
+      () {
+        final route = [
+          RoutePoint(
+            latitude: 19.0760,
+            longitude: 72.8777,
+            timestamp: DateTime(2026, 6, 5, 9),
+          ),
+          RoutePoint(
+            latitude: 19.0860,
+            longitude: 72.8777,
+            timestamp: DateTime(2026, 6, 5, 9, 10),
+          ),
+        ];
+
+        final nearMiddle = analyzer.routeDistanceMeters(
+          latitude: 19.0810,
+          longitude: 72.87775,
+          route: route,
+        );
+
+        expect(nearMiddle, isNotNull);
+        expect(nearMiddle!, lessThan(10));
+      },
+    );
+
+    test('supports tighter deviation thresholds for learned corridors', () {
+      final learnedRoute = [
+        RoutePoint(
+          latitude: 19.0760,
+          longitude: 72.8777,
+          timestamp: DateTime(2026, 6, 5, 9),
+        ),
+        RoutePoint(
+          latitude: 19.0860,
+          longitude: 72.8777,
+          timestamp: DateTime(2026, 6, 5, 9, 10),
+        ),
+      ];
+
+      final assessment = analyzer.assess(
+        position: _position(latitude: 19.0810, longitude: 72.8789),
+        learnedRoute: learnedRoute,
+        areaSafetyScore: 80,
+        nearbyPoliceCount: 2,
+        nearbyHospitalCount: 1,
+        now: DateTime(2026, 6, 5, 10),
+        hasLearnedRouteOverride: true,
+        deviationThresholdMeters: 80,
+      );
+
+      expect(assessment.hasLearnedRoute, true);
+      expect(assessment.deviatedFromLearnedRoute, true);
+    });
   });
 }
 

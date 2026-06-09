@@ -1,9 +1,12 @@
 const multer = require('multer');
+const fs = require('fs');
 const MediaEvidence = require('../models/MediaEvidence');
 const { asyncHandler } = require('../utils/asyncHandler');
 const { uploadToCloudinary } = require('../services/mediaService');
+const { tempUploadsRoot } = require('../config/paths');
 
-const upload = multer({ dest: 'backend/src/uploads' });
+fs.mkdirSync(tempUploadsRoot, { recursive: true });
+const upload = multer({ dest: tempUploadsRoot });
 
 const uploadMedia = asyncHandler(async (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'No file uploaded' });

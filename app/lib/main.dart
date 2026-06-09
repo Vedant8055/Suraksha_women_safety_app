@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:suraksha_women_safety_app/config/environment_loader.dart';
 import 'package:suraksha_women_safety_app/theme/app_theme.dart';
 import 'package:suraksha_women_safety_app/theme/theme_mode_provider.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/dashboard_screen.dart';
@@ -13,8 +15,12 @@ import 'package:suraksha_women_safety_app/features/sos/scream_detection_service.
 import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
 import 'package:suraksha_women_safety_app/localization/locale_provider.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await EnvironmentLoader.load();
+  if (!dotenv.isInitialized) {
+    throw StateError('App environment failed to load.');
+  }
   runApp(const ProviderScope(child: MyApp()));
 }
 

@@ -5,15 +5,15 @@ param(
   [int]$Port = 5000
 )
 
-Set-Location "$PSScriptRoot\.."
+Set-Location "$PSScriptRoot\..\app"
 
 $apiBase = "http://$PcIpv4:$Port/api"
 $socketBase = "http://$PcIpv4:$Port"
 
 Write-Host "Running Flutter app with:"
 Write-Host "APP_ENV=$FlavorEnv"
-Write-Host "API_BASE_URL=$apiBase"
-Write-Host "SOCKET_BASE_URL=$socketBase"
+Write-Host "BASE_URL=$apiBase"
+Write-Host "SOCKET_URL=$socketBase"
 
 flutter run `
   --dart-define=APP_ENV=$FlavorEnv `

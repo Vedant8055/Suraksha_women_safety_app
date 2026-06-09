@@ -4,8 +4,11 @@ const EmergencyContact = require('../models/EmergencyContact');
 const { asyncHandler } = require('../utils/asyncHandler');
 const { uploadToCloudinary } = require('../services/mediaService');
 const multer = require('multer');
+const fs = require('fs');
+const { tempUploadsRoot } = require('../config/paths');
 
-const upload = multer({ dest: 'backend/src/uploads' });
+fs.mkdirSync(tempUploadsRoot, { recursive: true });
+const upload = multer({ dest: tempUploadsRoot });
 
 const updateProfileSchema = z.object({
   body: z.object({

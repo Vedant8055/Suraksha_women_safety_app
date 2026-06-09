@@ -1,8 +1,8 @@
 import 'package:suraksha_women_safety_app/config/app_environment.dart';
 
 class ApiConstants {
-  static const String baseUrl = AppEnvironment.apiBaseUrl;
-  static const String socketUrl = AppEnvironment.socketBaseUrl;
+  static String get baseUrl => AppEnvironment.apiBaseUrl;
+  static String get socketUrl => AppEnvironment.socketBaseUrl;
 
   static const String register = '/auth/register';
   static const String login = '/auth/login';

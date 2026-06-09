@@ -31,12 +31,19 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+**/build/
 /coverage/
 .env
 .env.*
 !.env.example
+.env.development.example
+.env.production.example
 node_modules/
 **/node_modules/
+backend/uploads/*
+!backend/uploads/.gitkeep
+app/.dart_tool/
+app/.idea/
 
 # Symbolication related
 app.*.symbols

@@ -1,0 +1,22 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Suraksha Android",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "debug",
+      "cwd": "app",
+      "program": "app/lib/main.dart"
+    },
+    {
+      "name": "Suraksha Chrome",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "debug",
+      "cwd": "app",
+      "program": "app/lib/main.dart",
+      "deviceId": "chrome"
+    }
+  ]
+}

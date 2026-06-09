@@ -8,6 +8,7 @@ const CyberCrimeReport = require('../models/CyberCrimeReport');
 const CyberEvidence = require('../models/CyberEvidence');
 const CyberLearningProgress = require('../models/CyberLearningProgress');
 const env = require('../config/env');
+const { cyberVaultRoot } = require('../config/paths');
 
 const reportCategories = [
   'Financial Fraud',
@@ -135,7 +136,7 @@ const progressSchema = z.object({
 
 const evidenceStorage = multer.diskStorage({
   destination: (_req, _file, cb) => {
-    const dir = path.join(__dirname, '..', 'uploads', 'cyber-vault');
+    const dir = cyberVaultRoot;
     fs.mkdirSync(dir, { recursive: true });
     cb(null, dir);
   },
