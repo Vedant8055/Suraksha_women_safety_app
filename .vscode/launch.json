@@ -7,7 +7,7 @@
       "type": "dart",
       "flutterMode": "debug",
       "cwd": "app",
-      "program": "app/lib/main.dart"
+      "program": "lib/main.dart"
     },
     {
       "name": "Suraksha Chrome",
@@ -15,7 +15,7 @@
       "type": "dart",
       "flutterMode": "debug",
       "cwd": "app",
-      "program": "app/lib/main.dart",
+      "program": "lib/main.dart",
       "deviceId": "chrome"
     }
   ]
