@@ -1,3 +1,27 @@
+val dotEnvValues = mutableMapOf<String, String>()
+val dotEnvFile = rootProject.file("../.env")
+
+if (dotEnvFile.exists()) {
+    dotEnvFile.readLines().forEach { rawLine ->
+        val line = rawLine.trim()
+        if (line.isEmpty() || line.startsWith("#")) return@forEach
+
+        val separatorIndex = line.indexOf('=')
+        if (separatorIndex <= 0) return@forEach
+
+        val key = line.substring(0, separatorIndex).trim()
+        val value = line.substring(separatorIndex + 1).trim()
+            .removeSurrounding("\"")
+            .removeSurrounding("'")
+        dotEnvValues[key] = value
+    }
+}
+
+val googleMapsApiKey = providers.gradleProperty("GOOGLE_MAPS_API_KEY").orNull
+    ?: System.getenv("GOOGLE_MAPS_API_KEY")
+    ?: dotEnvValues["GOOGLE_MAPS_API_KEY"]
+    ?: ""
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -29,6 +53,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["googleMapsApiKey"] = googleMapsApiKey
     }
 
     buildTypes {

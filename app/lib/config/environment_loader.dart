@@ -9,10 +9,17 @@ class EnvironmentLoader {
       _ => '.env',
     };
 
+    await dotenv.load(fileName: '.env');
+
+    if (fileName == '.env') return;
+
     try {
-      await dotenv.load(fileName: fileName);
+      await dotenv.load(
+        fileName: fileName,
+        mergeWith: Map<String, String>.from(dotenv.env),
+      );
     } catch (_) {
-      await dotenv.load(fileName: '.env');
+      // Keep the base .env values when an environment-specific file is absent.
     }
   }
 }
