@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:animate_do/animate_do.dart';
@@ -10,6 +11,7 @@ import 'package:suraksha_women_safety_app/constants/api_constants.dart';
 import 'package:suraksha_women_safety_app/core/network/dio_client.dart';
 import 'package:suraksha_women_safety_app/features/auth/auth_provider.dart';
 import 'package:suraksha_women_safety_app/features/profile/emergency_contacts_provider.dart';
+import 'package:suraksha_women_safety_app/features/profile/profile_display_provider.dart';
 import 'package:suraksha_women_safety_app/features/sos/sensor_service.dart';
 import 'package:suraksha_women_safety_app/features/sos/scream_detection_service.dart';
 import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
@@ -85,6 +87,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _localBloodGroup = prefs.getString(_localBloodKey);
       _localPhotoPath = prefs.getString(_localPhotoPathKey);
     });
+    unawaited(
+      ref
+          .read(profileDisplayProvider.notifier)
+          .update(name: _localName ?? '', photoPath: _localPhotoPath ?? ''),
+    );
   }
 
   Future<void> _saveLocalProfile({
@@ -112,6 +119,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _localPhotoPath = localPhotoPath;
       }
     });
+    unawaited(
+      ref
+          .read(profileDisplayProvider.notifier)
+          .update(name: fullName, photoPath: localPhotoPath),
+    );
   }
 
   @override
@@ -451,9 +463,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     BuildContext context,
     String title,
     String value,
-    IconData icon,
-    {VoidCallback? onTap}
-  ) {
+    IconData icon, {
+    VoidCallback? onTap,
+  }) {
     final isLight = Theme.of(context).brightness == Brightness.light;
     final textColor = isLight ? const Color(0xFF172235) : Colors.white;
     final mutedColor = isLight ? const Color(0xFF5F6F8A) : Colors.white38;
@@ -493,8 +505,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ],
                 ),
               ),
-              if (onTap != null)
-                Icon(Icons.edit, size: 18, color: mutedColor),
+              if (onTap != null) Icon(Icons.edit, size: 18, color: mutedColor),
             ],
           ),
         ),
@@ -912,6 +923,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             );
       }
+      unawaited(
+        ref.read(profileDisplayProvider.notifier).update(name: fullName),
+      );
 
       final response = await _dio.patch(
         ApiConstants.profile,
@@ -931,6 +945,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         email: updatedUser.email,
         phone: updatedUser.phone,
         bloodGroup: updatedUser.bloodGroup ?? bloodGroup,
+      );
+      unawaited(
+        ref
+            .read(profileDisplayProvider.notifier)
+            .update(name: updatedUser.name),
       );
     } on DioException {
       _showError('Saved locally on this device. Server sync failed.');
@@ -959,6 +978,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             _localBloodGroup ?? (ref.read(authProvider).user?.bloodGroup ?? ''),
         localPhotoPath: picked.path,
       );
+      unawaited(
+        ref
+            .read(profileDisplayProvider.notifier)
+            .update(photoPath: picked.path),
+      );
 
       final formData = FormData.fromMap({
         'file': await MultipartFile.fromFile(picked.path),
@@ -971,6 +995,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         response.data as Map<String, dynamic>,
       );
       ref.read(authProvider.notifier).updateUser(updatedUser);
+      unawaited(
+        ref
+            .read(profileDisplayProvider.notifier)
+            .update(photoPath: picked.path),
+      );
     } catch (error) {
       _showError('Photo saved locally. ${_extractError(error)}');
     } finally {

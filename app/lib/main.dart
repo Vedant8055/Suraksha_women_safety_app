@@ -5,6 +5,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:suraksha_women_safety_app/config/environment_loader.dart';
+import 'package:suraksha_women_safety_app/features/profile/emergency_contact_guard.dart';
+import 'package:suraksha_women_safety_app/features/profile/emergency_contacts_provider.dart';
 import 'package:suraksha_women_safety_app/theme/app_theme.dart';
 import 'package:suraksha_women_safety_app/theme/theme_mode_provider.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/dashboard_screen.dart';
@@ -14,6 +16,7 @@ import 'package:suraksha_women_safety_app/features/sos/sensor_service.dart';
 import 'package:suraksha_women_safety_app/features/sos/scream_detection_service.dart';
 import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
 import 'package:suraksha_women_safety_app/localization/locale_provider.dart';
+import 'package:suraksha_women_safety_app/widgets/premium_dialog.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,12 +40,20 @@ class _MyAppState extends ConsumerState<MyApp> {
   late final _AppLifecycleHandler _lifecycleHandler;
   final _navigatorKey = GlobalKey<NavigatorState>();
   bool _impactDialogVisible = false;
+  bool _missingContactsDialogVisible = false;
 
   @override
   void initState() {
     super.initState();
-    _lifecycleHandler = _AppLifecycleHandler(ref);
+    _lifecycleHandler = _AppLifecycleHandler(
+      ref,
+      onResumed: _checkMissingEmergencyContactsReminder,
+    );
     WidgetsBinding.instance.addObserver(_lifecycleHandler);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_checkMissingEmergencyContactsReminder());
+    });
     if (widget.startBackgroundServices) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -66,6 +77,16 @@ class _MyAppState extends ConsumerState<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<List<EmergencyContact>>(emergencyContactsProvider, (
+      previous,
+      next,
+    ) {
+      if (previous == null) return;
+      if (previous.isNotEmpty && next.isEmpty) {
+        unawaited(_checkMissingEmergencyContactsReminder());
+      }
+    });
+
     if (widget.startBackgroundServices) {
       ref.listen<ImpactDetectionState>(impactDetectionProvider, (
         previous,
@@ -103,6 +124,29 @@ class _MyAppState extends ConsumerState<MyApp> {
     );
   }
 
+  Future<void> _checkMissingEmergencyContactsReminder() async {
+    if (!mounted) return;
+
+    final hasContacts = await hasSavedEmergencyContacts(ref);
+    if (!mounted || hasContacts) return;
+
+    _presentMissingEmergencyContactsReminder();
+  }
+
+  void _presentMissingEmergencyContactsReminder() {
+    if (!mounted || _missingContactsDialogVisible) return;
+
+    final dialogContext = _navigatorKey.currentContext;
+    if (dialogContext == null) return;
+
+    _missingContactsDialogVisible = true;
+    unawaited(
+      showMissingEmergencyContactsDialog(dialogContext).whenComplete(() {
+        _missingContactsDialogVisible = false;
+      }),
+    );
+  }
+
   Future<void> _showImpactCountdownDialog() async {
     final dialogContext = _navigatorKey.currentContext;
     if (dialogContext == null || _impactDialogVisible) return;
@@ -114,21 +158,12 @@ class _MyAppState extends ConsumerState<MyApp> {
       builder: (context) => Consumer(
         builder: (context, ref, _) {
           final state = ref.watch(impactDetectionProvider);
-          return AlertDialog(
-            title: const Text('Impact detected'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('SOS will be sent in ${state.countdownSeconds} seconds.'),
-                const SizedBox(height: 8),
-                Text(
-                  state.lastImpactPosition == null
-                      ? 'Saving last known location...'
-                      : 'Last location saved for emergency help.',
-                ),
-              ],
-            ),
+          return PremiumDialogSurface(
+            title: 'Impact detected',
+            message:
+                'Your SOS countdown is active. Act now if this was accidental.',
+            icon: Icons.warning_amber_rounded,
+            accentColor: const Color(0xFFE53935),
             actions: [
               TextButton(
                 onPressed: () {
@@ -136,6 +171,16 @@ class _MyAppState extends ConsumerState<MyApp> {
                       .read(impactDetectionProvider.notifier)
                       .cancelPendingImpact();
                 },
+                style: TextButton.styleFrom(
+                  foregroundColor:
+                      Theme.of(context).brightness == Brightness.light
+                      ? const Color(0xFF172235)
+                      : Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                ),
                 child: const Text('Cancel SOS'),
               ),
               ElevatedButton(
@@ -146,9 +191,49 @@ class _MyAppState extends ConsumerState<MyApp> {
                         .confirmPendingImpact(),
                   );
                 },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFE53935),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 14,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
                 child: const Text('Send SOS now'),
               ),
             ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'SOS will be sent in ${state.countdownSeconds} seconds.',
+                  style: TextStyle(
+                    color: Theme.of(context).brightness == Brightness.light
+                        ? const Color(0xFF23324A)
+                        : Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  state.lastImpactPosition == null
+                      ? 'Saving last known location...'
+                      : 'Last location saved for emergency help.',
+                  style: TextStyle(
+                    color: Theme.of(context).brightness == Brightness.light
+                        ? const Color(0xFF516078)
+                        : Colors.white.withValues(alpha: 0.78),
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           );
         },
       ),
@@ -170,8 +255,9 @@ class _MyAppState extends ConsumerState<MyApp> {
 
 class _AppLifecycleHandler extends WidgetsBindingObserver {
   final WidgetRef ref;
+  final Future<void> Function() onResumed;
 
-  _AppLifecycleHandler(this.ref);
+  _AppLifecycleHandler(this.ref, {required this.onResumed});
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -188,6 +274,7 @@ class _AppLifecycleHandler extends WidgetsBindingObserver {
             .resumeIfEnabled()
             .catchError((_) {}),
       );
+      unawaited(onResumed());
     }
   }
 }

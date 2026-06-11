@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:suraksha_women_safety_app/features/sos/sos_provider.dart';
 import 'package:suraksha_women_safety_app/features/profile/emergency_contacts_provider.dart';
 import 'package:animate_do/animate_do.dart';
+import 'package:suraksha_women_safety_app/widgets/premium_dialog.dart';
 
 class EmergencyModeScreen extends ConsumerStatefulWidget {
   const EmergencyModeScreen({super.key});
@@ -31,33 +32,85 @@ class _EmergencyModeScreenState extends ConsumerState<EmergencyModeScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Emergency Contacts Informed'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Live location has been shared with:'),
-            const SizedBox(height: 10),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 220),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (final c in contacts) Text('* ${c.name} (${c.phone})'),
-                  ],
+      builder: (dialogContext) => PremiumDialogSurface(
+        title: 'Emergency Contacts Informed',
+        message: 'Live location has been shared with:',
+        icon: Icons.groups_rounded,
+        accentColor: const Color(0xFFE53935),
+        actions: [
+          OutlinedButton(
+            onPressed: () =>
+                Navigator.of(dialogContext, rootNavigator: true).pop(),
+            style: OutlinedButton.styleFrom(
+              foregroundColor:
+                  Theme.of(dialogContext).brightness == Brightness.light
+                  ? const Color(0xFF172235)
+                  : Colors.white,
+              side: BorderSide(
+                color: const Color(0xFFE53935).withValues(
+                  alpha: Theme.of(dialogContext).brightness == Brightness.light
+                      ? 0.34
+                      : 0.42,
                 ),
               ),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
             child: const Text('OK'),
           ),
         ],
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 220),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final c in contacts)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color:
+                            Theme.of(dialogContext).brightness ==
+                                Brightness.light
+                            ? const Color(0xFFF4F7FC)
+                            : Colors.white.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: const Color(0xFFE53935).withValues(
+                            alpha:
+                                Theme.of(dialogContext).brightness ==
+                                    Brightness.light
+                                ? 0.14
+                                : 0.24,
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        '${c.name} (${c.phone})',
+                        style: TextStyle(
+                          color:
+                              Theme.of(dialogContext).brightness ==
+                                  Brightness.light
+                              ? const Color(0xFF172235)
+                              : Colors.white,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

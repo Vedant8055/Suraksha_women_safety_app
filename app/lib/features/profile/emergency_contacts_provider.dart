@@ -63,12 +63,19 @@ class EmergencyContactsNotifier extends StateNotifier<List<EmergencyContact>> {
   final Dio _dio = DioClient().dio;
   final bool _syncEnabled;
   static const String _contactsStorageKey = 'emergency_contacts_offline_v2';
+  Future<void>? _loadContactsFuture;
 
   EmergencyContactsNotifier({bool syncEnabled = true})
     : _syncEnabled = syncEnabled,
       super(const []);
 
-  Future<void> loadContacts() async {
+  Future<void> loadContacts() {
+    return _loadContactsFuture ??= _loadContacts().whenComplete(() {
+      _loadContactsFuture = null;
+    });
+  }
+
+  Future<void> _loadContacts() async {
     final local = _withoutLegacyDefaultContacts(await _loadLocalContacts());
     if (local.isNotEmpty) {
       state = _mergeContacts(state, local);
@@ -87,6 +94,12 @@ class EmergencyContactsNotifier extends StateNotifier<List<EmergencyContact>> {
         await _persistLocalContacts(state);
       }
     }
+  }
+
+  Future<bool> hasSavedContacts() async {
+    if (state.isNotEmpty) return true;
+    await loadContacts();
+    return state.isNotEmpty;
   }
 
   Future<bool> addContact(EmergencyContact contact) async {
@@ -149,7 +162,8 @@ class EmergencyContactsNotifier extends StateNotifier<List<EmergencyContact>> {
     final contactKey = _contactKey(normalizedContact);
     final duplicateExists = state.any(
       (current) =>
-          current.id != normalizedContact.id && _contactKey(current) == contactKey,
+          current.id != normalizedContact.id &&
+          _contactKey(current) == contactKey,
     );
     if (duplicateExists) return false;
 

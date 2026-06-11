@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
+import 'dart:ui';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -57,6 +58,7 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
   bool _isSearchOpen = false;
   bool _isLoadingSuggestions = false;
   bool _journeyActive = false;
+  bool _journeyPanelCollapsed = false;
   double _coveredDistanceMeters = 0;
   double? _routeDistanceMeters;
   int? _routeEtaSeconds;
@@ -172,6 +174,7 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
       _selectedDestination = target;
       _selectedDestinationName = title;
       _journeyActive = false;
+      _journeyPanelCollapsed = false;
       _resetJourneyMetrics();
       _markers.removeWhere((m) => m.markerId.value == 'search_result');
       _markers.add(
@@ -264,6 +267,7 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
       _selectedDestination = target;
       _selectedDestinationName = title;
       _journeyActive = false;
+      _journeyPanelCollapsed = false;
       _resetJourneyMetrics();
     });
     _buildRouteTo(target);
@@ -276,6 +280,7 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
 
     setState(() {
       _journeyActive = true;
+      _journeyPanelCollapsed = true;
       _followMe = true;
       _coveredDistanceMeters = 0;
       _lastJourneyPosition = pos;
@@ -297,6 +302,7 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
   void _stopJourney() {
     setState(() {
       _journeyActive = false;
+      _journeyPanelCollapsed = false;
       _lastJourneyPosition = null;
       _smoothedTravelSpeedMps = null;
       _stableEtaSeconds = null;
@@ -316,6 +322,11 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
     _smoothedTravelSpeedMps = null;
     _stableEtaSeconds = null;
     _lastEtaUpdateAt = null;
+  }
+
+  void _setJourneyPanelCollapsed(bool collapsed) {
+    if (_journeyPanelCollapsed == collapsed) return;
+    setState(() => _journeyPanelCollapsed = collapsed);
   }
 
   void _updateJourneyProgress(Position pos) {
@@ -709,10 +720,10 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
         ..add(
           Polyline(
             polylineId: const PolylineId('quick_route_preview'),
-            color: const Color(0xFF6DD3FF),
-            width: 4,
+            color: const Color(0xFF5B2A86),
+            width: 6,
             points: [me, target],
-            patterns: [PatternItem.dash(18), PatternItem.gap(10)],
+            patterns: [PatternItem.dash(22), PatternItem.gap(10)],
           ),
         );
       _statusText = 'Loading best route...';
@@ -726,8 +737,8 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
           ..add(
             Polyline(
               polylineId: const PolylineId('quick_route'),
-              color: const Color(0xFF40C4FF),
-              width: 5,
+              color: const Color(0xFF4A148C),
+              width: 8,
               points: [me, target],
             ),
           );
@@ -848,8 +859,8 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
           ..add(
             Polyline(
               polylineId: const PolylineId('quick_route'),
-              color: const Color(0xFF40C4FF),
-              width: 5,
+              color: const Color(0xFF4A148C),
+              width: 8,
               points: routePoints,
             ),
           );
@@ -879,8 +890,8 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
           ..add(
             Polyline(
               polylineId: const PolylineId('quick_route'),
-              color: const Color(0xFF40C4FF),
-              width: 5,
+              color: const Color(0xFF4A148C),
+              width: 8,
               points: fallbackPoints,
             ),
           );
@@ -1051,6 +1062,11 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
   Widget build(BuildContext context) {
     final isLight = Theme.of(context).brightness == Brightness.light;
     final position = _position;
+    final journeyPanelOffset = _selectedDestination == null
+        ? 18.0
+        : _journeyPanelCollapsed
+        ? 126.0
+        : 244.0;
     return Scaffold(
       appBar: AppBar(title: const Text('Safety Intelligence Map')),
       body: Stack(
@@ -1086,7 +1102,7 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
           Positioned(
             left: 16,
             right: 16,
-            bottom: _selectedDestination == null ? 18 : 166,
+            bottom: journeyPanelOffset,
             child: IgnorePointer(
               child: Container(
                 padding: const EdgeInsets.symmetric(
@@ -1146,222 +1162,470 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
     final remaining = _remainingDistanceMeters;
     final eta = _remainingEtaSeconds;
     final routeDistance = _routeDistanceMeters;
+    final compact = _journeyPanelCollapsed;
     final progress = (routeDistance != null && routeDistance > 0)
         ? (_coveredDistanceMeters / routeDistance).clamp(0.0, 1.0)
         : 0.0;
+    final accentColor = _journeyActive
+        ? const Color(0xFF0F766E)
+        : const Color(0xFF4A148C);
+    final accentSoft = _journeyActive
+        ? const Color(0xFF14B8A6)
+        : const Color(0xFF7C3AED);
     final topGradient = isLight
-        ? const [Color(0xFFFFFFFF), Color(0xFFF4F8FF), Color(0xFFE9F1FF)]
-        : const [Color(0xFF1A2337), Color(0xFF121B2D), Color(0xFF0A1221)];
-    final accentGradient = _journeyActive
-        ? const [Color(0xFF22C55E), Color(0xFF14B8A6)]
-        : const [Color(0xFF3B82F6), Color(0xFF6366F1)];
-    final etaTone = _journeyActive
-        ? const Color(0xFF22C55E)
-        : const Color(0xFF3B82F6);
-
+        ? [
+            const Color(0xFFFFFFFF).withValues(alpha: 0.70),
+            const Color(0xFFF8FBFF).withValues(alpha: 0.58),
+            const Color(0xFFEEF4FF).withValues(alpha: 0.50),
+          ]
+        : [
+            const Color(0xFF1A2337).withValues(alpha: 0.72),
+            const Color(0xFF121B2D).withValues(alpha: 0.62),
+            const Color(0xFF0A1221).withValues(alpha: 0.54),
+          ];
+    final statusPillGradient = _journeyActive
+        ? const [Color(0xFF0F766E), Color(0xFF14B8A6)]
+        : const [Color(0xFF4A148C), Color(0xFF7C3AED)];
+    final safeBottom = MediaQuery.of(context).padding.bottom;
     return Positioned(
       left: 16,
       right: 16,
-      bottom: 18,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: topGradient,
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: isLight
-                ? const Color(0xFFD6E4FB)
-                : Colors.white.withValues(alpha: 0.12),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isLight ? 0.12 : 0.38),
-              blurRadius: 28,
-              offset: const Offset(0, 14),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: accentGradient,
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
+      bottom: 12,
+      child: GestureDetector(
+        onVerticalDragEnd: (details) {
+          final velocity = details.primaryVelocity ?? 0;
+          if (velocity > 180) {
+            _setJourneyPanelCollapsed(true);
+          } else if (velocity < -180) {
+            _setJourneyPanelCollapsed(false);
+          }
+        },
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 240),
+              curve: Curves.easeOutCubic,
+              padding: EdgeInsets.fromLTRB(
+                16,
+                compact ? 8 : 10,
+                16,
+                (compact ? 8 : 12) + safeBottom,
+              ),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: topGradient,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                  color: isLight
+                      ? const Color(0xFFFFFFFF).withValues(alpha: 0.58)
+                      : Colors.white.withValues(alpha: 0.16),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(
+                      alpha: isLight ? 0.10 : 0.26,
+                    ),
+                    blurRadius: 28,
+                    offset: const Offset(0, 14),
+                  ),
+                ],
+              ),
+              child: AnimatedSize(
+                duration: const Duration(milliseconds: 240),
+                curve: Curves.easeOutCubic,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () =>
+                            _setJourneyPanelCollapsed(!_journeyPanelCollapsed),
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 10, top: 2),
+                          child: Container(
+                            width: 44,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              color: isLight
+                                  ? const Color(
+                                      0xFFAFC1DE,
+                                    ).withValues(alpha: 0.72)
+                                  : Colors.white.withValues(alpha: 0.24),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
                           ),
-                          borderRadius: BorderRadius.circular(999),
                         ),
-                        child: Text(
-                          _journeyActive ? 'Live navigation' : 'Route preview',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    if (compact) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  eta == null ? '--' : _formatDuration(eta),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: isLight
+                                        ? const Color(0xFF172235)
+                                        : Colors.white,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  remaining == null
+                                      ? destinationName
+                                      : 'Remaining ${_formatDistance(remaining)}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: isLight
+                                        ? const Color(0xFF60708B)
+                                        : Colors.white70,
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  destinationName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: isLight
+                                        ? const Color(0xFF8A98AE)
+                                        : Colors.white54,
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 12),
+                          _journeyActionButton(
+                            label: _journeyActive ? 'Stop' : 'Start',
+                            icon: _journeyActive
+                                ? Icons.stop_rounded
+                                : Icons.play_arrow_rounded,
+                            onTap: _journeyActive
+                                ? _stopJourney
+                                : _startJourney,
+                            isLight: isLight,
+                            backgroundColor: _journeyActive
+                                ? const Color(0xFFDC2626)
+                                : accentColor,
+                          ),
+                          const SizedBox(width: 8),
+                          _journeyRoundButton(
+                            icon: Icons.keyboard_arrow_up_rounded,
+                            onTap: () => _setJourneyPanelCollapsed(
+                              !_journeyPanelCollapsed,
+                            ),
+                            isLight: isLight,
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 10),
-                      Text(
-                        destinationName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: isLight
-                              ? const Color(0xFF172235)
-                              : Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              routeDistance == null
+                                  ? 'Calculating route'
+                                  : '${_formatDistance(routeDistance)} total route',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: isLight
+                                    ? const Color(0xFF60708B)
+                                    : Colors.white60,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${(progress * 100).round()}%',
+                            style: TextStyle(
+                              color: isLight
+                                  ? const Color(0xFF344256)
+                                  : Colors.white70,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ] else ...[
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: statusPillGradient,
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Text(
+                                    _journeyActive
+                                        ? 'Live navigation'
+                                        : 'Route preview',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  destinationName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: isLight
+                                        ? const Color(0xFF172235)
+                                        : Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _journeyActive
+                                      ? 'Following your route with live progress'
+                                      : 'Ready with distance and estimated travel time',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: isLight
+                                        ? const Color(0xFF60708B)
+                                        : Colors.white70,
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Column(
+                            children: [
+                              _journeyRoundButton(
+                                icon: Icons.keyboard_arrow_down_rounded,
+                                onTap: () => _setJourneyPanelCollapsed(
+                                  !_journeyPanelCollapsed,
+                                ),
+                                isLight: isLight,
+                              ),
+                              const SizedBox(height: 10),
+                              _journeyActionButton(
+                                label: _journeyActive ? 'Stop' : 'Start',
+                                icon: _journeyActive
+                                    ? Icons.stop_rounded
+                                    : Icons.play_arrow_rounded,
+                                onTap: _journeyActive
+                                    ? _stopJourney
+                                    : _startJourney,
+                                isLight: isLight,
+                                backgroundColor: _journeyActive
+                                    ? const Color(0xFFDC2626)
+                                    : accentColor,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: LinearProgressIndicator(
+                        minHeight: compact ? 8 : 7,
+                        value: progress,
+                        backgroundColor: isLight
+                            ? const Color(0xFFDDE7F6).withValues(alpha: 0.48)
+                            : Colors.white.withValues(alpha: 0.10),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          _journeyActive ? accentSoft : accentColor,
                         ),
                       ),
-                      const SizedBox(height: 5),
-                      Text(
-                        _journeyActive
-                            ? 'Following your route with live progress'
-                            : 'Ready with distance and estimated travel time',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: isLight
-                              ? const Color(0xFF60708B)
-                              : Colors.white70,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                        ),
+                    ),
+                    const SizedBox(height: 10),
+                    if (!compact) ...[
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.route_rounded,
+                            size: 15,
+                            color: isLight
+                                ? const Color(0xFF60708B)
+                                : Colors.white60,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              routeDistance == null
+                                  ? 'Calculating route distance'
+                                  : '${_formatDistance(routeDistance)} total route',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: isLight
+                                    ? const Color(0xFF60708B)
+                                    : Colors.white60,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            '${(progress * 100).round()}%',
+                            style: TextStyle(
+                              color: isLight
+                                  ? const Color(0xFF344256)
+                                  : Colors.white70,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _journeyStat(
+                              label: 'Covered',
+                              value: _formatDistance(_coveredDistanceMeters),
+                              isLight: isLight,
+                              icon: Icons.explore_rounded,
+                              accent: const Color(0xFF14B8A6),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _journeyStat(
+                              label: 'Remaining',
+                              value: remaining == null
+                                  ? '--'
+                                  : _formatDistance(remaining),
+                              isLight: isLight,
+                              icon: Icons.alt_route_rounded,
+                              accent: accentSoft,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _journeyStat(
+                              label: 'ETA',
+                              value: eta == null ? '--' : _formatDuration(eta),
+                              isLight: isLight,
+                              icon: Icons.schedule_rounded,
+                              accent: accentColor,
+                              emphasizeValue: true,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                SizedBox(
-                  height: 54,
-                  child: FilledButton.icon(
-                    onPressed: _journeyActive ? _stopJourney : _startJourney,
-                    icon: Icon(
-                      _journeyActive
-                          ? Icons.stop_circle_rounded
-                          : Icons.play_circle_fill_rounded,
-                      size: 18,
-                    ),
-                    label: Text(_journeyActive ? 'Stop' : 'Start'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _journeyActive
-                          ? const Color(0xFFEF4444)
-                          : const Color(0xFF2563EB),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(999),
-              child: LinearProgressIndicator(
-                minHeight: 7,
-                value: progress,
-                backgroundColor: isLight
-                    ? const Color(0xFFDDE7F6)
-                    : Colors.white.withValues(alpha: 0.1),
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  _journeyActive
-                      ? const Color(0xFF14B8A6)
-                      : const Color(0xFF3B82F6),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(
-                  Icons.route_rounded,
-                  size: 15,
-                  color: isLight ? const Color(0xFF60708B) : Colors.white60,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _journeyActionButton({
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+    required bool isLight,
+    required Color backgroundColor,
+  }) {
+    return Material(
+      color: backgroundColor,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: Colors.white),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
                 ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    routeDistance == null
-                        ? 'Calculating route distance'
-                        : '${_formatDistance(routeDistance)} total route',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: isLight ? const Color(0xFF60708B) : Colors.white60,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                Text(
-                  '${(progress * 100).round()}%',
-                  style: TextStyle(
-                    color: isLight ? const Color(0xFF344256) : Colors.white70,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: _journeyStat(
-                    label: 'Covered',
-                    value: _formatDistance(_coveredDistanceMeters),
-                    isLight: isLight,
-                    icon: Icons.explore_rounded,
-                    accent: const Color(0xFF14B8A6),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _journeyStat(
-                    label: 'Remaining',
-                    value: remaining == null
-                        ? '--'
-                        : _formatDistance(remaining),
-                    isLight: isLight,
-                    icon: Icons.alt_route_rounded,
-                    accent: const Color(0xFF3B82F6),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _journeyStat(
-                    label: 'ETA',
-                    value: eta == null ? '--' : _formatDuration(eta),
-                    isLight: isLight,
-                    icon: Icons.schedule_rounded,
-                    accent: etaTone,
-                    emphasizeValue: true,
-                  ),
-                ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _journeyRoundButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    required bool isLight,
+    bool filled = false,
+    Color? fillColor,
+  }) {
+    return Material(
+      color: filled
+          ? (fillColor ?? AppTheme.primaryColor)
+          : (isLight
+                ? const Color(0xFFF6F9FF)
+                : Colors.white.withValues(alpha: 0.06)),
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Icon(
+            icon,
+            size: 20,
+            color: filled
+                ? Colors.white
+                : (isLight ? const Color(0xFF344256) : Colors.white70),
+          ),
         ),
       ),
     );
@@ -1555,17 +1819,23 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
                 key: const ValueKey('search_open'),
                 width: MediaQuery.of(context).size.width * 0.72,
                 decoration: BoxDecoration(
-                  color: AppTheme.cardColor.withValues(alpha: 0.92),
+                  color: isLight
+                      ? const Color(0xFFFFFFFF).withValues(alpha: 0.96)
+                      : AppTheme.cardColor.withValues(alpha: 0.92),
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: const [
+                  boxShadow: [
                     BoxShadow(
-                      color: Colors.black38,
+                      color: Colors.black.withValues(
+                        alpha: isLight ? 0.12 : 0.22,
+                      ),
                       blurRadius: 16,
                       offset: Offset(0, 8),
                     ),
                   ],
                   border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.14),
+                    color: isLight
+                        ? const Color(0xFFD6E4FB)
+                        : Colors.white.withValues(alpha: 0.14),
                   ),
                 ),
                 child: Column(
@@ -1574,7 +1844,12 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
                     Row(
                       children: [
                         const SizedBox(width: 10),
-                        const Icon(Icons.search, color: Colors.white70),
+                        Icon(
+                          Icons.search,
+                          color: isLight
+                              ? const Color(0xFF5F6F8A)
+                              : Colors.white70,
+                        ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: TextField(
@@ -1584,8 +1859,19 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
                             textInputAction: TextInputAction.search,
                             onChanged: _onSearchChanged,
                             onSubmitted: (_) => _searchLocation(),
-                            decoration: const InputDecoration(
+                            style: TextStyle(
+                              color: isLight
+                                  ? const Color(0xFF172235)
+                                  : Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            decoration: InputDecoration(
                               hintText: 'Search location...',
+                              hintStyle: TextStyle(
+                                color: isLight
+                                    ? const Color(0xFF7E8DA6)
+                                    : Colors.white54,
+                              ),
                               border: InputBorder.none,
                               isDense: true,
                             ),
@@ -1600,9 +1886,11 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
                         ),
                         IconButton(
                           onPressed: _closeSearch,
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.close,
-                            color: Colors.white70,
+                            color: isLight
+                                ? const Color(0xFF5F6F8A)
+                                : Colors.white70,
                             size: 20,
                           ),
                         ),
@@ -1625,25 +1913,35 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
                           itemCount: _suggestions.length,
                           separatorBuilder: (context, index) => Divider(
                             height: 1,
-                            color: Colors.white.withValues(alpha: 0.1),
+                            color: isLight
+                                ? const Color(0xFFE3EBF7)
+                                : Colors.white.withValues(alpha: 0.1),
                           ),
                           itemBuilder: (context, index) {
                             final suggestion = _suggestions[index];
                             return ListTile(
                               dense: true,
-                              leading: const Icon(
+                              leading: Icon(
                                 Icons.location_on_outlined,
-                                color: Colors.white70,
+                                color: isLight
+                                    ? const Color(0xFF5F6F8A)
+                                    : Colors.white70,
                               ),
                               title: Text(
                                 suggestion.title,
-                                style: const TextStyle(color: Colors.white),
+                                style: TextStyle(
+                                  color: isLight
+                                      ? const Color(0xFF172235)
+                                      : Colors.white,
+                                ),
                               ),
                               subtitle: suggestion.subtitle.isNotEmpty
                                   ? Text(
                                       suggestion.subtitle,
-                                      style: const TextStyle(
-                                        color: Colors.white60,
+                                      style: TextStyle(
+                                        color: isLight
+                                            ? const Color(0xFF7E8DA6)
+                                            : Colors.white60,
                                         fontSize: 12,
                                       ),
                                     )
@@ -1658,18 +1956,17 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
               )
             : Material(
                 key: const ValueKey('search_closed'),
-                color: isLight
-                    ? const Color(0xFFFFFFFF).withValues(alpha: 0.94)
-                    : AppTheme.cardColor.withValues(alpha: 0.85),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                color: AppTheme.cardColor,
+                shape: const CircleBorder(),
+                elevation: isLight ? 3 : 5,
+                shadowColor: Colors.black.withValues(
+                  alpha: isLight ? 0.14 : 0.3,
                 ),
-                elevation: 5,
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(16),
+                  customBorder: const CircleBorder(),
                   onTap: _openSearch,
                   child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+                    padding: EdgeInsets.all(13),
                     child: Icon(Icons.search, color: Colors.white, size: 21),
                   ),
                 ),

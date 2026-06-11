@@ -3,12 +3,12 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:suraksha_women_safety_app/theme/app_theme.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:suraksha_women_safety_app/features/auth/auth_provider.dart';
+import 'package:suraksha_women_safety_app/features/profile/emergency_contact_guard.dart';
 import 'package:suraksha_women_safety_app/features/sos/sos_provider.dart';
 import 'package:suraksha_women_safety_app/features/sos/emergency_mode_screen.dart';
 import 'package:suraksha_women_safety_app/features/cybercrime/cybercrime_screen.dart';
@@ -19,14 +19,10 @@ import 'package:suraksha_women_safety_app/features/profile/profile_screen.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/community_alerts_provider.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/nearby_places_provider.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/safety_monitor_provider.dart';
+import 'package:suraksha_women_safety_app/features/profile/profile_display_provider.dart';
 import 'package:suraksha_women_safety_app/features/routes/route_safety_provider.dart';
 import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
-
-final _localProfilePhotoPathProvider = FutureProvider<String?>((ref) async {
-  const key = 'profile_local_photo_path_v1';
-  final prefs = await SharedPreferences.getInstance();
-  return prefs.getString(key);
-});
+import 'package:suraksha_women_safety_app/widgets/premium_dialog.dart';
 
 final _manualSosLaunchingProvider = StateProvider<bool>((ref) => false);
 
@@ -87,22 +83,24 @@ class DashboardScreen extends ConsumerWidget {
     NearbyPlaceItem place,
   ) async {
     final l10n = AppLocalizations.of(context);
-    final shouldOpen = await showDialog<bool>(
+    final shouldOpen = await showPremiumDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.t('openSafetyMap')),
-        content: Text(l10n.t('openSafetyMapConfirm')),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(l10n.t('no')),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(l10n.t('yes')),
-          ),
-        ],
-      ),
+      title: l10n.t('openSafetyMap'),
+      message: l10n.t('openSafetyMapConfirm'),
+      icon: Icons.map_rounded,
+      accentColor: const Color(0xFF3B82F6),
+      actions: [
+        PremiumDialogAction(
+          label: l10n.t('no'),
+          onPressed: () =>
+              Navigator.of(context, rootNavigator: true).pop(false),
+        ),
+        PremiumDialogAction(
+          label: l10n.t('yes'),
+          isPrimary: true,
+          onPressed: () => Navigator.of(context, rootNavigator: true).pop(true),
+        ),
+      ],
     );
 
     if (shouldOpen != true || !context.mounted) return;
@@ -201,11 +199,16 @@ class DashboardScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final isLight = Theme.of(context).brightness == Brightness.light;
     final user = ref.watch(authProvider).user;
-    final localPhotoPath = ref.watch(_localProfilePhotoPathProvider).value;
+    final profileDisplay = ref.watch(profileDisplayProvider);
+    final greetingPrefix = _greetingPrefix(context);
+    final displayName = profileDisplay.name.trim().isNotEmpty
+        ? profileDisplay.name.trim()
+        : (user?.name ?? '').trim().isNotEmpty
+        ? (user?.name ?? '').trim()
+        : 'User';
+    final localPhotoPath = profileDisplay.photoPath;
     final hasLocalPhoto =
-        localPhotoPath != null &&
-        localPhotoPath.isNotEmpty &&
-        File(localPhotoPath).existsSync();
+        localPhotoPath.isNotEmpty && File(localPhotoPath).existsSync();
     final remotePhotoUrl = user?.profilePhoto;
     final hasRemotePhoto = remotePhotoUrl != null && remotePhotoUrl.isNotEmpty;
     final ImageProvider<Object>? profileImage = hasLocalPhoto
@@ -262,7 +265,7 @@ class DashboardScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                l10n.t('helloKaveri'),
+                '$greetingPrefix, $displayName',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
@@ -400,6 +403,11 @@ class DashboardScreen extends ConsumerWidget {
             _pushPremium(context, const EmergencyModeScreen());
             return;
           }
+          final canTriggerSos = await ensureEmergencyContactsSaved(
+            context,
+            ref,
+          );
+          if (!canTriggerSos) return;
           ref.read(_manualSosLaunchingProvider.notifier).state = true;
           unawaited(ref.read(sosProvider.notifier).triggerSOS());
           await Future<void>.delayed(const Duration(milliseconds: 3200));
@@ -797,6 +805,9 @@ class DashboardScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final isLight = Theme.of(context).brightness == Brightness.light;
     final alertsState = ref.watch(communityAlertsProvider);
+    final shouldEmphasizeRefresh =
+        !alertsState.isLoading &&
+        (alertsState.error != null || alertsState.alerts.isEmpty);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -813,21 +824,50 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            IconButton(
-              tooltip: 'Refresh live alerts',
-              onPressed: alertsState.isLoading
-                  ? null
-                  : () => ref.read(communityAlertsProvider.notifier).refresh(),
-              icon: alertsState.isLoading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Icon(
-                      Icons.refresh_rounded,
-                      color: isLight ? const Color(0xFF36506F) : Colors.white70,
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (!alertsState.isLoading)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
                     ),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          const Color(0xFF3B82F6).withValues(alpha: 0.16),
+                          const Color(0xFF26BF96).withValues(alpha: 0.18),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: const Color(
+                          0xFF3B82F6,
+                        ).withValues(alpha: isLight ? 0.22 : 0.34),
+                      ),
+                    ),
+                    child: const Text(
+                      'Tap for alerts',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
+                        color: Color(0xFF2E4E74),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 7),
+                _buildCommunityAlertsRefreshButton(
+                  context,
+                  isLight: isLight,
+                  alertsState: alertsState,
+                  shouldEmphasizeRefresh: shouldEmphasizeRefresh,
+                  onPressed: () =>
+                      ref.read(communityAlertsProvider.notifier).refresh(),
+                ),
+              ],
             ),
           ],
         ),
@@ -871,6 +911,120 @@ class DashboardScreen extends ConsumerWidget {
           ),
       ],
     );
+  }
+
+  Widget _buildCommunityAlertsRefreshButton(
+    BuildContext context, {
+    required bool isLight,
+    required CommunityAlertsState alertsState,
+    required bool shouldEmphasizeRefresh,
+    required VoidCallback onPressed,
+  }) {
+    final button = Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: alertsState.isLoading ? null : onPressed,
+        customBorder: const CircleBorder(),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              colors: alertsState.isLoading
+                  ? [
+                      const Color(0xFFBFD1E8).withValues(alpha: 0.8),
+                      const Color(0xFF7FA0C8).withValues(alpha: 0.9),
+                    ]
+                  : [
+                      const Color(0xFF3B82F6),
+                      const Color(0xFF1D4ED8),
+                      const Color(0xFF0F172A),
+                    ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            border: Border.all(
+              color: shouldEmphasizeRefresh
+                  ? const Color(
+                      0xFFF3B13E,
+                    ).withValues(alpha: isLight ? 0.64 : 0.5)
+                  : Colors.white.withValues(alpha: 0.18),
+              width: shouldEmphasizeRefresh ? 2 : 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: shouldEmphasizeRefresh
+                    ? const Color(
+                        0xFFF3B13E,
+                      ).withValues(alpha: isLight ? 0.42 : 0.28)
+                    : const Color(
+                        0xFF3B82F6,
+                      ).withValues(alpha: isLight ? 0.30 : 0.22),
+                blurRadius: shouldEmphasizeRefresh ? 28 : 18,
+                spreadRadius: shouldEmphasizeRefresh ? 2 : 0,
+                offset: const Offset(0, 10),
+              ),
+              BoxShadow(
+                color: Colors.white.withValues(alpha: isLight ? 0.42 : 0.08),
+                blurRadius: 10,
+                offset: const Offset(0, -2),
+              ),
+            ],
+          ),
+          child: Center(
+            child: alertsState.isLoading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.12),
+                        ),
+                      ),
+                      Icon(
+                        Icons.refresh_rounded,
+                        size: 28,
+                        color: Colors.white,
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ),
+    );
+
+    return shouldEmphasizeRefresh && !alertsState.isLoading
+        ? Pulse(
+            infinite: true,
+            duration: const Duration(milliseconds: 1200),
+            child: button,
+          )
+        : button;
+  }
+
+  String _greetingPrefix(BuildContext context) {
+    switch (Localizations.localeOf(context).languageCode) {
+      case 'hi':
+        return 'नमस्ते';
+      case 'mr':
+        return 'नमस्कार';
+      default:
+        return 'Hello';
+    }
   }
 
   IconData _iconForCommunityAlert(CommunityAlertKind kind) {
