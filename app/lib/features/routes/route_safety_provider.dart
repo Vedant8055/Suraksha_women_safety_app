@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/safety_monitor_provider.dart';
-import 'package:suraksha_women_safety_app/features/sos/sos_provider.dart';
 
 final routeSafetyProvider =
     StateNotifierProvider<RouteSafetyNotifier, RouteSafetyState>(
@@ -928,12 +927,8 @@ class RouteSafetyNotifier extends StateNotifier<RouteSafetyState> {
           pendingSafetyCheck: false,
           countdownSeconds: 0,
           clearAlertStartedAt: true,
-          statusMessage: 'No safety confirmation received. SOS triggered.',
-        );
-        unawaited(
-          _ref
-              .read(sosProvider.notifier)
-              .triggerSOS(fallbackPosition: state.lastPosition),
+          statusMessage:
+              'Safety check expired. Monitoring continues without SOS.',
         );
         return;
       }

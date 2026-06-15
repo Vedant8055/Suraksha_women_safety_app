@@ -733,7 +733,7 @@ class DashboardScreen extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      'SOS auto-triggers in $countdownText without confirmation.',
+                      'Safety check ends in $countdownText unless you confirm.',
                       style: TextStyle(
                         color: isLight ? const Color(0xFF6B1D1D) : Colors.white,
                         fontSize: 12,
