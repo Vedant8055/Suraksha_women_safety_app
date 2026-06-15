@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:animate_do/animate_do.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -5,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:suraksha_women_safety_app/constants/api_constants.dart';
 import 'package:suraksha_women_safety_app/core/network/dio_client.dart';
 import 'package:suraksha_women_safety_app/theme/app_theme.dart';
+import 'package:suraksha_women_safety_app/widgets/save_feedback_dialog.dart';
 
 class MedicalVaultScreen extends StatefulWidget {
   const MedicalVaultScreen({super.key});
@@ -326,7 +329,37 @@ class _MedicalVaultScreenState extends State<MedicalVaultScreen> {
         _medicalConditions = medicalConditions;
         _medications = medications;
       });
+      await showSaveSuccessDialog(
+        context,
+        title: 'Medical profile saved',
+        message: 'Your medical details are ready for emergency use.',
+      );
+      unawaited(
+        _syncMedicalProfileToServer(
+          bloodGroup: bloodGroup,
+          allergies: allergies,
+          medicalConditions: medicalConditions,
+          medications: medications,
+        ),
+      );
+    } on DioException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Saved locally on this device.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
 
+  Future<void> _syncMedicalProfileToServer({
+    required String bloodGroup,
+    required String allergies,
+    required String medicalConditions,
+    required String medications,
+  }) async {
+    try {
       await _dio.patch(
         ApiConstants.profile,
         data: {
@@ -336,19 +369,14 @@ class _MedicalVaultScreenState extends State<MedicalVaultScreen> {
           'currentMedications': _parseCsvList(medications),
         },
       );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Medical profile saved and synced.')),
-        );
-      }
     } on DioException {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Saved locally on this device.')),
+          const SnackBar(content: Text('Medical profile saved locally. Sync will retry later.')),
         );
       }
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
+    } catch (_) {
+      // Local save remains available even if sync fails.
     }
   }
 }

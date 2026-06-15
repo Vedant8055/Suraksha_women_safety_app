@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:suraksha_women_safety_app/constants/api_constants.dart';
 import 'package:suraksha_women_safety_app/core/network/dio_client.dart';
 import 'package:suraksha_women_safety_app/theme/app_theme.dart';
+import 'package:suraksha_women_safety_app/widgets/save_feedback_dialog.dart';
 
 class CyberCrimeScreen extends StatefulWidget {
   const CyberCrimeScreen({super.key});
@@ -394,7 +395,11 @@ class _CyberReportTabState extends State<_CyberReportTab> {
       _transactionController.text.trim(),
     );
     if (!mounted) return;
-    _showSnack(context, 'Draft saved locally.');
+    await showSaveSuccessDialog(
+      context,
+      title: 'Draft saved',
+      message: 'Your draft has been stored locally on this device.',
+    );
   }
 
   Future<void> _pickEvidence() async {

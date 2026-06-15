@@ -19,6 +19,7 @@ import 'package:suraksha_women_safety_app/localization/locale_provider.dart';
 import 'package:suraksha_women_safety_app/models/user_model.dart';
 import 'package:suraksha_women_safety_app/theme/app_theme.dart';
 import 'package:suraksha_women_safety_app/theme/theme_mode_provider.dart';
+import 'package:suraksha_women_safety_app/widgets/save_feedback_dialog.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -61,11 +62,68 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  void _showSavedMessage() {
+  Future<void> _showSaveSuccess(String title, String message) async {
     if (!mounted) return;
-    ScaffoldMessenger.of(
+    await showSaveSuccessDialog(
       context,
-    ).showSnackBar(const SnackBar(content: Text('Details are saved')));
+      title: title,
+      message: message,
+    );
+  }
+
+  Future<void> _showProfilePhotoPreview(
+    ImageProvider<Object> profileImage,
+  ) async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        final isLight = Theme.of(dialogContext).brightness == Brightness.light;
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(20),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 420),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(30),
+              gradient: LinearGradient(
+                colors: isLight
+                    ? const [Colors.white, Color(0xFFF5F9FF)]
+                    : const [Color(0xFF111B2E), Color(0xFF0A1321)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              border: Border.all(
+                color: isLight
+                    ? const Color(0xFFDCE5F6)
+                    : Colors.white.withValues(alpha: 0.08),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isLight ? 0.12 : 0.35),
+                  blurRadius: 28,
+                  offset: const Offset(0, 14),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(22),
+              child: InteractiveViewer(
+                minScale: 1,
+                maxScale: 4,
+                child: AspectRatio(
+                  aspectRatio: 1,
+                  child: Image(image: profileImage, fit: BoxFit.contain),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -153,10 +211,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final isLight = Theme.of(context).brightness == Brightness.light;
     final profileText = isLight ? const Color(0xFF172235) : Colors.white;
     final profileMuted = isLight ? const Color(0xFF5F6F8A) : Colors.white70;
-    final profileCard = isLight ? Colors.white : AppTheme.cardColor;
-    final profileBorder = isLight
-        ? const Color(0xFFDCE5F6)
-        : Colors.transparent;
     final ImageProvider<Object>? profileImage =
         _localPhotoPath != null && _localPhotoPath!.isNotEmpty
         ? FileImage(File(_localPhotoPath!))
@@ -165,70 +219,43 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               : null);
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.t('myProfile'))),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            FadeInDown(
-              child: Center(
-                child: Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 60,
-                      backgroundColor: AppTheme.primaryColor.withValues(
-                        alpha: 0.2,
-                      ),
-                      backgroundImage: profileImage,
-                      child:
-                          ((_localPhotoPath == null ||
-                                  _localPhotoPath!.isEmpty) &&
-                              (user?.profilePhoto == null ||
-                                  user!.profilePhoto!.isEmpty))
-                          ? const Icon(
-                              Icons.person,
-                              size: 80,
-                              color: AppTheme.primaryColor,
-                            )
-                          : null,
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: InkWell(
-                        onTap: _isSaving ? null : _pickAndUploadPhoto,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: const BoxDecoration(
-                            color: AppTheme.primaryColor,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.edit,
-                            size: 20,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+      appBar: AppBar(
+        title: Text(l10n.t('myProfile')),
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: isLight
+                  ? const [Color(0xFFF7FAFF), Color(0xFFEAF2FF)]
+                  : const [Color(0xFF09111F), Color(0xFF121C30)],
             ),
-            const SizedBox(height: 24),
-            Text(
-              displayName,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ).copyWith(color: profileText),
-            ),
-            Text(displayEmail, style: TextStyle(color: profileMuted)),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _isSaving
+          ),
+        ),
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: isLight
+                ? const [Color(0xFFF8FBFF), Color(0xFFF1F6FF), Color(0xFFEAF2FF)]
+                : const [Color(0xFF07101F), Color(0xFF0A1528), Color(0xFF050B16)],
+          ),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildProfileHero(
+                context,
+                displayName: displayName,
+                displayEmail: displayEmail,
+                profileImage: profileImage,
+                profileText: profileText,
+                profileMuted: profileMuted,
+                isLight: isLight,
+                onEditPhoto: _isSaving ? null : _pickAndUploadPhoto,
+                onEditDetails: _isSaving
                     ? null
                     : () => _showEditProfileDialog(
                         user,
@@ -238,222 +265,553 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ? ''
                             : displayPhone,
                       ),
-                icon: const Icon(Icons.edit),
-                label: Text(l10n.t('editProfileDetails')),
               ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              decoration: BoxDecoration(
-                color: profileCard,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: profileBorder),
-              ),
-              child: SwitchListTile(
-                title: Text(
-                  l10n.t('darkMode'),
-                  style: TextStyle(
-                    color: profileText,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                subtitle: Text(
-                  isDarkMode
-                      ? l10n.t('darkModeSubtitleOn')
-                      : l10n.t('darkModeSubtitleOff'),
-                  style: TextStyle(color: profileMuted),
-                ),
-                value: isDarkMode,
-                activeThumbColor: AppTheme.primaryColor,
-                onChanged: (enabled) {
-                  ref
-                      .read(appThemeModeProvider.notifier)
-                      .setThemeMode(enabled ? ThemeMode.dark : ThemeMode.light);
-                },
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              decoration: BoxDecoration(
-                color: profileCard,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: profileBorder),
-              ),
-              child: SwitchListTile(
-                secondary: const Icon(
-                  Icons.graphic_eq,
-                  color: AppTheme.primaryColor,
-                ),
-                title: Text(
-                  'Scream Detection',
-                  style: TextStyle(
-                    color: profileText,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                subtitle: Text(
-                  screamDetectionState.monitoring
-                      ? 'Microphone safety monitor is active.'
-                      : 'Microphone stays off while this is disabled.',
-                  style: TextStyle(color: profileMuted),
-                ),
-                value: screamDetectionState.enabled,
-                activeThumbColor: AppTheme.primaryColor,
+              const SizedBox(height: 14),
+              _buildLanguageSelector(
+                context,
+                selectedLanguage: selectedLanguage,
+                profileText: profileText,
+                profileMuted: profileMuted,
+                isLight: isLight,
                 onChanged: _isSaving
                     ? null
-                    : (enabled) => _setScreamDetectionEnabled(enabled),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              decoration: BoxDecoration(
-                color: profileCard,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: profileBorder),
-              ),
-              child: SwitchListTile(
-                secondary: const Icon(
-                  Icons.car_crash,
-                  color: AppTheme.primaryColor,
-                ),
-                title: Text(
-                  'Impact Detection',
-                  style: TextStyle(
-                    color: profileText,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                subtitle: Text(
-                  impactDetectionState.monitoring
-                      ? 'Motion sensors are watching for sudden impact.'
-                      : 'Motion sensors stay off while this is disabled.',
-                  style: TextStyle(color: profileMuted),
-                ),
-                value: impactDetectionState.enabled,
-                activeThumbColor: AppTheme.primaryColor,
-                onChanged: _isSaving
-                    ? null
-                    : (enabled) => _setImpactDetectionEnabled(enabled),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: profileCard,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: profileBorder),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.language, color: AppTheme.primaryColor),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l10n.t('language'),
-                          style: TextStyle(
-                            color: profileText,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          l10n.t('contentLanguage'),
-                          style: TextStyle(color: profileMuted, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                  DropdownButtonHideUnderline(
-                    child: DropdownButton<AppLanguage>(
-                      value: selectedLanguage,
-                      dropdownColor: profileCard,
-                      style: TextStyle(color: profileText),
-                      iconEnabledColor: AppTheme.primaryColor,
-                      onChanged: (value) {
+                    : (value) {
                         if (value == null) return;
                         ref.read(appLocaleProvider.notifier).setLanguage(value);
                       },
-                      items: [
-                        DropdownMenuItem(
-                          value: AppLanguage.english,
-                          child: Text(l10n.t('english')),
-                        ),
-                        DropdownMenuItem(
-                          value: AppLanguage.hindi,
-                          child: Text(l10n.t('hindi')),
-                        ),
-                        DropdownMenuItem(
-                          value: AppLanguage.marathi,
-                          child: Text(l10n.t('marathi')),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
               ),
-            ),
-            const SizedBox(height: 12),
-            _buildProfileItem(
-              context,
-              l10n.t('phoneNumber'),
-              displayPhone,
-              Icons.phone,
-              onTap: _isSaving
-                  ? null
-                  : () => _showEditPhoneDialog(
-                      displayPhone == l10n.t('notProvided') ? '' : displayPhone,
+              const SizedBox(height: 14),
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: isLight
+                        ? const [Colors.white, Color(0xFFF8FBFF)]
+                        : const [Color(0xFF111B2E), Color(0xFF0D1626)],
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: isLight
+                        ? const Color(0xFFDCE5F6)
+                        : Colors.white.withValues(alpha: 0.08),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isLight ? 0.05 : 0.22),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
                     ),
-            ),
-            const SizedBox(height: 16),
-            _buildProfileItem(
-              context,
-              l10n.t('emergencyContacts'),
-              '${contacts.length} ${l10n.t('contactsSaved')}',
-              Icons.people,
-            ),
-            const SizedBox(height: 24),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                l10n.t('emergencyContactList'),
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: profileText,
-                  fontWeight: FontWeight.w700,
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    SwitchListTile(
+                      title: Text(
+                        l10n.t('darkMode'),
+                        style: TextStyle(
+                          color: profileText,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      subtitle: Text(
+                        isDarkMode
+                            ? l10n.t('darkModeSubtitleOn')
+                            : l10n.t('darkModeSubtitleOff'),
+                        style: TextStyle(color: profileMuted),
+                      ),
+                      value: isDarkMode,
+                      activeThumbColor: AppTheme.primaryColor,
+                      onChanged: (enabled) {
+                        ref
+                            .read(appThemeModeProvider.notifier)
+                            .setThemeMode(enabled ? ThemeMode.dark : ThemeMode.light);
+                      },
+                    ),
+                    const Divider(height: 1),
+                    SwitchListTile(
+                      secondary: const Icon(
+                        Icons.graphic_eq,
+                        color: AppTheme.primaryColor,
+                      ),
+                      title: Text(
+                        'Scream Detection',
+                        style: TextStyle(
+                          color: profileText,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      subtitle: Text(
+                        screamDetectionState.monitoring
+                            ? 'Microphone safety monitor is active.'
+                            : 'Microphone stays off while this is disabled.',
+                        style: TextStyle(color: profileMuted),
+                      ),
+                      value: screamDetectionState.enabled,
+                      activeThumbColor: AppTheme.primaryColor,
+                      onChanged: _isSaving
+                          ? null
+                          : (enabled) => _setScreamDetectionEnabled(enabled),
+                    ),
+                    const Divider(height: 1),
+                    SwitchListTile(
+                      secondary: const Icon(
+                        Icons.car_crash,
+                        color: AppTheme.primaryColor,
+                      ),
+                      title: Text(
+                        'Impact Detection',
+                        style: TextStyle(
+                          color: profileText,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      subtitle: Text(
+                        impactDetectionState.monitoring
+                            ? 'Motion sensors are watching for sudden impact.'
+                            : 'Motion sensors stay off while this is disabled.',
+                        style: TextStyle(color: profileMuted),
+                      ),
+                      value: impactDetectionState.enabled,
+                      activeThumbColor: AppTheme.primaryColor,
+                      onChanged: _isSaving
+                          ? null
+                          : (enabled) => _setImpactDetectionEnabled(enabled),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            ...contacts.map(
-              (c) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _buildContactItem(c),
+              const SizedBox(height: 14),
+              _buildProfileItem(
+                context,
+                l10n.t('phoneNumber'),
+                displayPhone,
+                Icons.phone_rounded,
+                onTap: _isSaving
+                    ? null
+                    : () => _showEditPhoneDialog(
+                        displayPhone == l10n.t('notProvided')
+                            ? ''
+                            : displayPhone,
+                      ),
               ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _isSaving ? null : _showAddContactDialog,
-                icon: const Icon(Icons.add),
-                label: Text(l10n.t('addEmergencyContact')),
+              const SizedBox(height: 12),
+              _buildProfileItem(
+                context,
+                l10n.t('emergencyContacts'),
+                '${contacts.length} ${l10n.t('contactsSaved')}',
+                Icons.people_rounded,
               ),
-            ),
-            const SizedBox(height: 40),
-            ElevatedButton(
-              onPressed: () => ref.read(authProvider.notifier).logout(),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.withValues(alpha: 0.1),
-                foregroundColor: Colors.red,
-                side: const BorderSide(color: Colors.red),
-                minimumSize: const Size(double.infinity, 60),
+              const SizedBox(height: 18),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  l10n.t('emergencyContactList'),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: profileText,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
-              child: Text(l10n.t('logoutSession')),
+              const SizedBox(height: 12),
+              ...contacts.map(
+                (c) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _buildContactItem(c),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _isSaving ? null : _showAddContactDialog,
+                  icon: const Icon(Icons.add_rounded),
+                  label: Text(l10n.t('addEmergencyContact')),
+                ),
+              ),
+              const SizedBox(height: 18),
+              ElevatedButton.icon(
+                onPressed: () => ref.read(authProvider.notifier).logout(),
+                icon: const Icon(Icons.logout_rounded),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.withValues(alpha: 0.12),
+                  foregroundColor: Colors.red,
+                  side: const BorderSide(color: Colors.red),
+                  minimumSize: const Size(double.infinity, 58),
+                ),
+                label: Text(l10n.t('logoutSession')),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileHero(
+    BuildContext context, {
+    required String displayName,
+    required String displayEmail,
+    required ImageProvider<Object>? profileImage,
+    required Color profileText,
+    required Color profileMuted,
+    required bool isLight,
+    VoidCallback? onEditPhoto,
+    VoidCallback? onEditDetails,
+  }) {
+    return FadeInDown(
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(28),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isLight
+                ? const [Color(0xFFFFFFFF), Color(0xFFF2F7FF), Color(0xFFE7F1FF)]
+                : const [Color(0xFF121B2E), Color(0xFF0E1727), Color(0xFF08111D)],
+          ),
+          border: Border.all(
+            color: isLight
+                ? const Color(0xFFD9E6F8)
+                : Colors.white.withValues(alpha: 0.08),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isLight ? 0.06 : 0.24),
+              blurRadius: 24,
+              offset: const Offset(0, 12),
             ),
           ],
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Stack(
+                  children: [
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: profileImage == null
+                            ? null
+                            : () => _showProfilePhotoPreview(profileImage),
+                        customBorder: const CircleBorder(),
+                        child: CircleAvatar(
+                          radius: 46,
+                          backgroundColor: AppTheme.primaryColor.withValues(
+                            alpha: 0.18,
+                          ),
+                          backgroundImage: profileImage,
+                          child:
+                              profileImage == null
+                              ? const Icon(
+                                  Icons.person_rounded,
+                                  size: 52,
+                                  color: AppTheme.primaryColor,
+                                )
+                              : null,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: InkWell(
+                        onTap: onEditPhoto,
+                        borderRadius: BorderRadius.circular(999),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.primaryColor.withValues(alpha: 0.35),
+                                blurRadius: 14,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.edit_rounded,
+                            size: 18,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        displayName,
+                        style: TextStyle(
+                          color: profileText,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        displayEmail,
+                        style: TextStyle(color: profileMuted, fontSize: 13.5),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        AppLocalizations.of(context).t('profileHeroCta'),
+                        style: TextStyle(
+                          color: profileMuted,
+                          height: 1.35,
+                          fontSize: 12.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildMetricPill(
+                    context,
+                    icon: Icons.verified_user_rounded,
+                    label: AppLocalizations.of(context).t('profileOverview'),
+                    value: AppLocalizations.of(context).t('saved'),
+                    isLight: isLight,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildMetricPill(
+                    context,
+                    icon: Icons.shield_rounded,
+                    label: AppLocalizations.of(context).t('profileStatsTitle'),
+                    value: AppLocalizations.of(context).t('emergencyContacts'),
+                    isLight: isLight,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: onEditDetails,
+                icon: const Icon(Icons.edit_document),
+                label: Text(AppLocalizations.of(context).t('editProfileDetails')),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMetricPill(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required String value,
+    required bool isLight,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: isLight ? const Color(0xFFF7FAFF) : const Color(0xFF0E1727),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isLight
+              ? const Color(0xFFDBE7FA)
+              : Colors.white.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withValues(alpha: isLight ? 0.12 : 0.22),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: AppTheme.primaryColor, size: 20),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isLight ? const Color(0xFF5F6F8A) : Colors.white70,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isLight ? const Color(0xFF172235) : Colors.white,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLanguageSelector(
+    BuildContext context, {
+    required AppLanguage selectedLanguage,
+    required Color profileText,
+    required Color profileMuted,
+    required bool isLight,
+    required ValueChanged<AppLanguage?>? onChanged,
+  }) {
+    final l10n = AppLocalizations.of(context);
+    final options = [
+      (AppLanguage.english, l10n.t('english'), Icons.language_rounded),
+      (AppLanguage.hindi, l10n.t('hindi'), Icons.translate_rounded),
+      (AppLanguage.marathi, l10n.t('marathi'), Icons.auto_awesome_rounded),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        color: isLight ? Colors.white : AppTheme.cardColor,
+        border: Border.all(
+          color: isLight
+              ? const Color(0xFFDCE5F6)
+              : Colors.white.withValues(alpha: 0.08),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isLight ? 0.05 : 0.22),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.t('languageSelectionTitle'),
+            style: TextStyle(
+              color: profileText,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            l10n.t('contentLanguage'),
+            style: TextStyle(color: profileMuted, fontSize: 12.5),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: options
+                .map(
+                  (option) => Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        right: option.$1 == AppLanguage.marathi ? 0 : 8,
+                      ),
+                      child: _buildLanguageButton(
+                        context,
+                        label: option.$2,
+                        icon: option.$3,
+                        selected: selectedLanguage == option.$1,
+                        isLight: isLight,
+                        onTap: onChanged == null ? null : () => onChanged(option.$1),
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLanguageButton(
+    BuildContext context, {
+    required String label,
+    required IconData icon,
+    required bool selected,
+    required bool isLight,
+    required VoidCallback? onTap,
+  }) {
+    final baseColor = selected ? AppTheme.primaryColor : (isLight ? const Color(0xFFF1F5FE) : const Color(0xFF0E1727));
+    final textColor = selected ? Colors.white : (isLight ? const Color(0xFF172235) : Colors.white);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+          decoration: BoxDecoration(
+            gradient: selected
+                ? const LinearGradient(
+                    colors: [Color(0xFF1D8CF8), Color(0xFF2ED6C5)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : null,
+            color: selected ? null : baseColor,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: selected
+                  ? Colors.transparent
+                  : (isLight ? const Color(0xFFD4E0F3) : Colors.white.withValues(alpha: 0.08)),
+            ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.26),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: textColor),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: textColor,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -478,14 +836,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: isLight ? Colors.white : AppTheme.cardColor,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(22),
             border: Border.all(
               color: isLight ? const Color(0xFFDCE5F6) : Colors.transparent,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isLight ? 0.04 : 0.18),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
           child: Row(
             children: [
-              Icon(icon, color: AppTheme.primaryColor),
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(alpha: isLight ? 0.10 : 0.18),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: AppTheme.primaryColor),
+              ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -505,7 +878,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ],
                 ),
               ),
-              if (onTap != null) Icon(Icons.edit, size: 18, color: mutedColor),
+              if (onTap != null) Icon(Icons.chevron_right_rounded, size: 20, color: mutedColor),
             ],
           ),
         ),
@@ -521,14 +894,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isLight ? Colors.white : AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: isLight ? const Color(0xFFDCE5F6) : Colors.transparent,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isLight ? 0.04 : 0.18),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          const Icon(Icons.contact_phone, color: AppTheme.primaryColor),
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withValues(alpha: isLight ? 0.10 : 0.18),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(Icons.contact_phone, color: AppTheme.primaryColor),
+          ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -550,11 +938,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           IconButton(
             onPressed: _isSaving ? null : () => _showEditContactDialog(contact),
-            icon: const Icon(Icons.edit, color: Colors.white70),
+            icon: const Icon(Icons.edit_rounded, color: Colors.white70),
           ),
           IconButton(
             onPressed: _isSaving ? null : () => _deleteContact(contact.id),
-            icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+            icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
           ),
         ],
       ),
@@ -601,6 +989,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     required String displayEmail,
     required String displayPhone,
   }) async {
+    final l10n = AppLocalizations.of(context);
     final navigator = Navigator.of(context);
     final nameController = TextEditingController(text: displayName);
     final emailController = TextEditingController(text: displayEmail);
@@ -654,7 +1043,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 );
                 if (mounted) {
                   navigator.pop();
-                  _showSavedMessage();
+                  await _showSaveSuccess(
+                    l10n.t('profileSavedTitle'),
+                    l10n.t('profileSavedMessage'),
+                  );
                 }
               } catch (error) {
                 _showError(_extractError(error));
@@ -668,6 +1060,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _showEditPhoneDialog(String currentPhone) async {
+    final l10n = AppLocalizations.of(context);
     final navigator = Navigator.of(context);
     final phoneController = TextEditingController(text: currentPhone);
     var saving = false;
@@ -715,7 +1108,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         if (!mounted) return;
                         dialogClosed = true;
                         navigator.pop();
-                        _showSavedMessage();
+                        await _showSaveSuccess(
+                          l10n.t('profileSavedTitle'),
+                          l10n.t('profileSavedMessage'),
+                        );
                       } catch (error) {
                         _showError(_extractError(error));
                       } finally {
@@ -739,6 +1135,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _showAddContactDialog() async {
+    final l10n = AppLocalizations.of(context);
     final navigator = Navigator.of(context);
     final nameController = TextEditingController();
     final phoneController = TextEditingController();
@@ -810,7 +1207,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         }
 
                         navigator.pop();
-                        _showSavedMessage();
+                        await _showSaveSuccess(
+                          l10n.t('contactSavedTitle'),
+                          l10n.t('contactSavedMessage'),
+                        );
                       } catch (error) {
                         _showError(_extractError(error));
                         if (mounted) setDialogState(() => saving = false);
@@ -831,6 +1231,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _showEditContactDialog(EmergencyContact contact) async {
+    final l10n = AppLocalizations.of(context);
     final navigator = Navigator.of(context);
     final nameController = TextEditingController(text: contact.name);
     final phoneController = TextEditingController(text: contact.phone);
@@ -884,7 +1285,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   return;
                 }
                 navigator.pop();
-                _showSavedMessage();
+                await _showSaveSuccess(
+                  l10n.t('contactSavedTitle'),
+                  l10n.t('contactSavedMessage'),
+                );
               } catch (error) {
                 _showError(_extractError(error));
               }
@@ -921,12 +1325,38 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 phone: phone,
                 bloodGroup: bloodGroup,
               ),
-            );
+          );
       }
       unawaited(
         ref.read(profileDisplayProvider.notifier).update(name: fullName),
       );
+      if (!mounted) return;
+      await _showSaveSuccess(
+        AppLocalizations.of(context).t('profileSavedTitle'),
+        AppLocalizations.of(context).t('profileSavedMessage'),
+      );
+      unawaited(
+        _syncProfileToServer(
+          fullName: fullName,
+          email: email,
+          phone: phone,
+          bloodGroup: bloodGroup,
+        ),
+      );
+    } catch (error) {
+      _showError(_extractError(error));
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
 
+  Future<void> _syncProfileToServer({
+    required String fullName,
+    required String email,
+    required String phone,
+    required String bloodGroup,
+  }) async {
+    try {
       final response = await _dio.patch(
         ApiConstants.profile,
         data: {
@@ -952,11 +1382,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             .update(name: updatedUser.name),
       );
     } on DioException {
-      _showError('Saved locally on this device. Server sync failed.');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Saved locally. Server sync will retry later.')),
+        );
+      }
     } catch (_) {
-      _showError('Saved locally on this device.');
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
+      // Keep the local save as the source of truth.
     }
   }
 
@@ -983,9 +1415,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             .read(profileDisplayProvider.notifier)
             .update(photoPath: picked.path),
       );
+      if (!mounted) return;
+      await _showSaveSuccess(
+        AppLocalizations.of(context).t('profileSavedTitle'),
+        AppLocalizations.of(context).t('profileSavedMessage'),
+      );
+      unawaited(
+        _syncProfilePhotoToServer(picked.path),
+      );
+    } catch (error) {
+      _showError('Photo saved locally. ${_extractError(error)}');
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
 
+  Future<void> _syncProfilePhotoToServer(String photoPath) async {
+    try {
       final formData = FormData.fromMap({
-        'file': await MultipartFile.fromFile(picked.path),
+        'file': await MultipartFile.fromFile(photoPath),
       });
       final response = await _dio.post(
         '${ApiConstants.profile}/photo',
@@ -996,14 +1444,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       );
       ref.read(authProvider.notifier).updateUser(updatedUser);
       unawaited(
-        ref
-            .read(profileDisplayProvider.notifier)
-            .update(photoPath: picked.path),
+        ref.read(profileDisplayProvider.notifier).update(photoPath: photoPath),
       );
-    } catch (error) {
-      _showError('Photo saved locally. ${_extractError(error)}');
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
+    } catch (_) {
+      // Local photo is already visible immediately.
     }
   }
 
