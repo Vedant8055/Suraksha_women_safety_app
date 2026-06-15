@@ -1225,63 +1225,72 @@ class DashboardScreen extends ConsumerWidget {
     Color color,
   ) {
     final isLight = Theme.of(context).brightness == Brightness.light;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(17),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            isLight
-                ? const Color(0xFFFFFFFF)
-                : AppTheme.surfaceSoft.withValues(alpha: 0.72),
-            isLight
-                ? const Color(0xFFF1F6FF)
-                : AppTheme.cardColor.withValues(alpha: 0.76),
+    return _PoppingAlertCard(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(17),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              isLight
+                  ? const Color(0xFFFFFFFF)
+                  : AppTheme.surfaceSoft.withValues(alpha: 0.72),
+              isLight
+                  ? const Color(0xFFF1F6FF)
+                  : AppTheme.cardColor.withValues(alpha: 0.76),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isLight
+                ? const Color(0xFFDCE5F6)
+                : Colors.white.withValues(alpha: 0.1),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isLight ? 0.04 : 0.18),
+              blurRadius: 14,
+              offset: const Offset(0, 7),
+            ),
           ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: isLight
-              ? const Color(0xFFDCE5F6)
-              : Colors.white.withValues(alpha: 0.1),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: isLight ? const Color(0xFF172235) : Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    time,
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: isLight ? const Color(0xFF172235) : Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  time,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -2064,6 +2073,81 @@ class _PoppingActionCardState extends State<_PoppingActionCard> {
   }
 }
 
+class _PoppingAlertCard extends StatefulWidget {
+  const _PoppingAlertCard({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_PoppingAlertCard> createState() => _PoppingAlertCardState();
+}
+
+class _PoppingAlertCardState extends State<_PoppingAlertCard> {
+  bool _pressed = false;
+  bool _popped = false;
+
+  void _setPressed(bool pressed) {
+    if (_pressed == pressed) return;
+    if (!pressed) {
+      unawaited(_pop());
+    }
+    setState(() => _pressed = pressed);
+  }
+
+  Future<void> _pop() async {
+    setState(() => _popped = true);
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    if (!mounted) return;
+    setState(() => _popped = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final scale = _pressed ? 0.94 : (_popped ? 1.06 : 1.0);
+    final lift = _pressed ? 2.0 : (_popped ? -4.0 : 0.0);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) => _setPressed(true),
+      onTapUp: (_) => _setPressed(false),
+      onTapCancel: () => _setPressed(false),
+      child: AnimatedScale(
+        duration: const Duration(milliseconds: 140),
+        curve: Curves.easeOutBack,
+        scale: scale,
+        child: Transform.translate(
+          offset: Offset(0, lift),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 140),
+            curve: Curves.easeOutCubic,
+            decoration: BoxDecoration(
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: _popped ? 0.02 : 0.08),
+                  blurRadius: _popped ? 10 : 16,
+                  offset: Offset(0, _popped ? 2 : 7),
+                ),
+                BoxShadow(
+                  color: isLight
+                      ? const Color(0xFF3B82F6).withValues(
+                          alpha: _popped ? 0.18 : 0.06,
+                        )
+                      : const Color(0xFF2ED6C5).withValues(
+                          alpha: _popped ? 0.16 : 0.04,
+                        ),
+                  blurRadius: _popped ? 18 : 10,
+                  offset: const Offset(0, 0),
+                ),
+              ],
+            ),
+            child: widget.child,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _DashboardBackground extends StatelessWidget {
   const _DashboardBackground();
 
@@ -2071,37 +2155,120 @@ class _DashboardBackground extends StatelessWidget {
   Widget build(BuildContext context) {
     final isLight = Theme.of(context).brightness == Brightness.light;
     return Container(
-      color: isLight ? const Color(0xFFF6F8FC) : Colors.black,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: isLight
+              ? const [Color(0xFFF8FBFF), Color(0xFFF3F7FD), Color(0xFFEFF4FA)]
+              : const [Colors.black, Color(0xFF07101F), Color(0xFF050A14)],
+        ),
+      ),
       child: Stack(
         children: [
           Positioned(
-            top: -140,
-            left: -90,
-            child: _glowCircle(const Color(0xFF133B5F), 250),
+            top: -120,
+            left: -100,
+            child: _glowCircle(
+              isLight ? const Color(0xFFBFD7FF) : const Color(0xFF133B5F),
+              280,
+              opacity: isLight ? 0.34 : 0.16,
+            ),
           ),
           Positioned(
-            right: -95,
-            top: 140,
-            child: _glowCircle(const Color(0xFF2A1A43), 220),
+            right: -110,
+            top: 100,
+            child: _glowCircle(
+              isLight ? const Color(0xFFCCF4E8) : const Color(0xFF2A1A43),
+              240,
+              opacity: isLight ? 0.26 : 0.12,
+            ),
           ),
           Positioned(
-            bottom: -150,
-            left: 30,
-            child: _glowCircle(const Color(0xFF0E2A48), 260),
+            bottom: -160,
+            left: -40,
+            child: _glowCircle(
+              isLight ? const Color(0xFFF8DCE8) : const Color(0xFF0E2A48),
+              300,
+              opacity: isLight ? 0.24 : 0.10,
+            ),
+          ),
+          Positioned(
+            top: 180,
+            left: 36,
+            right: 36,
+            child: IgnorePointer(
+              child: Opacity(
+                opacity: isLight ? 0.15 : 0.06,
+                child: CustomPaint(
+                  size: const Size(double.infinity, 220),
+                  painter: _SoftWavePainter(
+                    color: isLight
+                        ? const Color(0xFFB3C7E3)
+                        : const Color(0xFF29405F),
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _glowCircle(Color color, double size) {
+  Widget _glowCircle(Color color, double size, {double opacity = 0.14}) {
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: color.withValues(alpha: 0.14),
+        color: color.withValues(alpha: opacity),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: opacity * 0.8),
+            blurRadius: 60,
+            spreadRadius: 8,
+          ),
+        ],
       ),
     );
   }
+}
+
+class _SoftWavePainter extends CustomPainter {
+  _SoftWavePainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color.withValues(alpha: 0.16)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.2
+      ..strokeCap = StrokeCap.round;
+
+    final path = Path();
+    path.moveTo(0, size.height * 0.34);
+    path.cubicTo(
+      size.width * 0.18,
+      size.height * 0.12,
+      size.width * 0.36,
+      size.height * 0.55,
+      size.width * 0.52,
+      size.height * 0.36,
+    );
+    path.cubicTo(
+      size.width * 0.66,
+      size.height * 0.20,
+      size.width * 0.80,
+      size.height * 0.58,
+      size.width,
+      size.height * 0.32,
+    );
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

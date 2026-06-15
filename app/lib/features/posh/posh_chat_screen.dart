@@ -1,9 +1,17 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
+
 import 'package:animate_do/animate_do.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:suraksha_women_safety_app/constants/api_constants.dart';
 import 'package:suraksha_women_safety_app/core/network/dio_client.dart';
+import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
 import 'package:suraksha_women_safety_app/theme/app_theme.dart';
+import 'package:suraksha_women_safety_app/widgets/premium_dialog.dart';
 
 class POSHLegalPortalScreen extends StatefulWidget {
   const POSHLegalPortalScreen({super.key});
@@ -13,119 +21,417 @@ class POSHLegalPortalScreen extends StatefulWidget {
 }
 
 class _POSHLegalPortalScreenState extends State<POSHLegalPortalScreen> {
+  static const _progressKey = 'posh_quiz_progress_v1';
+  static const _certificateKey = 'posh_certificate_issued_at_v1';
+  static const int _passScore = 16;
+
   final Dio _dio = DioClient().dio;
+  final _complainantNameController = TextEditingController();
+  final _complainantPhoneController = TextEditingController();
+  final _complainantEmailController = TextEditingController();
+  final _accusedNameController = TextEditingController();
+  final _companyController = TextEditingController();
+  final _incidentDateController = TextEditingController();
+  final _incidentLocationController = TextEditingController();
+  final _witnessesController = TextEditingController();
+  final _detailsController = TextEditingController();
+
+  final Map<int, Map<int, Set<int>>> _answers = {};
+  final Set<int> _passedLevels = {};
+  final Map<int, int> _bestScores = {};
+  final Map<int, int> _attemptCounts = {};
+
+  late final List<_PoshQuizLevel> _levels = _buildPoshQuizLevels();
   bool _submitting = false;
+  bool _loadingProgress = true;
+  bool _certificateReady = false;
+  DateTime? _certificateIssuedAt;
+  int _activeLevelIndex = 0;
+  int _activeQuestionIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadProgress());
+  }
+
+  @override
+  void dispose() {
+    _complainantNameController.dispose();
+    _complainantPhoneController.dispose();
+    _complainantEmailController.dispose();
+    _accusedNameController.dispose();
+    _companyController.dispose();
+    _incidentDateController.dispose();
+    _incidentLocationController.dispose();
+    _witnessesController.dispose();
+    _detailsController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadProgress() async {
+    final prefs = await SharedPreferences.getInstance();
+    final rawProgress = prefs.getString(_progressKey);
+    final certificateMillis = prefs.getInt(_certificateKey);
+
+    if (rawProgress != null && rawProgress.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawProgress);
+        if (decoded is Map<String, dynamic>) {
+          final passed = (decoded['passedLevels'] as List? ?? const [])
+              .map((e) => int.tryParse(e.toString()))
+              .whereType<int>()
+              .toSet();
+          final bestScores = <int, int>{};
+          final attempts = <int, int>{};
+
+          final scoresMap = decoded['bestScores'];
+          if (scoresMap is Map) {
+            for (final entry in scoresMap.entries) {
+              final key = int.tryParse(entry.key.toString());
+              final value = int.tryParse(entry.value.toString());
+              if (key != null && value != null) {
+                bestScores[key] = value;
+              }
+            }
+          }
+
+          final attemptsMap = decoded['attemptCounts'];
+          if (attemptsMap is Map) {
+            for (final entry in attemptsMap.entries) {
+              final key = int.tryParse(entry.key.toString());
+              final value = int.tryParse(entry.value.toString());
+              if (key != null && value != null) {
+                attempts[key] = value;
+              }
+            }
+          }
+
+          setState(() {
+            _passedLevels
+              ..clear()
+              ..addAll(passed);
+            _bestScores
+              ..clear()
+              ..addAll(bestScores);
+            _attemptCounts
+              ..clear()
+              ..addAll(attempts);
+          });
+        }
+      } catch (_) {
+        // Ignore corrupted progress and start fresh.
+      }
+    }
+
+    if (certificateMillis != null) {
+      _certificateIssuedAt = DateTime.fromMillisecondsSinceEpoch(certificateMillis);
+      _certificateReady = _passedLevels.length == _levels.length;
+    }
+
+    if (mounted) {
+      setState(() => _loadingProgress = false);
+    }
+  }
+
+  Future<void> _saveProgress() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _progressKey,
+      jsonEncode({
+        'passedLevels': _passedLevels.toList(),
+        'bestScores': _bestScores.map((key, value) => MapEntry(key.toString(), value)),
+        'attemptCounts': _attemptCounts.map((key, value) => MapEntry(key.toString(), value)),
+      }),
+    );
+    if (_certificateIssuedAt != null) {
+      await prefs.setInt(
+        _certificateKey,
+        _certificateIssuedAt!.millisecondsSinceEpoch,
+      );
+    }
+  }
+
+  Future<void> _submitComplaint() async {
+    final complainantName = _complainantNameController.text.trim();
+    final complainantPhone = _complainantPhoneController.text.trim();
+    final complainantEmail = _complainantEmailController.text.trim();
+    final accusedName = _accusedNameController.text.trim();
+    final workplace = _companyController.text.trim();
+    final incidentDate = _incidentDateController.text.trim();
+    final incidentLocation = _incidentLocationController.text.trim();
+    final witnesses = _witnessesController.text.trim();
+    final details = _detailsController.text.trim();
+
+    if (complainantName.isEmpty ||
+        complainantPhone.isEmpty ||
+        accusedName.isEmpty ||
+        details.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill all required details.')),
+      );
+      return;
+    }
+
+    final compiledDescription = '''
+POSH Workplace Complaint (Police Filing Intent)
+Complainant: $complainantName
+Phone: $complainantPhone
+Email: ${complainantEmail.isEmpty ? 'Not provided' : complainantEmail}
+Accused: $accusedName
+Workplace: ${workplace.isEmpty ? 'Not provided' : workplace}
+Incident Date: ${incidentDate.isEmpty ? 'Not provided' : incidentDate}
+Incident Location: ${incidentLocation.isEmpty ? 'Not provided' : incidentLocation}
+Witnesses: ${witnesses.isEmpty ? 'None provided' : witnesses}
+Complaint Details: $details
+''';
+
+    setState(() => _submitting = true);
+    try {
+      await _dio.post(
+        ApiConstants.incidentReport,
+        data: {
+          'category': 'POSH Workplace Complaint',
+          'description': compiledDescription,
+        },
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Complaint submitted successfully.')),
+        );
+      }
+    } on DioException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Submission failed. Please try again.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final colors = _POSHColors(context);
+    final l10n = AppLocalizations.of(context);
+    final colors = _PoshColors(context);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('POSH Legal Portal')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            FadeInDown(
-              child: Text(
-                'POSH Legal Portal',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: colors.text,
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(l10n.t('poshPortal')),
+          bottom: const TabBar(
+            tabs: [
+              Tab(icon: Icon(Icons.menu_book_rounded), text: 'Study'),
+              Tab(icon: Icon(Icons.school_rounded), text: 'Quizzes'),
+              Tab(icon: Icon(Icons.assignment_rounded), text: 'Complaint'),
+            ],
+          ),
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: colors.backgroundGradient,
+            ),
+          ),
+          child: _loadingProgress
+              ? const Center(child: CircularProgressIndicator())
+              : TabBarView(
+                  children: [
+                    _buildStudyTab(context),
+                    _buildQuizTab(context),
+                    _buildComplaintTab(context),
+                  ],
                 ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Access complete POSH Act guidance and file a structured complaint from one place.',
-              style: TextStyle(color: colors.mutedText),
-            ),
-            const SizedBox(height: 14),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: colors.card,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: colors.border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.menu_book_rounded,
-                        color: AppTheme.primaryColor,
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        'POSH Act Guide',
-                        style: TextStyle(
-                          color: colors.text,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 17,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Detailed guide includes: origin of the law, scope, definitions, IC process, timelines, evidence, conciliation, inquiry, police escalation, penalties, false complaints boundaries, and practical implementation checklist.',
-                    style: TextStyle(color: colors.mutedText, height: 1.35),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const POSHActGuideScreen(),
-                        ),
-                      ),
-                      icon: const Icon(Icons.open_in_new),
-                      label: const Text('OPEN DETAILED POSH ACT GUIDE'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 22),
-            Text(
-              'File Workplace Complaint',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: colors.text,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Use this to prepare and submit a detailed complaint record. In immediate danger, call 112 first.',
-              style: TextStyle(color: colors.mutedText),
-            ),
-            const SizedBox(height: 14),
-            _complaintFormCard(context),
-          ],
         ),
       ),
     );
   }
 
-  Widget _complaintFormCard(BuildContext context) {
-    final colors = _POSHColors(context);
-    final complainantNameController = TextEditingController();
-    final complainantPhoneController = TextEditingController();
-    final complainantEmailController = TextEditingController();
-    final accusedNameController = TextEditingController();
-    final companyController = TextEditingController();
-    final incidentDateController = TextEditingController();
-    final incidentLocationController = TextEditingController();
-    final witnessesController = TextEditingController();
-    final detailsController = TextEditingController();
+  Widget _buildStudyTab(BuildContext context) {
+    final colors = _PoshColors(context);
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
+      children: [
+        FadeInDown(
+          child: _HeroCard(
+            title: 'POSH Act Learning Hub',
+            subtitle:
+                'Study the full framework first, then clear three quiz levels to unlock your certificate.',
+            icon: Icons.workspace_premium_rounded,
+            accentColor: const Color(0xFF3B82F6),
+            child: Column(
+              children: [
+                _buildProgressRow(context),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _InfoTile(
+                        title: 'Study first',
+                        value: 'Read all sections before Quiz 1',
+                        icon: Icons.auto_stories_rounded,
+                        color: const Color(0xFF2ED6C5),
+                        colors: colors,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _InfoTile(
+                        title: 'Three levels',
+                        value: '20 MCQs in each quiz',
+                        icon: Icons.quiz_rounded,
+                        color: const Color(0xFFFF9A3D),
+                        colors: colors,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        _buildStudySection(
+          context,
+          number: '1',
+          title: 'What the POSH Act Covers',
+          icon: Icons.balance_rounded,
+          bullets: const [
+            'The POSH Act is the Sexual Harassment of Women at Workplace Act, 2013.',
+            'It protects dignity, equality, and safe working conditions.',
+            'It applies to public and private workplaces, offices, shops, hospitals, schools, NGOs, transport provided by employer, and work-related visits.',
+            'The law covers employees, trainees, interns, contract staff, volunteers, and workplace visitors in the relevant context.',
+            'Unwelcome conduct of a sexual nature can be verbal, written, digital, or physical.',
+            'Examples include unwanted touching, sexual remarks, sexual messages, repeated harassment, or showing pornography.',
+          ],
+        ),
+        const SizedBox(height: 14),
+        _buildStudySection(
+          context,
+          number: '2',
+          title: 'Complaint Process and IC Handling',
+          icon: Icons.rule_folder_rounded,
+          bullets: const [
+            'The complaint should normally be filed in writing within 3 months of the incident or last incident in a continuing pattern.',
+            'The Internal Committee should be properly formed where the workplace has 10 or more employees.',
+            'The committee generally includes a senior woman presiding officer, employee members, and an external member familiar with harassment matters.',
+            'Conciliation can be used only if the complainant wants it, and it should not be forced.',
+            'If no conciliation happens, the IC conducts a formal inquiry with both sides heard fairly.',
+            'The process should stay confidential, written, and documented.',
+          ],
+        ),
+        const SizedBox(height: 14),
+        _buildStudySection(
+          context,
+          number: '3',
+          title: 'Evidence, Safety, and Employer Duties',
+          icon: Icons.shield_rounded,
+          bullets: const [
+            'Keep chats, emails, screenshots, call logs, witness names, dates, and location details.',
+            'Interim relief can include leave, transfer, no-contact directions, or reporting-line changes if needed for safety.',
+            'If the facts also show criminal conduct, a police complaint or FIR can be filed in addition to the POSH process.',
+            'Employers should display the policy, train staff, support the IC, and implement recommendations in time.',
+            'Confidentiality applies to complainant, respondent, witnesses, and proceedings.',
+            'A complaint is not fake just because it could not be proven; deliberate falsehood is a different standard.',
+          ],
+        ),
+        const SizedBox(height: 14),
+        _buildStudySection(
+          context,
+          number: '4',
+          title: 'Important POSH Boundaries',
+          icon: Icons.info_outline_rounded,
+          bullets: const [
+            'Do not use the mechanism for unrelated personal disputes or knowingly fabricated allegations.',
+            'Do not delete evidence or pressure witnesses.',
+            'Do not ignore repeated small incidents; patterns matter.',
+            'Use factual, dated, and detailed reporting.',
+            'When in immediate danger, call emergency services first.',
+            'The POSH portal is for learning, documenting, and structured complaint preparation.',
+          ],
+        ),
+        const SizedBox(height: 14),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const POSHActGuideScreen()),
+            ),
+            icon: const Icon(Icons.open_in_new_rounded),
+            label: const Text('OPEN DETAILED POSH ACT GUIDE'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStudySection(
+    BuildContext context, {
+    required String number,
+    required String title,
+    required IconData icon,
+    required List<String> bullets,
+  }) {
+    return _StudySectionCard(
+      number: number,
+      title: title,
+      icon: icon,
+      bullets: bullets,
+    );
+  }
+
+  Widget _buildQuizTab(BuildContext context) {
+    final colors = _PoshColors(context);
+    final totalPassed = _passedLevels.length;
+    final allComplete = _certificateReady || totalPassed == _levels.length;
+    final currentLevel = _levels[_activeLevelIndex];
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
+      children: [
+        _HeroCard(
+          title: 'Quiz Certification Track',
+          subtitle:
+              'Pass all 3 levels to unlock the POSH Certified badge. Each quiz has 20 MCQs.',
+          icon: Icons.workspace_premium_rounded,
+          accentColor: const Color(0xFF8E7CF4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildProgressRow(context),
+              const SizedBox(height: 14),
+              Text(
+                allComplete
+                    ? 'All levels cleared. Your certificate is ready.'
+                    : 'Study first, then clear the quizzes in order.',
+                style: TextStyle(color: colors.mutedText, height: 1.3),
+              ),
+            ],
+          ),
+        ),
+        if (allComplete) ...[
+          const SizedBox(height: 14),
+          _buildCertificateCard(context),
+        ],
+        const SizedBox(height: 14),
+        _buildLevelSelector(context),
+        const SizedBox(height: 14),
+        _buildLevelIntroCard(context, currentLevel),
+        const SizedBox(height: 14),
+        _buildQuestionCard(context, currentLevel, _activeLevelIndex, _activeQuestionIndex),
+      ],
+    );
+  }
+
+  Widget _buildComplaintTab(BuildContext context) {
+    final colors = _PoshColors(context);
 
     InputDecoration fieldDecoration(String label) => InputDecoration(
       labelText: label,
@@ -144,6 +450,32 @@ class _POSHLegalPortalScreenState extends State<POSHLegalPortalScreen> {
       fillColor: colors.fieldFill,
     );
 
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
+      children: [
+        _HeroCard(
+          title: 'File Workplace Complaint',
+          subtitle:
+              'Use this to prepare and submit a detailed complaint record. In immediate danger, call 112 first.',
+          icon: Icons.report_gmailerrorred_rounded,
+          accentColor: const Color(0xFFE53935),
+          child: Text(
+            'Keep your records factual and attach evidence when possible.',
+            style: TextStyle(color: colors.mutedText),
+          ),
+        ),
+        const SizedBox(height: 14),
+        _buildComplaintCard(context, fieldDecoration),
+      ],
+    );
+  }
+
+  Widget _buildComplaintCard(
+    BuildContext context,
+    InputDecoration Function(String label) fieldDecoration,
+  ) {
+    final colors = _PoshColors(context);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -155,57 +487,57 @@ class _POSHLegalPortalScreenState extends State<POSHLegalPortalScreen> {
       child: Column(
         children: [
           TextField(
-            controller: complainantNameController,
+            controller: _complainantNameController,
             style: TextStyle(color: colors.text),
             decoration: fieldDecoration('Your Full Name'),
           ),
           const SizedBox(height: 10),
           TextField(
-            controller: complainantPhoneController,
+            controller: _complainantPhoneController,
             keyboardType: TextInputType.phone,
             style: TextStyle(color: colors.text),
             decoration: fieldDecoration('Your Phone Number'),
           ),
           const SizedBox(height: 10),
           TextField(
-            controller: complainantEmailController,
+            controller: _complainantEmailController,
             keyboardType: TextInputType.emailAddress,
             style: TextStyle(color: colors.text),
             decoration: fieldDecoration('Your Email Address'),
           ),
           const SizedBox(height: 10),
           TextField(
-            controller: accusedNameController,
+            controller: _accusedNameController,
             style: TextStyle(color: colors.text),
             decoration: fieldDecoration('Accused Person Name'),
           ),
           const SizedBox(height: 10),
           TextField(
-            controller: companyController,
+            controller: _companyController,
             style: TextStyle(color: colors.text),
             decoration: fieldDecoration('Company / Workplace Name'),
           ),
           const SizedBox(height: 10),
           TextField(
-            controller: incidentDateController,
+            controller: _incidentDateController,
             style: TextStyle(color: colors.text),
             decoration: fieldDecoration('Incident Date (DD/MM/YYYY)'),
           ),
           const SizedBox(height: 10),
           TextField(
-            controller: incidentLocationController,
+            controller: _incidentLocationController,
             style: TextStyle(color: colors.text),
             decoration: fieldDecoration('Incident Location'),
           ),
           const SizedBox(height: 10),
           TextField(
-            controller: witnessesController,
+            controller: _witnessesController,
             style: TextStyle(color: colors.text),
             decoration: fieldDecoration('Witnesses (if any)'),
           ),
           const SizedBox(height: 10),
           TextField(
-            controller: detailsController,
+            controller: _detailsController,
             maxLines: 5,
             style: TextStyle(color: colors.text),
             decoration: fieldDecoration('Detailed Incident Description'),
@@ -214,81 +546,7 @@ class _POSHLegalPortalScreenState extends State<POSHLegalPortalScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: _submitting
-                  ? null
-                  : () async {
-                      final complainantName = complainantNameController.text
-                          .trim();
-                      final complainantPhone = complainantPhoneController.text
-                          .trim();
-                      final complainantEmail = complainantEmailController.text
-                          .trim();
-                      final accusedName = accusedNameController.text.trim();
-                      final workplace = companyController.text.trim();
-                      final incidentDate = incidentDateController.text.trim();
-                      final incidentLocation = incidentLocationController.text
-                          .trim();
-                      final witnesses = witnessesController.text.trim();
-                      final details = detailsController.text.trim();
-
-                      if (complainantName.isEmpty ||
-                          complainantPhone.isEmpty ||
-                          accusedName.isEmpty ||
-                          details.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Please fill all required details.'),
-                          ),
-                        );
-                        return;
-                      }
-
-                      final compiledDescription =
-                          '''
-POSH Workplace Complaint (Police Filing Intent)
-Complainant: $complainantName
-Phone: $complainantPhone
-Email: ${complainantEmail.isEmpty ? 'Not provided' : complainantEmail}
-Accused: $accusedName
-Workplace: ${workplace.isEmpty ? 'Not provided' : workplace}
-Incident Date: ${incidentDate.isEmpty ? 'Not provided' : incidentDate}
-Incident Location: ${incidentLocation.isEmpty ? 'Not provided' : incidentLocation}
-Witnesses: ${witnesses.isEmpty ? 'None provided' : witnesses}
-Complaint Details: $details
-''';
-
-                      setState(() => _submitting = true);
-                      try {
-                        await _dio.post(
-                          ApiConstants.incidentReport,
-                          data: {
-                            'category': 'POSH Workplace Complaint',
-                            'description': compiledDescription,
-                          },
-                        );
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Complaint submitted successfully.',
-                              ),
-                            ),
-                          );
-                        }
-                      } on DioException {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Submission failed. Please try again.',
-                              ),
-                            ),
-                          );
-                        }
-                      } finally {
-                        if (mounted) setState(() => _submitting = false);
-                      }
-                    },
+              onPressed: _submitting ? null : _submitComplaint,
               icon: const Icon(Icons.report_gmailerrorred),
               label: Text(_submitting ? 'Submitting...' : 'SUBMIT COMPLAINT'),
               style: ElevatedButton.styleFrom(
@@ -300,6 +558,493 @@ Complaint Details: $details
       ),
     );
   }
+
+  Widget _buildProgressRow(BuildContext context) {
+    final colors = _PoshColors(context);
+    return Row(
+      children: List.generate(_levels.length, (index) {
+        final passed = _passedLevels.contains(index);
+        final selected = index == _activeLevelIndex;
+        final available = index == 0 || _passedLevels.contains(index - 1) || passed;
+
+        return Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(right: index == _levels.length - 1 ? 0 : 8),
+            child: GestureDetector(
+              onTap: available
+                  ? () => setState(() {
+                      _activeLevelIndex = index;
+                      _activeQuestionIndex = 0;
+                    })
+                  : () => ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Clear the previous quiz to unlock this level.'),
+                      ),
+                    ),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: selected
+                      ? const LinearGradient(
+                          colors: [Color(0xFF1D8CF8), Color(0xFF2ED6C5)],
+                        )
+                      : null,
+                  color: selected ? null : colors.card,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: passed
+                        ? const Color(0xFF2ED6C5)
+                        : selected
+                        ? Colors.transparent
+                        : colors.border,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      passed
+                          ? Icons.check_circle_rounded
+                          : available
+                          ? Icons.lock_open_rounded
+                          : Icons.lock_rounded,
+                      color: selected ? Colors.white : AppTheme.primaryColor,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Level ${index + 1}',
+                      style: TextStyle(
+                        color: selected ? Colors.white : colors.text,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      passed ? 'Passed' : available ? 'Available' : 'Locked',
+                      style: TextStyle(
+                        color: selected ? Colors.white70 : colors.mutedText,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildLevelIntroCard(BuildContext context, _PoshQuizLevel level) {
+    final colors = _PoshColors(context);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: colors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            level.title,
+            style: TextStyle(
+              color: colors.text,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            level.summary,
+            style: TextStyle(color: colors.mutedText, height: 1.35),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              _SmallPill(label: '${level.questions.length} questions', icon: Icons.quiz_rounded),
+              const SizedBox(width: 8),
+              _SmallPill(
+                label: level.questions.any((q) => q.multiSelect)
+                    ? 'Mixed MCQ'
+                    : 'Single choice',
+                icon: Icons.checklist_rounded,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuestionCard(
+    BuildContext context,
+    _PoshQuizLevel level,
+    int levelIndex,
+    int questionIndex,
+  ) {
+    final colors = _PoshColors(context);
+    final question = level.questions[questionIndex];
+    final answerMap = _answers.putIfAbsent(levelIndex, () => {});
+    final selected = answerMap.putIfAbsent(questionIndex, () => <int>{});
+    final answeredCount = answerMap.values.where((set) => set.isNotEmpty).length;
+    final allAnswered = answerMap.length == level.questions.length &&
+        answerMap.values.every((set) => set.isNotEmpty);
+    final isLast = questionIndex == level.questions.length - 1;
+    final isFirst = questionIndex == 0;
+    final locked = levelIndex > 0 && !_passedLevels.contains(levelIndex - 1);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: colors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Question ${questionIndex + 1} of ${level.questions.length}',
+                style: TextStyle(
+                  color: colors.text,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              Text(
+                '$answeredCount answered',
+                style: TextStyle(color: colors.mutedText, fontSize: 12),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            question.question,
+            style: TextStyle(
+              color: colors.text,
+              fontSize: 16,
+              height: 1.35,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 14),
+          ...question.options.asMap().entries.map(
+                (entry) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _AnswerOptionTile(
+                    label: entry.value,
+                    selected: selected.contains(entry.key),
+                    multiSelect: question.multiSelect,
+                    onTap: () {
+                      setState(() {
+                        if (question.multiSelect) {
+                          if (selected.contains(entry.key)) {
+                            selected.remove(entry.key);
+                          } else {
+                            selected.add(entry.key);
+                          }
+                        } else {
+                          selected
+                            ..clear()
+                            ..add(entry.key);
+                        }
+                      });
+                    },
+                  ),
+                ),
+              ),
+          const SizedBox(height: 8),
+          if (locked)
+            Text(
+              'Unlock the previous level to continue.',
+              style: TextStyle(color: colors.mutedText, fontSize: 12),
+            ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: isFirst
+                      ? null
+                      : () => setState(() => _activeQuestionIndex -= 1),
+                  child: const Text('Previous'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => _resetLevel(levelIndex),
+                  child: const Text('Retry quiz'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: locked
+                      ? null
+                      : isLast
+                      ? () => _submitLevel(levelIndex)
+                      : () => setState(() => _activeQuestionIndex += 1),
+                  child: Text(isLast ? 'Submit quiz' : 'Next'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (!allAnswered)
+            Text(
+              'Answer all questions in this level before submitting.',
+              style: TextStyle(color: colors.mutedText, fontSize: 12),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _submitLevel(int levelIndex) async {
+    final level = _levels[levelIndex];
+    final answers = _answers[levelIndex] ?? const {};
+
+    if (answers.length != level.questions.length ||
+        answers.values.any((set) => set.isEmpty)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please answer every question first.')),
+      );
+      return;
+    }
+
+    setState(() => _submitting = true);
+    try {
+      var score = 0;
+      for (var index = 0; index < level.questions.length; index++) {
+        final question = level.questions[index];
+        final selected = answers[index] ?? const <int>{};
+        if (setEquals(selected, question.correctIndexes)) {
+          score += 1;
+        }
+      }
+
+      _attemptCounts[levelIndex] = (_attemptCounts[levelIndex] ?? 0) + 1;
+      _bestScores[levelIndex] = score > (_bestScores[levelIndex] ?? 0)
+          ? score
+          : _bestScores[levelIndex] ?? score;
+
+      if (score >= _passScore) {
+        _passedLevels.add(levelIndex);
+        if (levelIndex == _levels.length - 1) {
+          _certificateReady = true;
+          _certificateIssuedAt ??= DateTime.now();
+        }
+        await _saveProgress();
+        if (!mounted) return;
+        await showPremiumDialog<void>(
+          context: context,
+          title: levelIndex == _levels.length - 1
+              ? 'POSH Certified'
+              : 'Level Passed',
+          message: levelIndex == _levels.length - 1
+              ? 'You cleared all three quiz levels and earned your certificate.'
+              : 'Great work. The next level is now unlocked.',
+          icon: Icons.verified_rounded,
+          accentColor: const Color(0xFF2ED6C5),
+          actions: [
+            PremiumDialogAction(
+              label: levelIndex == _levels.length - 1 ? 'View certificate' : 'Continue',
+              isPrimary: true,
+              onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+            ),
+          ],
+        );
+        if (mounted) {
+          setState(() {
+            _activeLevelIndex = min(levelIndex + 1, _levels.length - 1);
+            _activeQuestionIndex = 0;
+          });
+        }
+      } else {
+        await _saveProgress();
+        if (!mounted) return;
+        await showPremiumDialog<void>(
+          context: context,
+          title: 'Quiz not cleared yet',
+          message:
+              'You scored $score/${level.questions.length}. Review the study section and retry this level.',
+          icon: Icons.refresh_rounded,
+          accentColor: const Color(0xFFE53935),
+          actions: [
+            PremiumDialogAction(
+              label: 'Review study',
+              onPressed: () {
+                Navigator.of(context, rootNavigator: true).pop();
+                DefaultTabController.of(context).animateTo(0);
+              },
+            ),
+            PremiumDialogAction(
+              label: 'Retry',
+              isPrimary: true,
+              onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+            ),
+          ],
+        );
+        if (mounted) {
+          _resetLevel(levelIndex);
+          setState(() => _activeQuestionIndex = 0);
+        }
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  void _resetLevel(int levelIndex) {
+    setState(() {
+      _answers.remove(levelIndex);
+      _activeQuestionIndex = 0;
+    });
+  }
+
+  Widget _buildCertificateCard(BuildContext context) {
+    final colors = _PoshColors(context);
+    final issuedAt = _certificateIssuedAt ?? DateTime.now();
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1D8CF8), Color(0xFF2ED6C5)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF1D8CF8).withValues(alpha: 0.28),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 34),
+          const SizedBox(height: 10),
+          const Text(
+            'POSH Certified',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 26,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'You have completed all three quiz levels and demonstrated strong POSH Act knowledge.',
+            style: TextStyle(color: Colors.white, height: 1.35),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Certificate details',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Issued on ${issuedAt.toLocal().toString().split(".").first}',
+                  style: const TextStyle(color: Colors.white70),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Valid for: POSH Act awareness and workplace safety learning',
+                  style: TextStyle(color: colors.mutedText),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLevelSelector(BuildContext context) {
+    final colors = _PoshColors(context);
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: List.generate(_levels.length, (index) {
+        final level = _levels[index];
+        final passed = _passedLevels.contains(index);
+        final selected = index == _activeLevelIndex;
+        final unlocked = index == 0 || _passedLevels.contains(index - 1) || passed;
+        return GestureDetector(
+          onTap: unlocked
+              ? () => setState(() {
+                  _activeLevelIndex = index;
+                  _activeQuestionIndex = 0;
+                })
+              : null,
+          child: Container(
+            width: 112,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: selected ? AppTheme.primaryColor : colors.card,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: passed
+                    ? const Color(0xFF2ED6C5)
+                    : selected
+                    ? Colors.transparent
+                    : colors.border,
+              ),
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  passed ? Icons.check_circle_rounded : unlocked ? Icons.lock_open_rounded : Icons.lock_rounded,
+                  color: selected ? Colors.white : AppTheme.primaryColor,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  level.title,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: selected ? Colors.white : colors.text,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  passed ? 'Passed' : unlocked ? 'Unlocked' : 'Locked',
+                  style: TextStyle(
+                    color: selected ? Colors.white70 : colors.mutedText,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }),
+    );
+  }
 }
 
 class POSHActGuideScreen extends StatelessWidget {
@@ -307,100 +1052,431 @@ class POSHActGuideScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = _PoshColors(context);
     return Scaffold(
       appBar: AppBar(title: const Text('Detailed POSH Act Guide')),
       body: ListView(
         padding: const EdgeInsets.all(16),
-        children: const [
-          _GuideIntro(),
-          SizedBox(height: 12),
-          _GuideSection(
+        children: [
+          _GuideIntro(colors: colors),
+          const SizedBox(height: 12),
+          const _GuideSection(
             title: '1. Background And Objective',
             body:
                 'The Sexual Harassment of Women at Workplace (Prevention, Prohibition and Redressal) Act, 2013 (POSH Act) was enacted to provide a legal framework for prevention and redressal of sexual harassment at workplaces. It operationalizes constitutional protections of equality, dignity, and safe working conditions.',
           ),
-          _GuideSection(
+          const _GuideSection(
             title: '2. Where It Applies',
             body:
                 'It applies across public and private sectors, organized and unorganized workplaces, NGOs, educational institutions, hospitals, sports setups, dwelling places employing domestic workers, and any place visited during employment including transportation provided by employer.',
           ),
-          _GuideSection(
+          const _GuideSection(
             title: '3. Who Is Protected',
             body:
                 'Primary statutory protection is for women at workplace: employees, trainees, interns, volunteers, contract workers, temporary staff, and visitors in workplace context. Organizations should still maintain gender-neutral internal ethics policies where possible, but statutory POSH framework specifically protects women.',
           ),
-          _GuideSection(
+          const _GuideSection(
             title: '4. What Counts As Sexual Harassment',
             body:
                 'Includes unwelcome physical contact or advances, demand/request for sexual favors, sexually colored remarks, showing pornography, and any unwelcome conduct of sexual nature (verbal, non-verbal, digital). Repeated inappropriate messages, intimidation, retaliation after refusal, and hostile work environment patterns can also be relevant.',
           ),
-          _GuideSection(
+          const _GuideSection(
             title: '5. Internal Committee (IC) Requirements',
             body:
                 'Every employer with 10 or more employees must constitute an Internal Committee. Typical composition includes Presiding Officer (senior woman employee), at least two employee members committed to women’s causes/legal awareness/social work, and one external member from NGO/association familiar with sexual harassment issues.',
           ),
-          _GuideSection(
+          const _GuideSection(
             title: '6. Complaint Timeline And Format',
             body:
                 'Complaint is usually filed in writing within 3 months from incident (or last incident in continuing pattern). IC may allow extension for valid reasons. Complaint should mention parties, dates/times, location, detailed facts, witnesses, documents/screenshots/chats/emails and relief sought.',
           ),
-          _GuideSection(
+          const _GuideSection(
             title: '7. Conciliation And Inquiry',
             body:
                 'Before inquiry, complainant may request conciliation (no monetary settlement should be basis). If conciliation fails or is not chosen, IC conducts formal inquiry with principles of natural justice: both sides heard, opportunity to present evidence, written proceedings, and reasoned findings.',
           ),
-          _GuideSection(
+          const _GuideSection(
             title: '8. Interim Relief During Proceedings',
             body:
                 'Complainant can request interim measures such as transfer, leave, reporting line change, no-contact instructions, temporary work-from-home adjustments, or security support. These measures protect safety while inquiry is ongoing and should not amount to penalizing complainant.',
           ),
-          _GuideSection(
+          const _GuideSection(
             title: '9. Inquiry Outcome And Employer Action',
             body:
                 'If allegations are proved, IC recommends action as per service rules: warning, written apology, counseling, adverse entry, withholding promotion/increment, termination, or compensation as permitted. Employer should act on recommendations within statutory timelines and document compliance.',
           ),
-          _GuideSection(
+          const _GuideSection(
             title: '10. Police Complaint And Criminal Law',
             body:
                 'POSH inquiry is internal redressal and does not replace criminal remedies. If facts disclose criminal offenses (assault, stalking, voyeurism, threats etc.), complainant can file FIR/police complaint. In immediate danger, prioritize emergency response and police contact.',
           ),
-          _GuideSection(
+          const _GuideSection(
             title: '11. Confidentiality Rules',
             body:
                 'Identity of complainant/respondent, witness details, inquiry contents, recommendations, and action details should be kept confidential except as required by law. Breach of confidentiality can attract disciplinary consequences.',
           ),
-          _GuideSection(
+          const _GuideSection(
             title: '12. False Complaints: Correct Legal Position',
             body:
                 'Law does not punish merely because allegation was not proved. Action for malicious complaint requires clear evidence of deliberate falsehood or forged evidence. Lack of evidence, inconsistencies due to trauma, or inability to prove beyond internal standard should not be treated as malicious.',
           ),
-          _GuideSection(
+          const _GuideSection(
             title: '13. How Not To Misuse The Act',
             body:
                 'Do not file knowingly fabricated allegations, tamper evidence, coach witnesses to lie, or use complaint mechanism for unrelated personal/professional disputes. Honest reporting with good faith, even if difficult to prove, is not misuse. Maintain factual, date-wise narrative and authentic records.',
           ),
-          _GuideSection(
+          const _GuideSection(
             title: '14. Employer Compliance Checklist',
             body:
                 'Constitute IC correctly, publish POSH policy, conduct regular awareness training, display complaint channel prominently, maintain inquiry documentation, submit annual reports where applicable, and ensure no retaliation against complainant/witnesses.',
           ),
-          _GuideSection(
+          const _GuideSection(
             title: '15. Practical Evidence Checklist',
             body:
                 'Preserve original chats/emails/call logs, take timestamped screenshots, note dates and context, list witnesses, record prior complaints/escalations, keep medical/mental health records if relevant, and maintain a chronological incident diary.',
           ),
-          _GuideSection(
+          const _GuideSection(
             title: '16. Appeals And Further Remedies',
             body:
                 'Where service rules or law allow, parties may challenge inquiry outcomes through appellate channels. Complainants can also seek external legal remedies through labor authorities/courts or criminal process depending on facts.',
           ),
-          _GuideSection(
+          const _GuideSection(
             title: '17. Good-Faith Use Of POSH Portal',
             body:
                 'Use this portal to create detailed records, submit structured complaints, and prepare for IC/police processes. In life-threatening situations, do not wait for documentation workflow; call emergency services immediately.',
           ),
-          SizedBox(height: 12),
-          _GuideDisclaimer(),
+          const SizedBox(height: 12),
+          const _GuideDisclaimer(),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroCard extends StatelessWidget {
+  const _HeroCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.accentColor,
+    required this.child,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color accentColor;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = _PoshColors(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        gradient: LinearGradient(
+          colors: [
+            colors.card,
+            Color.lerp(colors.card, accentColor, 0.08)!,
+            Color.lerp(colors.card, accentColor, 0.14)!,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(color: accentColor.withValues(alpha: 0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: accentColor.withValues(alpha: 0.18),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              color: accentColor.withValues(alpha: 0.16),
+            ),
+            child: Icon(icon, color: accentColor, size: 30),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: TextStyle(
+              color: colors.text,
+              fontSize: 22,
+              height: 1.15,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: TextStyle(
+              color: colors.mutedText,
+              height: 1.45,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoTile extends StatelessWidget {
+  const _InfoTile({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+    required this.colors,
+  });
+
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
+  final _PoshColors colors;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.fieldFill,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colors.border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: colors.text,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: colors.mutedText,
+                    fontSize: 12,
+                    height: 1.25,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StudySectionCard extends StatelessWidget {
+  const _StudySectionCard({
+    required this.number,
+    required this.title,
+    required this.icon,
+    required this.bullets,
+  });
+
+  final String number;
+  final String title;
+  final IconData icon;
+  final List<String> bullets;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = _PoshColors(context);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: colors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: AppTheme.primaryColor),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Section $number',
+                      style: TextStyle(
+                        color: colors.mutedText,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: colors.text,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...bullets.map(
+            (bullet) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 5),
+                    child: Icon(Icons.circle, size: 8, color: AppTheme.primaryColor),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      bullet,
+                      style: TextStyle(
+                        color: colors.mutedText,
+                        height: 1.35,
+                        fontSize: 13.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AnswerOptionTile extends StatelessWidget {
+  const _AnswerOptionTile({
+    required this.label,
+    required this.selected,
+    required this.multiSelect,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final bool multiSelect;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = _PoshColors(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        decoration: BoxDecoration(
+          color: selected ? AppTheme.primaryColor.withValues(alpha: 0.12) : colors.fieldFill,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected ? AppTheme.primaryColor : colors.border,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              multiSelect
+                  ? (selected ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded)
+                  : (selected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded),
+              color: selected ? AppTheme.primaryColor : colors.mutedText,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: colors.text,
+                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SmallPill extends StatelessWidget {
+  const _SmallPill({required this.label, required this.icon});
+
+  final String label;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = _PoshColors(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: colors.fieldFill,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: colors.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppTheme.primaryColor),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: colors.text,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
@@ -408,12 +1484,12 @@ class POSHActGuideScreen extends StatelessWidget {
 }
 
 class _GuideIntro extends StatelessWidget {
-  const _GuideIntro();
+  const _GuideIntro({required this.colors});
+
+  final _PoshColors colors;
 
   @override
   Widget build(BuildContext context) {
-    final colors = _POSHColors(context);
-
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -437,8 +1513,7 @@ class _GuideSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = _POSHColors(context);
-
+    final colors = _PoshColors(context);
     return ExpansionTile(
       tilePadding: const EdgeInsets.symmetric(horizontal: 10),
       collapsedBackgroundColor: colors.card,
@@ -462,27 +1537,6 @@ class _GuideSection extends StatelessWidget {
   }
 }
 
-class _POSHColors {
-  final Color card;
-  final Color fieldFill;
-  final Color text;
-  final Color mutedText;
-  final Color border;
-
-  _POSHColors(BuildContext context)
-    : card = Theme.of(context).colorScheme.surface,
-      fieldFill = Theme.of(context).brightness == Brightness.dark
-          ? Colors.white.withValues(alpha: 0.04)
-          : const Color(0xFFF1F5FB),
-      text = Theme.of(context).colorScheme.onSurface,
-      mutedText = Theme.of(context).brightness == Brightness.dark
-          ? AppTheme.textSecondary
-          : const Color(0xFF4E5F79),
-      border = Theme.of(context).brightness == Brightness.dark
-          ? Colors.white.withValues(alpha: 0.12)
-          : const Color(0xFFD8E0EC);
-}
-
 class _GuideDisclaimer extends StatelessWidget {
   const _GuideDisclaimer();
 
@@ -500,4 +1554,650 @@ class _GuideDisclaimer extends StatelessWidget {
       ),
     );
   }
+}
+
+class _PoshColors {
+  final List<Color> backgroundGradient;
+  final Color card;
+  final Color fieldFill;
+  final Color text;
+  final Color mutedText;
+  final Color border;
+
+  _PoshColors(BuildContext context)
+      : backgroundGradient = Theme.of(context).brightness == Brightness.dark
+            ? const [Color(0xFF06111F), Color(0xFF081628), Color(0xFF050B14)]
+            : const [Color(0xFFF8FBFF), Color(0xFFF2F7FF), Color(0xFFEAF2FF)],
+        card = Theme.of(context).colorScheme.surface,
+        fieldFill = Theme.of(context).brightness == Brightness.dark
+            ? Colors.white.withValues(alpha: 0.04)
+            : const Color(0xFFF1F5FB),
+        text = Theme.of(context).colorScheme.onSurface,
+        mutedText = Theme.of(context).brightness == Brightness.dark
+            ? AppTheme.textSecondary
+            : const Color(0xFF4E5F79),
+        border = Theme.of(context).brightness == Brightness.dark
+            ? Colors.white.withValues(alpha: 0.12)
+            : const Color(0xFFD8E0EC);
+}
+
+class _PoshQuizLevel {
+  final String title;
+  final String summary;
+  final List<_PoshQuizQuestion> questions;
+
+  const _PoshQuizLevel({
+    required this.title,
+    required this.summary,
+    required this.questions,
+  });
+}
+
+class _PoshQuizQuestion {
+  final String question;
+  final List<String> options;
+  final Set<int> correctIndexes;
+  final bool multiSelect;
+
+  const _PoshQuizQuestion({
+    required this.question,
+    required this.options,
+    required this.correctIndexes,
+    this.multiSelect = false,
+  });
+}
+
+List<_PoshQuizLevel> _buildPoshQuizLevels() {
+  return [
+    _PoshQuizLevel(
+      title: 'Level 1',
+      summary:
+          'Core POSH Act basics, scope, definitions, committee structure, and what legally counts as harassment.',
+      questions: const [
+        _PoshQuizQuestion(
+          question: 'What is the main objective of the POSH Act?',
+          options: [
+            'Prevent, prohibit, and redress sexual harassment at the workplace',
+            'Regulate salaries and promotions',
+            'Manage attendance records',
+            'Control office budgets',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'The POSH Act was enacted in which year?',
+          options: ['2013', '2008', '2016', '2020'],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'POSH protection applies to which kind of workplace?',
+          options: [
+            'Only government offices',
+            'Only private companies',
+            'Public and private workplaces, including many work-related settings',
+            'Only factories',
+          ],
+          correctIndexes: {2},
+        ),
+        _PoshQuizQuestion(
+          question: 'Who is protected under the statutory POSH framework?',
+          options: [
+            'Women at the workplace',
+            'Only managers',
+            'Only permanent employees',
+            'Only customers',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'Which of the following can be workplace context under POSH?',
+          options: [
+            'Transport provided by the employer',
+            'A work-related client visit',
+            'A conference or training linked to employment',
+            'All of the above',
+          ],
+          correctIndexes: {3},
+        ),
+        _PoshQuizQuestion(
+          question: 'Which of these are forms of sexual harassment?',
+          options: [
+            'Unwanted sexual remarks',
+            'Sexual messages',
+            'Role assignment meeting',
+            'Showing pornography without consent',
+          ],
+          correctIndexes: {0, 1, 3},
+          multiSelect: true,
+        ),
+        _PoshQuizQuestion(
+          question: 'Which is a form of sexual harassment?',
+          options: [
+            'Showing pornography without consent',
+            'Organizing a team lunch',
+            'Assigning a deadline',
+            'Sending a meeting invite',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'Repeated unwelcome sexual messages can be treated as:',
+          options: [
+            'Harassment behavior',
+            'Normal office communication',
+            'Attendance issue only',
+            'A payroll issue',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'A workplace complaint under POSH should usually be filed in writing within:',
+          options: ['3 months', '1 year', '7 days', '6 months'],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'Which committee is required in workplaces with 10 or more employees?',
+          options: [
+            'Internal Committee',
+            'Finance Committee',
+            'Sports Committee',
+            'Hiring Committee',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'Which member is usually part of the Internal Committee?',
+          options: [
+            'Presiding Officer',
+            'Chief Accountant',
+            'Receptionist only',
+            'Security guard only',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'The POSH framework stresses which workplace value most?',
+          options: [
+            'Equality and dignity',
+            'Speed only',
+            'Profit only',
+            'Ranking only',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'Which act can be harassment even without physical contact?',
+          options: [
+            'Sexually colored remarks',
+            'Project planning',
+            'Code review',
+            'Payroll approval',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'What should the complaint ideally contain?',
+          options: [
+            'Dates, facts, witnesses, and evidence',
+            'Only the accused name',
+            'Only the company name',
+            'Only a short slogan',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'Which of these is covered by the POSH concept of conduct?',
+          options: [
+            'Verbal, non-verbal, digital, and physical actions',
+            'Only written letters',
+            'Only in-person touch',
+            'Only email spam',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'Which of these should a workplace do?',
+          options: [
+            'Display its POSH policy',
+            'Hide complaint details from everyone including the IC',
+            'Avoid awareness training',
+            'Ignore committee composition',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'Confidentiality under POSH generally includes:',
+          options: [
+            'Identity of parties and inquiry content',
+            'Only the company logo',
+            'Only attendance records',
+            'Only payroll summaries',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'Which of the following are examples of unwelcome sexual conduct?',
+          options: [
+            'Unwanted touching',
+            'Sexual jokes',
+            'Repeated sexual messages',
+            'All of the above',
+          ],
+          correctIndexes: {3},
+        ),
+        _PoshQuizQuestion(
+          question: 'What is the purpose of the Internal Committee?',
+          options: [
+            'Investigate and recommend redressal',
+            'Approve appraisals',
+            'Manage payroll',
+            'Track attendance',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'If someone is in immediate danger, the best first step is to:',
+          options: [
+            'Call emergency services',
+            'Wait for the next day',
+            'Ignore the incident',
+            'Delete evidence',
+          ],
+          correctIndexes: {0},
+        ),
+      ],
+    ),
+    _PoshQuizLevel(
+      title: 'Level 2',
+      summary:
+          'Complaint filing, conciliation, inquiry steps, interim relief, evidence handling, and fair process.',
+      questions: const [
+        _PoshQuizQuestion(
+          question: 'A POSH complaint is usually filed within how much time?',
+          options: ['3 months', '24 hours', '2 years', '15 days'],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'Can the IC allow an extension of the filing timeline for valid reasons?',
+          options: ['Yes', 'No', 'Only for managers', 'Only if the company is large'],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'Conciliation under POSH should be:',
+          options: [
+            'Requested voluntarily by the complainant',
+            'Forced by the employer',
+            'Mandatory in every case',
+            'Used only after punishment',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'A monetary settlement should:',
+          options: [
+            'Not be the sole basis of conciliation',
+            'Replace the whole inquiry automatically',
+            'Be mandatory in every case',
+            'End the process before complaint',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'A fair inquiry should follow:',
+          options: [
+            'Natural justice',
+            'Secret decisions only',
+            'No hearing at all',
+            'Only the accused version',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'During inquiry, both sides should:',
+          options: [
+            'Be heard and allowed to present material',
+            'Only sign one paper each',
+            'Avoid all evidence',
+            'Skip the documentation',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'Which of these can be interim relief?',
+          options: [
+            'Transfer',
+            'No-contact instructions',
+            'Reporting-line change',
+            'Temporary leave or WFH adjustment',
+          ],
+          correctIndexes: {0, 1, 2, 3},
+          multiSelect: true,
+        ),
+        _PoshQuizQuestion(
+          question: 'Which items should evidence preserve?',
+          options: [
+            'Original chats and emails',
+            'Timestamped screenshots',
+            'Witness names and context notes',
+            'Only personal opinions',
+          ],
+          correctIndexes: {0, 1, 2},
+          multiSelect: true,
+        ),
+        _PoshQuizQuestion(
+          question: 'A formal POSH complaint can be made:',
+          options: [
+            'In writing or electronic form, depending on platform and practice',
+            'Only by word of mouth',
+            'Only by email to friends',
+            'Only after the inquiry ends',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'Which statement about confidentiality is correct?',
+          options: [
+            'It applies to parties, witnesses, and proceedings',
+            'It applies only to the respondent',
+            'It does not matter in POSH',
+            'It ends as soon as a complaint is drafted',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'If the facts also show a criminal offense, the complainant can:',
+          options: [
+            'File a police complaint or FIR',
+            'Do nothing else',
+            'Wait forever for IC only',
+            'Delete the report',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'Which of these is not a proper POSH inquiry principle?',
+          options: [
+            'Secret judgment without hearing',
+            'Reasoned findings',
+            'Written proceedings',
+            'Opportunity to present evidence',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'The complainant can ask for safety measures like:',
+          options: [
+            'Leave or transfer',
+            'No-contact orders',
+            'Temporary WFH adjustments',
+            'All of the above',
+          ],
+          correctIndexes: {3},
+        ),
+        _PoshQuizQuestion(
+          question: 'Which statement is correct about the IC?',
+          options: [
+            'It should be properly formed and documented',
+            'It can be informal only',
+            'It may be skipped if the case is sensitive',
+            'It is optional in large workplaces',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'A respondent and complainant should ideally receive:',
+          options: [
+            'A chance to be heard',
+            'No opportunity to explain',
+            'Only verbal rumors',
+            'Only payroll data',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'If a complaint is not proven, that alone means it was:',
+          options: [
+            'Not automatically false or malicious',
+            'Definitely fake',
+            'Always punishable',
+            'Always criminal',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'Which is a good complaint practice?',
+          options: [
+            'Write a factual, date-wise narrative',
+            'Use only insults',
+            'Delete all proof',
+            'Keep the details vague',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'Can witnesses be relevant in a POSH case?',
+          options: ['Yes', 'No', 'Only if the accused agrees', 'Only after appeal'],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'The employer should implement IC recommendations:',
+          options: [
+            'Within the required timelines',
+            'Whenever convenient',
+            'Never',
+            'Only if the complaint becomes public',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'POSH inquiry records should generally be:',
+          options: [
+            'Documented and kept confidential',
+            'Shared on social media',
+            'Destroyed immediately',
+            'Kept only in memory',
+          ],
+          correctIndexes: {0},
+        ),
+      ],
+    ),
+    _PoshQuizLevel(
+      title: 'Level 3',
+      summary:
+          'Compliance, penalties, evidence preservation, appeals, misuse boundaries, and practical workplace readiness.',
+      questions: const [
+        _PoshQuizQuestion(
+          question: 'Which workplace action is part of POSH compliance?',
+          options: [
+            'Conduct regular awareness training',
+            'Hide complaint channels',
+            'Ignore policy display',
+            'Avoid committee formation',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'A workplace with 10 or more employees must:',
+          options: [
+            'Constitute an Internal Committee',
+            'Close the complaint channel',
+            'Skip training',
+            'Ignore POSH obligations',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'Which member helps bring independence to the IC?',
+          options: [
+            'External member',
+            'Payroll clerk',
+            'Intern only',
+            'Visitor only',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'Which can be an employer response after a proved complaint?',
+          options: [
+            'Warning or counseling',
+            'Withholding increment',
+            'Termination in appropriate cases',
+            'All of the above',
+          ],
+          correctIndexes: {3},
+        ),
+        _PoshQuizQuestion(
+          question: 'Which of these should be preserved as evidence?',
+          options: [
+            'Original chats and emails',
+            'Screenshots with timestamps',
+            'Call logs or notes of calls',
+            'All of the above',
+          ],
+          correctIndexes: {3},
+        ),
+        _PoshQuizQuestion(
+          question: 'Should complaint confidentiality cover witnesses too?',
+          options: ['Yes', 'No', 'Only supervisors', 'Only HR'],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'A good POSH complaint should avoid:',
+          options: [
+            'Knowingly fabricated allegations',
+            'Factual dates',
+            'Real evidence',
+            'Witness details',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'If the complaint is not proven, the right legal approach is:',
+          options: [
+            'Check for deliberate falsehood before calling it malicious',
+            'Punish automatically',
+            'Ignore all reports',
+            'Stop all future complaints',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'A workplace should usually display:',
+          options: [
+            'Its POSH policy and complaint channel',
+            'Only the canteen menu',
+            'Only the payroll schedule',
+            'Only casual notices',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'Which of these can be a misuse of POSH?',
+          options: [
+            'Knowingly fabricated allegations',
+            'Factual reporting',
+            'Authentic evidence submission',
+            'Good-faith complaint filing',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'Which are good evidence habits?',
+          options: [
+            'Keep a chronological diary',
+            'Save screenshots and originals',
+            'Note witnesses and context',
+            'Delete chat history',
+          ],
+          correctIndexes: {0, 1, 2},
+          multiSelect: true,
+        ),
+        _PoshQuizQuestion(
+          question: 'Can the complainant seek external legal remedies where allowed?',
+          options: ['Yes', 'No', 'Only before complaint', 'Only after 5 years'],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'Interim relief during inquiry may include:',
+          options: [
+            'Transfer',
+            'No-contact directions',
+            'Leave or WFH adjustment',
+            'All of the above',
+          ],
+          correctIndexes: {3},
+        ),
+        _PoshQuizQuestion(
+          question: 'Employer training under POSH should be:',
+          options: [
+            'Regular and visible',
+            'Optional and hidden',
+            'Done once forever',
+            'Avoided for privacy',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'Appeals or further remedies may exist depending on:',
+          options: [
+            'Service rules and law',
+            'Only office gossip',
+            'The weather',
+            'The complaint color',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'Which is an example of criminal conduct that may coexist with POSH?',
+          options: [
+            'Stalking or assault',
+            'Office meeting',
+            'Shift planning',
+            'Salary approval',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'The POSH portal is best used to:',
+          options: [
+            'Learn, document, and prepare a structured complaint',
+            'Replace all legal advice',
+            'Avoid evidence collection',
+            'Bypass the IC',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'If there is immediate danger, the best action is to:',
+          options: [
+            'Call emergency services immediately',
+            'Wait for the next appraisal',
+            'Hope it stops',
+            'Hide the incident',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'Which statement is correct about workplace safety and POSH?',
+          options: [
+            'Safe work culture requires policy, awareness, and fair inquiry',
+            'Policy alone is enough without action',
+            'Inquiry is not needed if the case is difficult',
+            'Confidentiality means never documenting anything',
+          ],
+          correctIndexes: {0},
+        ),
+        _PoshQuizQuestion(
+          question: 'To unlock the certificate, the learner must:',
+          options: [
+            'Pass all three quiz levels',
+            'Only open the guide',
+            'Only file a complaint',
+            'Only read the app title',
+          ],
+          correctIndexes: {0},
+        ),
+      ],
+    ),
+  ];
 }
