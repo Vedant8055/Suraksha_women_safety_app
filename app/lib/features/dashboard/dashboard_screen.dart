@@ -503,6 +503,7 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   Widget _buildRouteSafetyCard(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final routeState = ref.watch(routeSafetyProvider);
     final isLight = Theme.of(context).brightness == Brightness.light;
     final danger = routeState.pendingSafetyCheck || routeState.safetyScore < 60;
@@ -563,8 +564,8 @@ class DashboardScreen extends ConsumerWidget {
                   children: [
                     Text(
                       routeState.pendingSafetyCheck
-                          ? 'Safe route changed'
-                          : 'Daily Route Guard',
+                          ? l10n.t('safeRouteChanged')
+                          : l10n.t('dailyRouteGuard'),
                       style: TextStyle(
                         color: isLight ? const Color(0xFF172235) : Colors.white,
                         fontSize: 17,
@@ -685,7 +686,7 @@ class DashboardScreen extends ConsumerWidget {
                     await ref.read(routeSafetyProvider.notifier).refreshNow();
                   },
                   icon: const Icon(Icons.refresh_rounded, size: 17),
-                  label: const Text('Refresh'),
+                  label: Text(l10n.t('refresh')),
                 ),
               ),
               const SizedBox(width: 10),
@@ -694,7 +695,7 @@ class DashboardScreen extends ConsumerWidget {
                   onPressed: () =>
                       _pushPremium(context, const SafetyMapScreen()),
                   icon: const Icon(Icons.map_rounded, size: 17),
-                  label: const Text('Open map'),
+                  label: Text(l10n.t('openMap')),
                 ),
               ),
             ],
@@ -709,13 +710,13 @@ class DashboardScreen extends ConsumerWidget {
                     .resetLearnedRoute();
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Home-workplace route learning reset.'),
+                  SnackBar(
+                    content: Text(l10n.t('homeWorkplaceRouteLearningReset')),
                   ),
                 );
               },
               icon: const Icon(Icons.restart_alt_rounded, size: 17),
-              label: const Text('Reset home-workplace route learning'),
+              label: Text(l10n.t('resetHomeWorkplaceRouteLearning')),
             ),
           ),
           if (routeState.pendingSafetyCheck) ...[
@@ -733,7 +734,7 @@ class DashboardScreen extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      'Safety check ends in $countdownText unless you confirm.',
+                      '${l10n.t('safetyCheckEndsIn')} $countdownText ${l10n.t('unlessYouConfirm')}',
                       style: TextStyle(
                         color: isLight ? const Color(0xFF6B1D1D) : Colors.white,
                         fontSize: 12,
@@ -746,7 +747,7 @@ class DashboardScreen extends ConsumerWidget {
                     onPressed: () =>
                         ref.read(routeSafetyProvider.notifier).markUserSafe(),
                     icon: const Icon(Icons.check_circle_rounded, size: 18),
-                    label: const Text('I am safe'),
+                    label: Text(l10n.t('imSafe')),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2FB79E),
                       foregroundColor: Colors.white,
@@ -848,8 +849,8 @@ class DashboardScreen extends ConsumerWidget {
                         ).withValues(alpha: isLight ? 0.22 : 0.34),
                       ),
                     ),
-                    child: const Text(
-                      'Tap for alerts',
+                    child: Text(
+                      l10n.t('tapForAlerts'),
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
@@ -876,23 +877,23 @@ class DashboardScreen extends ConsumerWidget {
           _buildAlertCard(
             context,
             alertsState.error!,
-            'Tap refresh to try again',
+            l10n.t('tapRefreshTryAgain'),
             Icons.warning_amber_rounded,
             const Color(0xFFF3B13E),
           )
         else if (alertsState.alerts.isEmpty && alertsState.isLoading)
           _buildAlertCard(
             context,
-            'Loading live area alerts...',
-            'Checking traffic, transport and nearby activity',
+            l10n.t('loadingLiveAreaAlerts'),
+            l10n.t('checkingTrafficTransportNearbyActivity'),
             Icons.sync_rounded,
             AppTheme.primaryColor,
           )
         else if (alertsState.alerts.isEmpty)
           _buildAlertCard(
             context,
-            'Live alerts will appear here',
-            'Keep GPS on for realtime community updates',
+            l10n.t('liveAlertsWillAppearHere'),
+            l10n.t('keepGpsOnForRealtimeCommunityUpdates'),
             Icons.location_searching_rounded,
             const Color(0xFF26BF96),
           )
@@ -903,7 +904,7 @@ class DashboardScreen extends ConsumerWidget {
               child: _buildAlertCard(
                 context,
                 alert.title,
-                '${alert.detail} | ${alert.timeText}',
+                '${alert.detail} | ${alert.timeText(l10n.locale.languageCode)}',
                 _iconForCommunityAlert(alert.kind),
                 _colorForCommunityAlert(alert.kind),
               ),

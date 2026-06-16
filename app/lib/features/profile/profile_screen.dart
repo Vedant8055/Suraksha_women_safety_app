@@ -203,10 +203,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final screamDetectionState = ref.watch(screamDetectionProvider);
     final themeMode = ref.watch(appThemeModeProvider);
     final currentLocale = ref.watch(appLocaleProvider);
-    final selectedLanguage = AppLanguage.values.firstWhere(
-      (lang) => lang.locale.languageCode == currentLocale.languageCode,
-      orElse: () => AppLanguage.english,
-    );
+    final selectedLanguage = AppLanguageX.fromLocale(currentLocale);
     final isDarkMode = themeMode == ThemeMode.dark;
     final isLight = Theme.of(context).brightness == Brightness.light;
     final profileText = isLight ? const Color(0xFF172235) : Colors.white;
@@ -333,7 +330,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         color: AppTheme.primaryColor,
                       ),
                       title: Text(
-                        'Scream Detection',
+                        l10n.t('screamDetection'),
                         style: TextStyle(
                           color: profileText,
                           fontWeight: FontWeight.w700,
@@ -341,8 +338,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                       subtitle: Text(
                         screamDetectionState.monitoring
-                            ? 'Microphone safety monitor is active.'
-                            : 'Microphone stays off while this is disabled.',
+                            ? l10n.t('microphoneSafetyMonitorActive')
+                            : l10n.t('microphoneSafetyMonitorInactive'),
                         style: TextStyle(color: profileMuted),
                       ),
                       value: screamDetectionState.enabled,
@@ -358,7 +355,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         color: AppTheme.primaryColor,
                       ),
                       title: Text(
-                        'Impact Detection',
+                        l10n.t('impactDetection'),
                         style: TextStyle(
                           color: profileText,
                           fontWeight: FontWeight.w700,
@@ -366,8 +363,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                       subtitle: Text(
                         impactDetectionState.monitoring
-                            ? 'Motion sensors are watching for sudden impact.'
-                            : 'Motion sensors stay off while this is disabled.',
+                            ? l10n.t('motionSensorsActive')
+                            : l10n.t('motionSensorsInactive'),
                         style: TextStyle(color: profileMuted),
                       ),
                       value: impactDetectionState.enabled,
@@ -1003,34 +1000,34 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Edit Profile'),
+        title: Text(l10n.t('editProfile')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameController,
-              decoration: const InputDecoration(labelText: 'Full Name'),
+              decoration: InputDecoration(labelText: l10n.t('fullName')),
             ),
             TextField(
               controller: emailController,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(labelText: 'Email'),
+              decoration: InputDecoration(labelText: l10n.t('email')),
             ),
             TextField(
               controller: phoneController,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'Phone Number'),
+              decoration: InputDecoration(labelText: l10n.t('phoneNumber')),
             ),
             TextField(
               controller: bloodController,
-              decoration: const InputDecoration(labelText: 'Blood Group'),
+              decoration: InputDecoration(labelText: l10n.t('bloodGroup')),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(l10n.t('cancel')),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -1052,7 +1049,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 _showError(_extractError(error));
               }
             },
-            child: const Text('Save'),
+            child: Text(l10n.t('save')),
           ),
         ],
       ),
@@ -1070,16 +1067,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Edit Phone Number'),
+          title: Text(l10n.t('editPhoneNumber')),
           content: TextField(
             controller: phoneController,
             keyboardType: TextInputType.phone,
-            decoration: const InputDecoration(labelText: 'Phone Number'),
+            decoration: InputDecoration(labelText: l10n.t('phoneNumber')),
           ),
           actions: [
             TextButton(
               onPressed: saving ? null : () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text(l10n.t('cancel')),
             ),
             ElevatedButton(
               onPressed: saving
@@ -1087,7 +1084,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   : () async {
                       final phone = phoneController.text.trim();
                       if (phone.isEmpty) {
-                        _showError('Phone number is required.');
+                        _showError(l10n.t('phoneNumberRequired'));
                         return;
                       }
 
@@ -1120,16 +1117,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         }
                       }
                     },
-              child: saving
+            child: saving
                   ? const SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Save'),
-            ),
-          ],
-        ),
+                  : Text(l10n.t('save')),
+          ),
+        ],
+      ),
       ),
     );
   }
@@ -1146,32 +1143,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Add Emergency Contact'),
+          title: Text(l10n.t('addEmergencyContactTitle')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nameController,
                 enabled: !saving,
-                decoration: const InputDecoration(labelText: 'Name'),
+                decoration: InputDecoration(labelText: l10n.t('name')),
               ),
               TextField(
                 controller: phoneController,
                 enabled: !saving,
                 keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(labelText: 'Phone Number'),
+                decoration: InputDecoration(labelText: l10n.t('phoneNumber')),
               ),
               TextField(
                 controller: relationController,
                 enabled: !saving,
-                decoration: const InputDecoration(labelText: 'Relation'),
+                decoration: InputDecoration(labelText: l10n.t('relation')),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: saving ? null : () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text(l10n.t('cancel')),
             ),
             ElevatedButton(
               onPressed: saving
@@ -1181,7 +1178,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       final phone = phoneController.text.trim();
                       final relation = relationController.text.trim();
                       if (name.isEmpty || phone.isEmpty) {
-                        _showError('Name and phone number are required.');
+                        _showError(l10n.t('nameAndPhoneRequired'));
                         return;
                       }
 
@@ -1201,7 +1198,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             );
                         if (!mounted) return;
                         if (!saved) {
-                          _showError('This phone number is already saved.');
+                          _showError(l10n.t('duplicatePhoneNumber'));
                           setDialogState(() => saving = false);
                           return;
                         }
@@ -1222,10 +1219,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Save'),
-            ),
-          ],
-        ),
+                  : Text(l10n.t('save')),
+          ),
+        ],
+      ),
       ),
     );
   }
@@ -1240,29 +1237,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Edit Emergency Contact'),
+        title: Text(l10n.t('editEmergencyContactTitle')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameController,
-              decoration: const InputDecoration(labelText: 'Name'),
+              decoration: InputDecoration(labelText: l10n.t('name')),
             ),
             TextField(
               controller: phoneController,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'Phone Number'),
+              decoration: InputDecoration(labelText: l10n.t('phoneNumber')),
             ),
             TextField(
               controller: relationController,
-              decoration: const InputDecoration(labelText: 'Relation'),
+              decoration: InputDecoration(labelText: l10n.t('relation')),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(l10n.t('cancel')),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -1281,7 +1278,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     );
                 if (!mounted) return;
                 if (!saved) {
-                  _showError('This phone number is already saved.');
+                  _showError(l10n.t('duplicatePhoneNumber'));
                   return;
                 }
                 navigator.pop();
@@ -1293,7 +1290,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 _showError(_extractError(error));
               }
             },
-            child: const Text('Save'),
+            child: Text(l10n.t('save')),
           ),
         ],
       ),
@@ -1384,7 +1381,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     } on DioException {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Saved locally. Server sync will retry later.')),
+          SnackBar(content: Text(AppLocalizations.of(context).t('savedLocallyRetryLater'))),
         );
       }
     } catch (_) {
@@ -1393,6 +1390,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _pickAndUploadPhoto() async {
+    final photoSavedLocallyMessage =
+        AppLocalizations.of(context).t('photoSavedLocally');
     try {
       final picker = ImagePicker();
       final picked = await picker.pickImage(
@@ -1424,7 +1423,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _syncProfilePhotoToServer(picked.path),
       );
     } catch (error) {
-      _showError('Photo saved locally. ${_extractError(error)}');
+      _showError('$photoSavedLocallyMessage ${_extractError(error)}');
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }

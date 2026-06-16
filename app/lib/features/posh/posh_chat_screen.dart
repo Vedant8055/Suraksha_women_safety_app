@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -153,6 +153,7 @@ class _POSHLegalPortalScreenState extends State<POSHLegalPortalScreen> {
   }
 
   Future<void> _submitComplaint() async {
+    final l10n = AppLocalizations.of(context);
     final complainantName = _complainantNameController.text.trim();
     final complainantPhone = _complainantPhoneController.text.trim();
     final complainantEmail = _complainantEmailController.text.trim();
@@ -169,7 +170,7 @@ class _POSHLegalPortalScreenState extends State<POSHLegalPortalScreen> {
         details.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all required details.')),
+        SnackBar(content: Text(l10n.t('pleaseFillAllRequiredDetails'))),
       );
       return;
     }
@@ -198,13 +199,13 @@ Complaint Details: $details
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Complaint submitted successfully.')),
+          SnackBar(content: Text(l10n.t('complaintSubmittedSuccessfully'))),
         );
       }
     } on DioException {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Submission failed. Please try again.')),
+          SnackBar(content: Text(l10n.t('submissionFailedTryAgain'))),
         );
       }
     } finally {
@@ -222,11 +223,11 @@ Complaint Details: $details
       child: Scaffold(
         appBar: AppBar(
           title: Text(l10n.t('poshPortal')),
-          bottom: const TabBar(
+          bottom: TabBar(
             tabs: [
-              Tab(icon: Icon(Icons.menu_book_rounded), text: 'Study'),
-              Tab(icon: Icon(Icons.school_rounded), text: 'Quizzes'),
-              Tab(icon: Icon(Icons.assignment_rounded), text: 'Complaint'),
+              Tab(icon: Icon(Icons.menu_book_rounded), text: l10n.t('study')),
+              Tab(icon: Icon(Icons.school_rounded), text: l10n.t('quizzes')),
+              Tab(icon: Icon(Icons.assignment_rounded), text: l10n.t('complaint')),
             ],
           ),
         ),
@@ -254,13 +255,14 @@ Complaint Details: $details
 
   Widget _buildStudyTab(BuildContext context) {
     final colors = _PoshColors(context);
+    final l10n = AppLocalizations.of(context);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
       children: [
         FadeInDown(
           child: _HeroCard(
-            title: 'POSH Act Learning Hub',
+            title: l10n.t('poshActLearningHub'),
             subtitle:
                 'Study the full framework first, then clear three quiz levels to unlock your certificate.',
             icon: Icons.workspace_premium_rounded,
@@ -273,8 +275,8 @@ Complaint Details: $details
                   children: [
                     Expanded(
                       child: _InfoTile(
-                        title: 'Study first',
-                        value: 'Read all sections before Quiz 1',
+                        title: l10n.t('studyFirst'),
+                        value: l10n.t('readAllSectionsBeforeQuiz1'),
                         icon: Icons.auto_stories_rounded,
                         color: const Color(0xFF2ED6C5),
                         colors: colors,
@@ -283,8 +285,8 @@ Complaint Details: $details
                     const SizedBox(width: 10),
                     Expanded(
                       child: _InfoTile(
-                        title: 'Three levels',
-                        value: '20 MCQs in each quiz',
+                        title: l10n.t('threeLevels'),
+                        value: l10n.t('twentyMcqsEachQuiz'),
                         icon: Icons.quiz_rounded,
                         color: const Color(0xFFFF9A3D),
                         colors: colors,
@@ -365,7 +367,7 @@ Complaint Details: $details
               MaterialPageRoute(builder: (_) => const POSHActGuideScreen()),
             ),
             icon: const Icon(Icons.open_in_new_rounded),
-            label: const Text('OPEN DETAILED POSH ACT GUIDE'),
+            label: Text(AppLocalizations.of(context).t('openDetailedPoshActGuide')),
           ),
         ),
       ],
@@ -389,6 +391,7 @@ Complaint Details: $details
 
   Widget _buildQuizTab(BuildContext context) {
     final colors = _PoshColors(context);
+    final l10n = AppLocalizations.of(context);
     final totalPassed = _passedLevels.length;
     final allComplete = _certificateReady || totalPassed == _levels.length;
     final currentLevel = _levels[_activeLevelIndex];
@@ -397,9 +400,8 @@ Complaint Details: $details
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
       children: [
         _HeroCard(
-          title: 'Quiz Certification Track',
-          subtitle:
-              'Pass all 3 levels to unlock the POSH Certified badge. Each quiz has 20 MCQs.',
+          title: l10n.t('quizCertificationTrack'),
+          subtitle: l10n.t('studyFirstThenClearQuizzesInOrder'),
           icon: Icons.workspace_premium_rounded,
           accentColor: const Color(0xFF8E7CF4),
           child: Column(
@@ -410,7 +412,7 @@ Complaint Details: $details
               Text(
                 allComplete
                     ? 'All levels cleared. Your certificate is ready.'
-                    : 'Study first, then clear the quizzes in order.',
+                    : l10n.t('studyFirstThenClearQuizzesInOrder'),
                 style: TextStyle(color: colors.mutedText, height: 1.3),
               ),
             ],
@@ -432,6 +434,7 @@ Complaint Details: $details
 
   Widget _buildComplaintTab(BuildContext context) {
     final colors = _PoshColors(context);
+    final l10n = AppLocalizations.of(context);
 
     InputDecoration fieldDecoration(String label) => InputDecoration(
       labelText: label,
@@ -454,13 +457,12 @@ Complaint Details: $details
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
       children: [
         _HeroCard(
-          title: 'File Workplace Complaint',
-          subtitle:
-              'Use this to prepare and submit a detailed complaint record. In immediate danger, call 112 first.',
+          title: l10n.t('fileWorkplaceComplaint'),
+          subtitle: l10n.t('fileWorkplaceComplaintSubtitle'),
           icon: Icons.report_gmailerrorred_rounded,
           accentColor: const Color(0xFFE53935),
           child: Text(
-            'Keep your records factual and attach evidence when possible.',
+            l10n.t('keepRecordsFactual'),
             style: TextStyle(color: colors.mutedText),
           ),
         ),
@@ -475,6 +477,7 @@ Complaint Details: $details
     InputDecoration Function(String label) fieldDecoration,
   ) {
     final colors = _PoshColors(context);
+    final l10n = AppLocalizations.of(context);
 
     return Container(
       width: double.infinity,
@@ -489,58 +492,58 @@ Complaint Details: $details
           TextField(
             controller: _complainantNameController,
             style: TextStyle(color: colors.text),
-            decoration: fieldDecoration('Your Full Name'),
+            decoration: fieldDecoration(l10n.t('yourFullName')),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: _complainantPhoneController,
             keyboardType: TextInputType.phone,
             style: TextStyle(color: colors.text),
-            decoration: fieldDecoration('Your Phone Number'),
+            decoration: fieldDecoration(l10n.t('yourPhoneNumber')),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: _complainantEmailController,
             keyboardType: TextInputType.emailAddress,
             style: TextStyle(color: colors.text),
-            decoration: fieldDecoration('Your Email Address'),
+            decoration: fieldDecoration(l10n.t('yourEmailAddress')),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: _accusedNameController,
             style: TextStyle(color: colors.text),
-            decoration: fieldDecoration('Accused Person Name'),
+            decoration: fieldDecoration(l10n.t('accusedPersonName')),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: _companyController,
             style: TextStyle(color: colors.text),
-            decoration: fieldDecoration('Company / Workplace Name'),
+            decoration: fieldDecoration(l10n.t('companyWorkplaceName')),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: _incidentDateController,
             style: TextStyle(color: colors.text),
-            decoration: fieldDecoration('Incident Date (DD/MM/YYYY)'),
+            decoration: fieldDecoration(l10n.t('incidentDateDdMmYyyy')),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: _incidentLocationController,
             style: TextStyle(color: colors.text),
-            decoration: fieldDecoration('Incident Location'),
+            decoration: fieldDecoration(l10n.t('incidentLocation')),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: _witnessesController,
             style: TextStyle(color: colors.text),
-            decoration: fieldDecoration('Witnesses (if any)'),
+            decoration: fieldDecoration(l10n.t('witnessesIfAny')),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: _detailsController,
             maxLines: 5,
             style: TextStyle(color: colors.text),
-            decoration: fieldDecoration('Detailed Incident Description'),
+            decoration: fieldDecoration(l10n.t('detailedIncidentDescription')),
           ),
           const SizedBox(height: 14),
           SizedBox(
@@ -548,7 +551,7 @@ Complaint Details: $details
             child: ElevatedButton.icon(
               onPressed: _submitting ? null : _submitComplaint,
               icon: const Icon(Icons.report_gmailerrorred),
-              label: Text(_submitting ? 'Submitting...' : 'SUBMIT COMPLAINT'),
+              label: Text(_submitting ? l10n.t('submitting') : l10n.t('submitComplaint')),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 54),
               ),
@@ -576,9 +579,13 @@ Complaint Details: $details
                       _activeLevelIndex = index;
                       _activeQuestionIndex = 0;
                     })
-                  : () => ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Clear the previous quiz to unlock this level.'),
+                : () => ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          AppLocalizations.of(context).t(
+                            'clearPreviousQuizToUnlockThisLevel',
+                          ),
+                        ),
                       ),
                     ),
               child: Container(
@@ -611,7 +618,7 @@ Complaint Details: $details
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Level ${index + 1}',
+                      '${AppLocalizations.of(context).t('level')} ${index + 1}',
                       style: TextStyle(
                         color: selected ? Colors.white : colors.text,
                         fontWeight: FontWeight.w900,
@@ -619,7 +626,11 @@ Complaint Details: $details
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      passed ? 'Passed' : available ? 'Available' : 'Locked',
+                      passed
+                          ? AppLocalizations.of(context).t('passed')
+                          : available
+                          ? AppLocalizations.of(context).t('available')
+                          : AppLocalizations.of(context).t('locked'),
                       style: TextStyle(
                         color: selected ? Colors.white70 : colors.mutedText,
                         fontSize: 11,
@@ -772,14 +783,14 @@ Complaint Details: $details
                   onPressed: isFirst
                       ? null
                       : () => setState(() => _activeQuestionIndex -= 1),
-                  child: const Text('Previous'),
+                  child: Text(AppLocalizations.of(context).t('previous')),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: OutlinedButton(
                   onPressed: () => _resetLevel(levelIndex),
-                  child: const Text('Retry quiz'),
+                  child: Text(AppLocalizations.of(context).t('retryQuiz')),
                 ),
               ),
               const SizedBox(width: 10),
@@ -790,7 +801,11 @@ Complaint Details: $details
                       : isLast
                       ? () => _submitLevel(levelIndex)
                       : () => setState(() => _activeQuestionIndex += 1),
-                  child: Text(isLast ? 'Submit quiz' : 'Next'),
+                  child: Text(
+                    isLast
+                        ? AppLocalizations.of(context).t('submitQuiz')
+                        : AppLocalizations.of(context).t('next'),
+                  ),
                 ),
               ),
             ],
@@ -810,11 +825,11 @@ Complaint Details: $details
     final level = _levels[levelIndex];
     final answers = _answers[levelIndex] ?? const {};
 
-    if (answers.length != level.questions.length ||
+      if (answers.length != level.questions.length ||
         answers.values.any((set) => set.isEmpty)) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please answer every question first.')),
+        SnackBar(content: Text(AppLocalizations.of(context).t('pleaseAnswerEveryQuestionFirst'))),
       );
       return;
     }
@@ -846,8 +861,8 @@ Complaint Details: $details
         await showPremiumDialog<void>(
           context: context,
           title: levelIndex == _levels.length - 1
-              ? 'POSH Certified'
-              : 'Level Passed',
+              ? AppLocalizations.of(context).t('poshCertified')
+              : AppLocalizations.of(context).t('levelPassed'),
           message: levelIndex == _levels.length - 1
               ? 'You cleared all three quiz levels and earned your certificate.'
               : 'Great work. The next level is now unlocked.',
@@ -855,7 +870,9 @@ Complaint Details: $details
           accentColor: const Color(0xFF2ED6C5),
           actions: [
             PremiumDialogAction(
-              label: levelIndex == _levels.length - 1 ? 'View certificate' : 'Continue',
+              label: levelIndex == _levels.length - 1
+                  ? AppLocalizations.of(context).t('viewCertificate')
+                  : AppLocalizations.of(context).t('continueLabel'),
               isPrimary: true,
               onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
             ),
@@ -872,21 +889,21 @@ Complaint Details: $details
         if (!mounted) return;
         await showPremiumDialog<void>(
           context: context,
-          title: 'Quiz not cleared yet',
+          title: AppLocalizations.of(context).t('quizNotClearedYet'),
           message:
               'You scored $score/${level.questions.length}. Review the study section and retry this level.',
           icon: Icons.refresh_rounded,
           accentColor: const Color(0xFFE53935),
           actions: [
             PremiumDialogAction(
-              label: 'Review study',
+              label: AppLocalizations.of(context).t('reviewStudy'),
               onPressed: () {
                 Navigator.of(context, rootNavigator: true).pop();
                 DefaultTabController.of(context).animateTo(0);
               },
             ),
             PremiumDialogAction(
-              label: 'Retry',
+              label: AppLocalizations.of(context).t('retry'),
               isPrimary: true,
               onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
             ),
@@ -1032,7 +1049,11 @@ Complaint Details: $details
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  passed ? 'Passed' : unlocked ? 'Unlocked' : 'Locked',
+                  passed
+                      ? AppLocalizations.of(context).t('passed')
+                      : unlocked
+                      ? AppLocalizations.of(context).t('unlocked')
+                      : AppLocalizations.of(context).t('locked'),
                   style: TextStyle(
                     color: selected ? Colors.white70 : colors.mutedText,
                     fontSize: 11,
@@ -1053,101 +1074,107 @@ class POSHActGuideScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = _PoshColors(context);
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Detailed POSH Act Guide')),
+      appBar: AppBar(title: Text(l10n.t('detailedPoshActGuide'))),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _GuideIntro(colors: colors),
+          _GuideIntro(colors: colors, text: l10n.t('guideIntro')),
           const SizedBox(height: 12),
-          const _GuideSection(
-            title: '1. Background And Objective',
-            body:
-                'The Sexual Harassment of Women at Workplace (Prevention, Prohibition and Redressal) Act, 2013 (POSH Act) was enacted to provide a legal framework for prevention and redressal of sexual harassment at workplaces. It operationalizes constitutional protections of equality, dignity, and safe working conditions.',
-          ),
-          const _GuideSection(
-            title: '2. Where It Applies',
-            body:
-                'It applies across public and private sectors, organized and unorganized workplaces, NGOs, educational institutions, hospitals, sports setups, dwelling places employing domestic workers, and any place visited during employment including transportation provided by employer.',
-          ),
-          const _GuideSection(
-            title: '3. Who Is Protected',
-            body:
-                'Primary statutory protection is for women at workplace: employees, trainees, interns, volunteers, contract workers, temporary staff, and visitors in workplace context. Organizations should still maintain gender-neutral internal ethics policies where possible, but statutory POSH framework specifically protects women.',
-          ),
-          const _GuideSection(
-            title: '4. What Counts As Sexual Harassment',
-            body:
-                'Includes unwelcome physical contact or advances, demand/request for sexual favors, sexually colored remarks, showing pornography, and any unwelcome conduct of sexual nature (verbal, non-verbal, digital). Repeated inappropriate messages, intimidation, retaliation after refusal, and hostile work environment patterns can also be relevant.',
-          ),
-          const _GuideSection(
-            title: '5. Internal Committee (IC) Requirements',
-            body:
-                'Every employer with 10 or more employees must constitute an Internal Committee. Typical composition includes Presiding Officer (senior woman employee), at least two employee members committed to women’s causes/legal awareness/social work, and one external member from NGO/association familiar with sexual harassment issues.',
-          ),
-          const _GuideSection(
-            title: '6. Complaint Timeline And Format',
-            body:
-                'Complaint is usually filed in writing within 3 months from incident (or last incident in continuing pattern). IC may allow extension for valid reasons. Complaint should mention parties, dates/times, location, detailed facts, witnesses, documents/screenshots/chats/emails and relief sought.',
-          ),
-          const _GuideSection(
-            title: '7. Conciliation And Inquiry',
-            body:
-                'Before inquiry, complainant may request conciliation (no monetary settlement should be basis). If conciliation fails or is not chosen, IC conducts formal inquiry with principles of natural justice: both sides heard, opportunity to present evidence, written proceedings, and reasoned findings.',
-          ),
-          const _GuideSection(
-            title: '8. Interim Relief During Proceedings',
-            body:
-                'Complainant can request interim measures such as transfer, leave, reporting line change, no-contact instructions, temporary work-from-home adjustments, or security support. These measures protect safety while inquiry is ongoing and should not amount to penalizing complainant.',
-          ),
-          const _GuideSection(
-            title: '9. Inquiry Outcome And Employer Action',
-            body:
-                'If allegations are proved, IC recommends action as per service rules: warning, written apology, counseling, adverse entry, withholding promotion/increment, termination, or compensation as permitted. Employer should act on recommendations within statutory timelines and document compliance.',
-          ),
-          const _GuideSection(
-            title: '10. Police Complaint And Criminal Law',
-            body:
-                'POSH inquiry is internal redressal and does not replace criminal remedies. If facts disclose criminal offenses (assault, stalking, voyeurism, threats etc.), complainant can file FIR/police complaint. In immediate danger, prioritize emergency response and police contact.',
-          ),
-          const _GuideSection(
-            title: '11. Confidentiality Rules',
-            body:
-                'Identity of complainant/respondent, witness details, inquiry contents, recommendations, and action details should be kept confidential except as required by law. Breach of confidentiality can attract disciplinary consequences.',
-          ),
-          const _GuideSection(
-            title: '12. False Complaints: Correct Legal Position',
-            body:
-                'Law does not punish merely because allegation was not proved. Action for malicious complaint requires clear evidence of deliberate falsehood or forged evidence. Lack of evidence, inconsistencies due to trauma, or inability to prove beyond internal standard should not be treated as malicious.',
-          ),
-          const _GuideSection(
-            title: '13. How Not To Misuse The Act',
-            body:
-                'Do not file knowingly fabricated allegations, tamper evidence, coach witnesses to lie, or use complaint mechanism for unrelated personal/professional disputes. Honest reporting with good faith, even if difficult to prove, is not misuse. Maintain factual, date-wise narrative and authentic records.',
-          ),
-          const _GuideSection(
-            title: '14. Employer Compliance Checklist',
-            body:
-                'Constitute IC correctly, publish POSH policy, conduct regular awareness training, display complaint channel prominently, maintain inquiry documentation, submit annual reports where applicable, and ensure no retaliation against complainant/witnesses.',
-          ),
-          const _GuideSection(
-            title: '15. Practical Evidence Checklist',
-            body:
-                'Preserve original chats/emails/call logs, take timestamped screenshots, note dates and context, list witnesses, record prior complaints/escalations, keep medical/mental health records if relevant, and maintain a chronological incident diary.',
-          ),
-          const _GuideSection(
-            title: '16. Appeals And Further Remedies',
-            body:
-                'Where service rules or law allow, parties may challenge inquiry outcomes through appellate channels. Complainants can also seek external legal remedies through labor authorities/courts or criminal process depending on facts.',
-          ),
-          const _GuideSection(
-            title: '17. Good-Faith Use Of POSH Portal',
-            body:
-                'Use this portal to create detailed records, submit structured complaints, and prepare for IC/police processes. In life-threatening situations, do not wait for documentation workflow; call emergency services immediately.',
-          ),
+          _GuideSection(title: l10n.t('guide1Title'), body: l10n.t('guide1Body')),
+          _GuideSection(title: l10n.t('guide2Title'), body: l10n.t('guide2Body')),
+          _GuideSection(title: l10n.t('guide3Title'), body: l10n.t('guide3Body')),
+          _GuideSection(title: l10n.t('guide4Title'), body: l10n.t('guide4Body')),
+          _GuideSection(title: l10n.t('guide5Title'), body: l10n.t('guide5Body')),
+          _GuideSection(title: l10n.t('guide6Title'), body: l10n.t('guide6Body')),
+          _GuideSection(title: l10n.t('guide7Title'), body: l10n.t('guide7Body')),
+          _GuideSection(title: l10n.t('guide8Title'), body: l10n.t('guide8Body')),
+          _GuideSection(title: l10n.t('guide9Title'), body: l10n.t('guide9Body')),
+          _GuideSection(title: l10n.t('guide10Title'), body: l10n.t('guide10Body')),
+          _GuideSection(title: l10n.t('guide11Title'), body: l10n.t('guide11Body')),
+          _GuideSection(title: l10n.t('guide12Title'), body: l10n.t('guide12Body')),
+          _GuideSection(title: l10n.t('guide13Title'), body: l10n.t('guide13Body')),
+          _GuideSection(title: l10n.t('guide14Title'), body: l10n.t('guide14Body')),
+          _GuideSection(title: l10n.t('guide15Title'), body: l10n.t('guide15Body')),
+          _GuideSection(title: l10n.t('guide16Title'), body: l10n.t('guide16Body')),
+          _GuideSection(title: l10n.t('guide17Title'), body: l10n.t('guide17Body')),
           const SizedBox(height: 12),
-          const _GuideDisclaimer(),
+          _GuideDisclaimer(text: l10n.t('legalDisclaimer')),
         ],
+      ),
+    );
+  }
+}
+
+class _GuideIntro extends StatelessWidget {
+  const _GuideIntro({required this.colors, required this.text});
+
+  final _PoshColors colors;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.border),
+      ),
+      child: Text(text, style: TextStyle(color: colors.mutedText, height: 1.35)),
+    );
+  }
+}
+
+class _GuideSection extends StatelessWidget {
+  const _GuideSection({required this.title, required this.body});
+
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = _PoshColors(context);
+    return ExpansionTile(
+      tilePadding: const EdgeInsets.symmetric(horizontal: 10),
+      collapsedBackgroundColor: colors.card,
+      backgroundColor: colors.card,
+      iconColor: AppTheme.primaryColor,
+      collapsedIconColor: colors.mutedText,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      collapsedShape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: colors.border),
+      ),
+      title: Text(
+        title,
+        style: TextStyle(color: colors.text, fontWeight: FontWeight.w700),
+      ),
+      childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      children: [
+        Text(body, style: TextStyle(color: colors.mutedText, height: 1.35)),
+      ],
+    );
+  }
+}
+
+class _GuideDisclaimer extends StatelessWidget {
+  const _GuideDisclaimer({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF4E2B18),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(color: Color(0xFFFFE6D5), height: 1.35),
       ),
     );
   }
@@ -1251,47 +1278,29 @@ class _InfoTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: colors.fieldFill,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: colors.border),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(12),
+          Icon(icon, size: 20, color: color),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            style: TextStyle(
+              color: colors.text,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
             ),
-            child: Icon(icon, color: color, size: 20),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: colors.text,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: TextStyle(
-                    color: colors.mutedText,
-                    fontSize: 12,
-                    height: 1.25,
-                  ),
-                ),
-              ],
-            ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: TextStyle(color: colors.mutedText, fontSize: 11.5, height: 1.25),
           ),
         ],
       ),
@@ -1319,7 +1328,7 @@ class _StudySectionCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: colors.card,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: colors.border),
       ),
       child: Column(
@@ -1328,121 +1337,47 @@ class _StudySectionCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 42,
-                height: 42,
+                width: 34,
+                height: 34,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(14),
+                  color: AppTheme.primaryColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: AppTheme.primaryColor),
+                child: Center(
+                  child: Text(
+                    number,
+                    style: const TextStyle(
+                      color: AppTheme.primaryColor,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Section $number',
-                      style: TextStyle(
-                        color: colors.mutedText,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    Text(
-                      title,
-                      style: TextStyle(
-                        color: colors.text,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: colors.text,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
+              Icon(icon, color: AppTheme.primaryColor),
             ],
           ),
           const SizedBox(height: 12),
           ...bullets.map(
             (bullet) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.only(top: 5),
-                    child: Icon(Icons.circle, size: 8, color: AppTheme.primaryColor),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      bullet,
-                      style: TextStyle(
-                        color: colors.mutedText,
-                        height: 1.35,
-                        fontSize: 13.5,
-                      ),
-                    ),
-                  ),
-                ],
+              child: Text(
+                '• $bullet',
+                style: TextStyle(color: colors.mutedText, height: 1.35),
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _AnswerOptionTile extends StatelessWidget {
-  const _AnswerOptionTile({
-    required this.label,
-    required this.selected,
-    required this.multiSelect,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final bool multiSelect;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = _PoshColors(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-        decoration: BoxDecoration(
-          color: selected ? AppTheme.primaryColor.withValues(alpha: 0.12) : colors.fieldFill,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: selected ? AppTheme.primaryColor : colors.border,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              multiSelect
-                  ? (selected ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded)
-                  : (selected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded),
-              color: selected ? AppTheme.primaryColor : colors.mutedText,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: colors.text,
-                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -1458,7 +1393,7 @@ class _SmallPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = _PoshColors(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
         color: colors.fieldFill,
         borderRadius: BorderRadius.circular(999),
@@ -1483,74 +1418,61 @@ class _SmallPill extends StatelessWidget {
   }
 }
 
-class _GuideIntro extends StatelessWidget {
-  const _GuideIntro({required this.colors});
+class _AnswerOptionTile extends StatelessWidget {
+  const _AnswerOptionTile({
+    required this.label,
+    required this.selected,
+    required this.multiSelect,
+    required this.onTap,
+  });
 
-  final _PoshColors colors;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.border),
-      ),
-      child: Text(
-        'This guide is educational and operational. It helps you understand process, boundaries, documentation, and escalation under the POSH framework in India.',
-        style: TextStyle(color: colors.mutedText, height: 1.35),
-      ),
-    );
-  }
-}
-
-class _GuideSection extends StatelessWidget {
-  final String title;
-  final String body;
-
-  const _GuideSection({required this.title, required this.body});
+  final String label;
+  final bool selected;
+  final bool multiSelect;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final colors = _PoshColors(context);
-    return ExpansionTile(
-      tilePadding: const EdgeInsets.symmetric(horizontal: 10),
-      collapsedBackgroundColor: colors.card,
-      backgroundColor: colors.card,
-      iconColor: AppTheme.primaryColor,
-      collapsedIconColor: colors.mutedText,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      collapsedShape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.border),
-      ),
-      title: Text(
-        title,
-        style: TextStyle(color: colors.text, fontWeight: FontWeight.w700),
-      ),
-      childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-      children: [
-        Text(body, style: TextStyle(color: colors.mutedText, height: 1.35)),
-      ],
-    );
-  }
-}
-
-class _GuideDisclaimer extends StatelessWidget {
-  const _GuideDisclaimer();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF4E2B18),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: const Text(
-        'Legal Disclaimer: This guide is not a substitute for case-specific legal advice. For critical matters, consult a qualified lawyer, HR-POSH expert, or competent authority.',
-        style: TextStyle(color: Color(0xFFFFE6D5), height: 1.35),
+    return Material(
+      color: colors.fieldFill,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: selected ? AppTheme.primaryColor : colors.border,
+              width: selected ? 1.4 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                multiSelect
+                    ? (selected ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded)
+                    : (selected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded),
+                color: selected ? AppTheme.primaryColor : colors.mutedText,
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: colors.text,
+                    fontWeight: FontWeight.w600,
+                    height: 1.25,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -2201,3 +2123,5 @@ List<_PoshQuizLevel> _buildPoshQuizLevels() {
     ),
   ];
 }
+
+

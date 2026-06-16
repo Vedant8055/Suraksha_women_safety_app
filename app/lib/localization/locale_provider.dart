@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
 
 enum AppLanguage { english, hindi, marathi }
 
@@ -13,6 +14,17 @@ extension AppLanguageX on AppLanguage {
         return const Locale('mr');
       case AppLanguage.english:
         return const Locale('en');
+    }
+  }
+
+  static AppLanguage fromLocale(Locale locale) {
+    switch (locale.languageCode) {
+      case 'hi':
+        return AppLanguage.hindi;
+      case 'mr':
+        return AppLanguage.marathi;
+      default:
+        return AppLanguage.english;
     }
   }
 
@@ -39,14 +51,23 @@ class AppLocaleNotifier extends StateNotifier<Locale> {
     final prefs = await SharedPreferences.getInstance();
     final code = prefs.getString(_localeKey);
     if (code == null || code.isEmpty) return;
-    state = Locale(code);
+    final normalizedCode = _normalizeLanguageCode(code);
+    state = Locale(normalizedCode);
   }
 
   Future<void> setLanguage(AppLanguage language) async {
-    final locale = language.locale;
-    state = locale;
+    state = language.locale;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_localeKey, language.code);
+  }
+
+  String _normalizeLanguageCode(String code) {
+    final languageCode = code.trim().toLowerCase().split(RegExp(r'[_-]')).first;
+    return AppLocalizations.supportedLocales.any(
+      (locale) => locale.languageCode == languageCode,
+    )
+        ? languageCode
+        : 'en';
   }
 }
 

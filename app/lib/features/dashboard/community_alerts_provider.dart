@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:suraksha_women_safety_app/config/app_environment.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/safety_monitor_provider.dart';
+import 'package:suraksha_women_safety_app/localization/locale_provider.dart';
 
 enum CommunityAlertKind {
   traffic,
@@ -13,6 +14,11 @@ enum CommunityAlertKind {
   silentZone,
   roadBlock,
   lighting,
+}
+
+String _normalizeLanguageCode(String code) {
+  final normalized = code.trim().toLowerCase().split(RegExp(r'[_-]')).first;
+  return normalized == 'hi' || normalized == 'mr' ? normalized : 'en';
 }
 
 class CommunityAlertItem {
@@ -28,11 +34,28 @@ class CommunityAlertItem {
     required this.updatedAt,
   });
 
-  String get timeText {
+  String timeText(String languageCode) {
     final diff = DateTime.now().difference(updatedAt);
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes} mins ago';
-    return '${diff.inHours} hrs ago';
+    final lang = _normalizeLanguageCode(languageCode);
+    if (diff.inMinutes < 1) {
+      return switch (lang) {
+        'hi' => 'अभी अभी',
+        'mr' => 'आत्ताच',
+        _ => 'Just now',
+      };
+    }
+    if (diff.inMinutes < 60) {
+      return switch (lang) {
+        'hi' => '${diff.inMinutes} मिनट पहले',
+        'mr' => '${diff.inMinutes} मिनिटांपूर्वी',
+        _ => '${diff.inMinutes} mins ago',
+      };
+    }
+    return switch (lang) {
+      'hi' => '${diff.inHours} घंटे पहले',
+      'mr' => '${diff.inHours} तासांपूर्वी',
+      _ => '${diff.inHours} hrs ago',
+    };
   }
 }
 
@@ -83,7 +106,11 @@ class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
     if (apiKey.isEmpty) {
       state = state.copyWith(
         isLoading: false,
-        error: 'Google Maps API key is missing.',
+        error: _text(
+          en: 'Google Maps API key is missing.',
+          hi: 'Google Maps API key उपलब्ध नहीं है।',
+          mr: 'Google Maps API key उपलब्ध नाही.',
+        ),
       );
       return;
     }
@@ -95,7 +122,11 @@ class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
       if (position == null) {
         state = state.copyWith(
           isLoading: false,
-          error: 'Live GPS not available. Please keep location ON.',
+          error: _text(
+            en: 'Live GPS not available. Please keep location ON.',
+            hi: 'Live GPS उपलब्ध नहीं है। कृपया location ON रखें।',
+            mr: 'Live GPS उपलब्ध नाही. कृपया location ON ठेवा.',
+          ),
         );
         return;
       }
@@ -118,7 +149,11 @@ class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
     } catch (_) {
       state = state.copyWith(
         isLoading: false,
-        error: 'Unable to load live community alerts right now.',
+        error: _text(
+          en: 'Unable to load live community alerts right now.',
+          hi: 'फिलहाल live community alerts लोड नहीं हो सके।',
+          mr: 'सध्या live community alerts लोड करता आले नाहीत.',
+        ),
       );
     }
   }
@@ -322,8 +357,16 @@ class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
       alerts.add(
         CommunityAlertItem(
           kind: CommunityAlertKind.traffic,
-          title: 'Traffic data limited nearby',
-          detail: 'Could not sample nearby driving routes from Google Maps.',
+          title: _text(
+            en: 'Traffic data limited nearby',
+            hi: 'पास में ट्रैफ़िक डेटा सीमित है',
+            mr: 'जवळ traffic data मर्यादित आहे',
+          ),
+          detail: _text(
+            en: 'Could not sample nearby driving routes from Google Maps.',
+            hi: 'Google Maps से नज़दीकी ड्राइविंग रूट sample नहीं हो पाए।',
+            mr: 'Google Maps मधून जवळचे driving routes sample करता आले नाहीत.',
+          ),
           updatedAt: now,
         ),
       );
@@ -332,9 +375,19 @@ class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
       alerts.add(
         CommunityAlertItem(
           kind: CommunityAlertKind.traffic,
-          title: 'Heavy traffic near you',
-          detail:
-              'Live routes are taking about ${(traffic.maxDelayRatio * 100).round()}% of normal time on the slowest sampled road.',
+          title: _text(
+            en: 'Heavy traffic near you',
+            hi: 'आपके पास भारी ट्रैफ़िक',
+            mr: 'तुमच्याजवळ जास्त वाहतूक',
+          ),
+          detail: _text(
+            en:
+                'Live routes are taking about ${(traffic.maxDelayRatio * 100).round()}% of normal time on the slowest sampled road.',
+            hi:
+                'सबसे धीमी sample की गई सड़क पर live route लगभग ${(traffic.maxDelayRatio * 100).round()}% सामान्य समय ले रहा है।',
+            mr:
+                'सर्वात मंद sample घेतलेल्या रस्त्यावर live route सुमारे ${(traffic.maxDelayRatio * 100).round()}% सामान्य वेळ घेत आहे.',
+          ),
           updatedAt: now,
         ),
       );
@@ -342,9 +395,19 @@ class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
       alerts.add(
         CommunityAlertItem(
           kind: CommunityAlertKind.traffic,
-          title: 'Traffic looks normal nearby',
-          detail:
-              '${traffic.sampledRoutes} nearby road directions checked with live Google traffic.',
+          title: _text(
+            en: 'Traffic looks normal nearby',
+            hi: 'पास में ट्रैफ़िक सामान्य लग रहा है',
+            mr: 'जवळची वाहतूक सामान्य दिसते',
+          ),
+          detail: _text(
+            en:
+                '${traffic.sampledRoutes} nearby road directions checked with live Google traffic.',
+            hi:
+                'नज़दीक की ${traffic.sampledRoutes} सड़क दिशाएँ live Google traffic के साथ जाँची गईं।',
+            mr:
+                'जवळच्या ${traffic.sampledRoutes} रस्त्यांचे live Google traffic सह परीक्षण केले.',
+          ),
           updatedAt: now,
         ),
       );
@@ -354,9 +417,19 @@ class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
       alerts.add(
         CommunityAlertItem(
           kind: CommunityAlertKind.roadBlock,
-          title: 'Possible route blockage or detour',
-          detail:
-              'Google routing shows failed or unusually delayed nearby route samples. Check map before moving.',
+          title: _text(
+            en: 'Possible route blockage or detour',
+            hi: 'रास्ते में रुकावट या वैकल्पिक मार्ग संभव',
+            mr: 'मार्ग अडथळा किंवा पर्यायी मार्ग शक्य',
+          ),
+          detail: _text(
+            en:
+                'Google routing shows failed or unusually delayed nearby route samples. Check map before moving.',
+            hi:
+                'Google routing में failed या unusually delayed route samples दिखे हैं। चलने से पहले map देखें।',
+            mr:
+                'Google routing मध्ये failed किंवा unusually delayed route samples दिसले. निघण्यापूर्वी map तपासा.',
+          ),
           updatedAt: now,
         ),
       );
@@ -366,9 +439,19 @@ class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
       alerts.add(
         CommunityAlertItem(
           kind: CommunityAlertKind.transport,
-          title: 'Late-night transport scarcity',
-          detail:
-              '${transportSummary.summary}. Fewer transport options look active within about 1.2 km.',
+          title: _text(
+            en: 'Late-night transport scarcity',
+            hi: 'रात में परिवहन की कमी',
+            mr: 'रात्री वाहतुकीची कमतरता',
+          ),
+          detail: _text(
+            en:
+                '${transportSummary.summary}. Fewer transport options look active within about 1.2 km.',
+            hi:
+                '${transportSummary.summary}. लगभग 1.2 किमी के भीतर परिवहन विकल्प कम सक्रिय दिख रहे हैं।',
+            mr:
+                '${transportSummary.summary}. सुमारे 1.2 किमी मध्ये वाहतुकीचे पर्याय कमी सक्रिय दिसत आहेत.',
+          ),
           updatedAt: now,
         ),
       );
@@ -376,9 +459,16 @@ class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
       alerts.add(
         CommunityAlertItem(
           kind: CommunityAlertKind.transport,
-          title: 'Public transport active nearby',
-          detail:
-              '${transportSummary.summary}. Area access looks good for quick movement.',
+          title: _text(
+            en: 'Public transport active nearby',
+            hi: 'नज़दीक सार्वजनिक परिवहन सक्रिय है',
+            mr: 'जवळ सार्वजनिक वाहतूक सक्रिय आहे',
+          ),
+          detail: _text(
+            en: '${transportSummary.summary}. Area access looks good for quick movement.',
+            hi: '${transportSummary.summary}. तेज़ मूवमेंट के लिए क्षेत्र का access अच्छा लग रहा है।',
+            mr: '${transportSummary.summary}. जलद हालचालीसाठी परिसर प्रवेश चांगला दिसतो.',
+          ),
           updatedAt: now,
         ),
       );
@@ -386,9 +476,16 @@ class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
       alerts.add(
         CommunityAlertItem(
           kind: CommunityAlertKind.transport,
-          title: 'Public transport availability',
-          detail:
-              '${transportSummary.summary}. Availability looks moderate around your location.',
+          title: _text(
+            en: 'Public transport availability',
+            hi: 'सार्वजनिक परिवहन की उपलब्धता',
+            mr: 'सार्वजनिक वाहतुकीची उपलब्धता',
+          ),
+          detail: _text(
+            en: '${transportSummary.summary}. Availability looks moderate around your location.',
+            hi: '${transportSummary.summary}. आपके स्थान के आसपास उपलब्धता मध्यम लग रही है।',
+            mr: '${transportSummary.summary}. तुमच्या ठिकाणाभोवती उपलब्धता मध्यम दिसते.',
+          ),
           updatedAt: now,
         ),
       );
@@ -398,9 +495,19 @@ class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
       alerts.add(
         CommunityAlertItem(
           kind: CommunityAlertKind.lonelyRoad,
-          title: 'Low activity area detected',
-          detail:
-              'Few open public places and transit points were found nearby. Stay alert and prefer main roads.',
+          title: _text(
+            en: 'Low activity area detected',
+            hi: 'कम गतिविधि वाला क्षेत्र मिला',
+            mr: 'कमी हालचालीचा परिसर आढळला',
+          ),
+          detail: _text(
+            en:
+                'Few open public places and transit points were found nearby. Stay alert and prefer main roads.',
+            hi:
+                'नज़दीक कुछ ही खुले सार्वजनिक स्थान और transit points मिले। सतर्क रहें और मुख्य सड़कों को प्राथमिकता दें।',
+            mr:
+                'जवळ काहीच खुले सार्वजनिक ठिकाणे आणि transit points आढळले. सतर्क राहा आणि मुख्य रस्ते वापरा.',
+          ),
           updatedAt: now,
         ),
       );
@@ -410,9 +517,16 @@ class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
       alerts.add(
         CommunityAlertItem(
           kind: CommunityAlertKind.silentZone,
-          title: 'Silent-zone context nearby',
-          detail:
-              '$silentZoneCount hospitals, schools, or court locations found around you.',
+          title: _text(
+            en: 'Silent-zone context nearby',
+            hi: 'शांत क्षेत्र संदर्भ पास में',
+            mr: 'शांत-क्षेत्र संदर्भ जवळ',
+          ),
+          detail: _text(
+            en: '$silentZoneCount hospitals, schools, or court locations found around you.',
+            hi: 'आपके आसपास $silentZoneCount अस्पताल, स्कूल, या अदालत के स्थान मिले हैं।',
+            mr: 'तुमच्या आसपास $silentZoneCount रुग्णालये, शाळा, किंवा न्यायालयांची ठिकाणे आढळली.',
+          ),
           updatedAt: now,
         ),
       );
@@ -442,16 +556,52 @@ class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
 
     final parts = <String>[];
     if (busAccess > 0) {
-      parts.add('$busAccess bus access points');
+      parts.add(
+        _quantityText(
+          value: busAccess,
+          enSingular: 'bus access point',
+          enPlural: 'bus access points',
+          hiSingular: 'बस एक्सेस प्वाइंट',
+          hiPlural: 'बस एक्सेस प्वाइंट',
+          mrSingular: 'बस प्रवेश बिंदू',
+          mrPlural: 'बस प्रवेश बिंदू',
+        ),
+      );
     }
     if (railAccess > 0) {
-      parts.add('$railAccess rail or metro points');
+      parts.add(
+        _quantityText(
+          value: railAccess,
+          enSingular: 'rail or metro point',
+          enPlural: 'rail or metro points',
+          hiSingular: 'रेल या मेट्रो पॉइंट',
+          hiPlural: 'रेल या मेट्रो पॉइंट',
+          mrSingular: 'रेल किंवा मेट्रो बिंदू',
+          mrPlural: 'रेल किंवा मेट्रो बिंदू',
+        ),
+      );
     }
     if (taxiAccess > 0) {
-      parts.add('$taxiAccess taxi or auto stands');
+      parts.add(
+        _quantityText(
+          value: taxiAccess,
+          enSingular: 'taxi or auto stand',
+          enPlural: 'taxi or auto stands',
+          hiSingular: 'टैक्सी या ऑटो स्टैंड',
+          hiPlural: 'टैक्सी या ऑटो स्टैंड',
+          mrSingular: 'टॅक्सी किंवा ऑटो स्टँड',
+          mrPlural: 'टॅक्सी किंवा ऑटो स्टँड',
+        ),
+      );
     }
     if (parts.isEmpty) {
-      parts.add('No bus, rail, taxi, or auto stands were found nearby');
+      parts.add(
+        _text(
+          en: 'No bus, rail, taxi, or auto stands were found nearby',
+          hi: 'पास में कोई बस, रेल, टैक्सी या ऑटो स्टैंड नहीं मिला',
+          mr: 'जवळ बस, रेल, टॅक्सी किंवा ऑटो स्टँड आढळले नाहीत',
+        ),
+      );
     }
 
     return _TransportSummary(
@@ -476,26 +626,60 @@ class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
 
     if (lightingSupportScore >= 14) {
       return _LightingSummary(
-        title: 'Lighting looks strong nearby',
-        detail:
-            '${nearby.nightActivityCount} active public places and ${nearby.transitPointCount} transport points suggest well-used, better-lit roads around you.',
+        title: _text(
+          en: 'Lighting looks strong nearby',
+          hi: 'पास में रोशनी अच्छी लग रही है',
+          mr: 'जवळ प्रकाशयोजना मजबूत दिसते',
+        ),
+        detail: _text(
+          en:
+              '${nearby.nightActivityCount} active public places and ${nearby.transitPointCount} transport points suggest well-used, better-lit roads around you.',
+          hi:
+              '${nearby.nightActivityCount} सक्रिय सार्वजनिक स्थान और ${nearby.transitPointCount} परिवहन बिंदु आपके आसपास अच्छी तरह उपयोग होने वाली, बेहतर रोशनी वाली सड़कों का संकेत देते हैं।',
+          mr:
+              '${nearby.nightActivityCount} सक्रिय सार्वजनिक ठिकाणे आणि ${nearby.transitPointCount} वाहतूक बिंदू तुमच्याभोवती चांगले वापरलेले, चांगली प्रकाशमान रस्ते दर्शवतात.',
+        ),
       );
     }
 
     if (lightingSupportScore >= 7) {
       return _LightingSummary(
-        title: 'Lighting looks moderate nearby',
-        detail:
-            '${nearby.nightActivityCount} public venues and ${nearby.transitPointCount} transport points were found nearby, so main roads may stay reasonably lit.',
+        title: _text(
+          en: 'Lighting looks moderate nearby',
+          hi: 'पास में रोशनी मध्यम लग रही है',
+          mr: 'जवळ प्रकाशयोजना मध्यम दिसते',
+        ),
+        detail: _text(
+          en:
+              '${nearby.nightActivityCount} public venues and ${nearby.transitPointCount} transport points were found nearby, so main roads may stay reasonably lit.',
+          hi:
+              'नज़दीक ${nearby.nightActivityCount} सार्वजनिक स्थान और ${nearby.transitPointCount} परिवहन बिंदु मिले, इसलिए मुख्य सड़कें काफी हद तक रोशन रह सकती हैं।',
+          mr:
+              'जवळ ${nearby.nightActivityCount} सार्वजनिक ठिकाणे आणि ${nearby.transitPointCount} वाहतूक बिंदू आढळले, त्यामुळे मुख्य रस्ते बर्‍यापैकी उजळ राहू शकतात.',
+        ),
       );
     }
 
     return _LightingSummary(
       title: isLateNight
-          ? 'Lighting may be limited nearby'
-          : 'Lighting coverage looks limited',
-      detail:
-          'Few public venues, fuel stops, parking areas, or transit points were found nearby. Prefer brighter main roads if you move out.',
+          ? _text(
+              en: 'Lighting may be limited nearby',
+              hi: 'पास में रोशनी सीमित हो सकती है',
+              mr: 'जवळ प्रकाश मर्यादित असू शकतो',
+            )
+          : _text(
+              en: 'Lighting coverage looks limited',
+              hi: 'रोशनी कवरेज सीमित लग रही है',
+              mr: 'प्रकाश कव्हरेज मर्यादित दिसते',
+            ),
+      detail: _text(
+        en:
+            'Few public venues, fuel stops, parking areas, or transit points were found nearby. Prefer brighter main roads if you move out.',
+        hi:
+            'नज़दीक कुछ ही सार्वजनिक स्थान, ईंधन स्टॉप, पार्किंग क्षेत्र, या परिवहन बिंदु मिले। बाहर जाएँ तो अधिक रोशनी वाली मुख्य सड़कों को प्राथमिकता दें।',
+        mr:
+            'जवळ काहीच सार्वजनिक ठिकाणे, इंधन स्टॉप, पार्किंग क्षेत्रे, किंवा वाहतूक बिंदू आढळले नाहीत. बाहेर गेल्यास अधिक उजळ मुख्य रस्ते निवडा.',
+      ),
     );
   }
 
@@ -513,6 +697,37 @@ class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
     if (value is! Map<String, dynamic>) return null;
     return (value['value'] as num?)?.toInt();
   }
+
+  String _text({
+    required String en,
+    required String hi,
+    required String mr,
+  }) {
+    return switch (_normalizeLanguageCode(_ref.read(appLocaleProvider).languageCode)) {
+      'hi' => hi,
+      'mr' => mr,
+      _ => en,
+    };
+  }
+
+  String _quantityText({
+    required int value,
+    required String enSingular,
+    required String enPlural,
+    required String hiSingular,
+    required String hiPlural,
+    required String mrSingular,
+    required String mrPlural,
+  }) {
+    final lang = _normalizeLanguageCode(_ref.read(appLocaleProvider).languageCode);
+    final word = switch (lang) {
+      'hi' => value == 1 ? hiSingular : hiPlural,
+      'mr' => value == 1 ? mrSingular : mrPlural,
+      _ => value == 1 ? enSingular : enPlural,
+    };
+    return '$value $word';
+  }
+
 }
 
 class _TrafficSignals {
