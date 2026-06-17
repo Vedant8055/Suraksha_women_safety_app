@@ -176,17 +176,17 @@ class _POSHLegalPortalScreenState extends State<POSHLegalPortalScreen> {
     }
 
     final compiledDescription = '''
-POSH Workplace Complaint (Police Filing Intent)
-Complainant: $complainantName
-Phone: $complainantPhone
-Email: ${complainantEmail.isEmpty ? 'Not provided' : complainantEmail}
-Accused: $accusedName
-Workplace: ${workplace.isEmpty ? 'Not provided' : workplace}
-Incident Date: ${incidentDate.isEmpty ? 'Not provided' : incidentDate}
-Incident Location: ${incidentLocation.isEmpty ? 'Not provided' : incidentLocation}
-Witnesses: ${witnesses.isEmpty ? 'None provided' : witnesses}
-Complaint Details: $details
-''';
+  POSH Workplace Complaint (Police Filing Intent)
+  Complainant: $complainantName
+  Phone: $complainantPhone
+  Email: ${complainantEmail.isEmpty ? l10n.t('notProvided') : complainantEmail}
+  Accused: $accusedName
+  Workplace: ${workplace.isEmpty ? l10n.t('notProvided') : workplace}
+  Incident Date: ${incidentDate.isEmpty ? l10n.t('notProvided') : incidentDate}
+  Incident Location: ${incidentLocation.isEmpty ? l10n.t('notProvided') : incidentLocation}
+  Witnesses: ${witnesses.isEmpty ? l10n.t('noneProvided') ?? 'None provided' : witnesses}
+  Complaint Details: $details
+  ''';
 
     setState(() => _submitting = true);
     try {
@@ -302,60 +302,60 @@ Complaint Details: $details
         _buildStudySection(
           context,
           number: '1',
-          title: 'What the POSH Act Covers',
+          title: l10n.t('poshStudy1Title'),
           icon: Icons.balance_rounded,
-          bullets: const [
-            'The POSH Act is the Sexual Harassment of Women at Workplace Act, 2013.',
-            'It protects dignity, equality, and safe working conditions.',
-            'It applies to public and private workplaces, offices, shops, hospitals, schools, NGOs, transport provided by employer, and work-related visits.',
-            'The law covers employees, trainees, interns, contract staff, volunteers, and workplace visitors in the relevant context.',
-            'Unwelcome conduct of a sexual nature can be verbal, written, digital, or physical.',
-            'Examples include unwanted touching, sexual remarks, sexual messages, repeated harassment, or showing pornography.',
+          bullets: [
+            l10n.t('poshStudy1Bullet1'),
+            l10n.t('poshStudy1Bullet2'),
+            l10n.t('poshStudy1Bullet3'),
+            l10n.t('poshStudy1Bullet4'),
+            l10n.t('poshStudy1Bullet5'),
+            l10n.t('poshStudy1Bullet6'),
           ],
         ),
         const SizedBox(height: 14),
         _buildStudySection(
           context,
           number: '2',
-          title: 'Complaint Process and IC Handling',
+          title: l10n.t('poshStudy2Title'),
           icon: Icons.rule_folder_rounded,
-          bullets: const [
-            'The complaint should normally be filed in writing within 3 months of the incident or last incident in a continuing pattern.',
-            'The Internal Committee should be properly formed where the workplace has 10 or more employees.',
-            'The committee generally includes a senior woman presiding officer, employee members, and an external member familiar with harassment matters.',
-            'Conciliation can be used only if the complainant wants it, and it should not be forced.',
-            'If no conciliation happens, the IC conducts a formal inquiry with both sides heard fairly.',
-            'The process should stay confidential, written, and documented.',
+          bullets: [
+            l10n.t('poshStudy2Bullet1'),
+            l10n.t('poshStudy2Bullet2'),
+            l10n.t('poshStudy2Bullet3'),
+            l10n.t('poshStudy2Bullet4'),
+            l10n.t('poshStudy2Bullet5'),
+            l10n.t('poshStudy2Bullet6'),
           ],
         ),
         const SizedBox(height: 14),
         _buildStudySection(
           context,
           number: '3',
-          title: 'Evidence, Safety, and Employer Duties',
+          title: l10n.t('poshStudy3Title'),
           icon: Icons.shield_rounded,
-          bullets: const [
-            'Keep chats, emails, screenshots, call logs, witness names, dates, and location details.',
-            'Interim relief can include leave, transfer, no-contact directions, or reporting-line changes if needed for safety.',
-            'If the facts also show criminal conduct, a police complaint or FIR can be filed in addition to the POSH process.',
-            'Employers should display the policy, train staff, support the IC, and implement recommendations in time.',
-            'Confidentiality applies to complainant, respondent, witnesses, and proceedings.',
-            'A complaint is not fake just because it could not be proven; deliberate falsehood is a different standard.',
+          bullets: [
+            l10n.t('poshStudy3Bullet1'),
+            l10n.t('poshStudy3Bullet2'),
+            l10n.t('poshStudy3Bullet3'),
+            l10n.t('poshStudy3Bullet4'),
+            l10n.t('poshStudy3Bullet5'),
+            l10n.t('poshStudy3Bullet6'),
           ],
         ),
         const SizedBox(height: 14),
         _buildStudySection(
           context,
           number: '4',
-          title: 'Important POSH Boundaries',
+          title: l10n.t('poshStudy4Title'),
           icon: Icons.info_outline_rounded,
-          bullets: const [
-            'Do not use the mechanism for unrelated personal disputes or knowingly fabricated allegations.',
-            'Do not delete evidence or pressure witnesses.',
-            'Do not ignore repeated small incidents; patterns matter.',
-            'Use factual, dated, and detailed reporting.',
-            'When in immediate danger, call emergency services first.',
-            'The POSH portal is for learning, documenting, and structured complaint preparation.',
+          bullets: [
+            l10n.t('poshStudy4Bullet1'),
+            l10n.t('poshStudy4Bullet2'),
+            l10n.t('poshStudy4Bullet3'),
+            l10n.t('poshStudy4Bullet4'),
+            l10n.t('poshStudy4Bullet5'),
+            l10n.t('poshStudy4Bullet6'),
           ],
         ),
         const SizedBox(height: 14),
@@ -951,18 +951,18 @@ Complaint Details: $details
         children: [
           const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 34),
           const SizedBox(height: 10),
-          const Text(
-            'POSH Certified',
-            style: TextStyle(
+          Text(
+            AppLocalizations.of(context).t('poshCertified'),
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 26,
               fontWeight: FontWeight.w900,
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
-            'You have completed all three quiz levels and demonstrated strong POSH Act knowledge.',
-            style: TextStyle(color: Colors.white, height: 1.35),
+          Text(
+            AppLocalizations.of(context).t('poshCertifiedMessage'),
+            style: const TextStyle(color: Colors.white, height: 1.35),
           ),
           const SizedBox(height: 14),
           Container(
@@ -976,21 +976,23 @@ Complaint Details: $details
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Certificate details',
-                  style: TextStyle(
+                Text(
+                  AppLocalizations.of(context).t('certificateDetails'),
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Issued on ${issuedAt.toLocal().toString().split(".").first}',
+                  AppLocalizations.of(context)
+                      .t('issuedOn')
+                      .replaceFirst('{date}', issuedAt.toLocal().toString().split('.').first),
                   style: const TextStyle(color: Colors.white70),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Valid for: POSH Act awareness and workplace safety learning',
+                  AppLocalizations.of(context).t('validForPoshCertificate'),
                   style: TextStyle(color: colors.mutedText),
                 ),
               ],

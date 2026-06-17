@@ -22,6 +22,7 @@ import 'package:suraksha_women_safety_app/features/dashboard/safety_monitor_prov
 import 'package:suraksha_women_safety_app/features/profile/profile_display_provider.dart';
 import 'package:suraksha_women_safety_app/features/routes/route_safety_provider.dart';
 import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
+import 'package:suraksha_women_safety_app/localization/locale_provider.dart';
 import 'package:suraksha_women_safety_app/widgets/premium_dialog.dart';
 
 final _manualSosLaunchingProvider = StateProvider<bool>((ref) => false);
@@ -119,6 +120,17 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final screenWidth = MediaQuery.of(context).size.width;
     final cardWidth = (screenWidth - 68) / 2;
+    ref.watch(appLocaleProvider);
+    ref.listen(appLocaleProvider, (previous, next) {
+      if (previous?.languageCode == next.languageCode) return;
+      final nearbyState = ref.read(nearbyPlacesProvider);
+      final activeType = nearbyState.activeType;
+      if (activeType != null && nearbyState.places.isNotEmpty) {
+        unawaited(
+          ref.read(nearbyPlacesProvider.notifier).fetchNearby(activeType),
+        );
+      }
+    });
 
     return Scaffold(
       body: Stack(
@@ -200,12 +212,12 @@ class DashboardScreen extends ConsumerWidget {
     final isLight = Theme.of(context).brightness == Brightness.light;
     final user = ref.watch(authProvider).user;
     final profileDisplay = ref.watch(profileDisplayProvider);
-    final greetingPrefix = _greetingPrefix(context);
+    final greetingPrefix = AppLocalizations.of(context).t('greetingHello');
     final displayName = profileDisplay.name.trim().isNotEmpty
         ? profileDisplay.name.trim()
         : (user?.name ?? '').trim().isNotEmpty
         ? (user?.name ?? '').trim()
-        : 'User';
+        : l10n.t('userFallback');
     final localPhotoPath = profileDisplay.photoPath;
     final hasLocalPhoto =
         localPhotoPath.isNotEmpty && File(localPhotoPath).existsSync();
@@ -254,9 +266,9 @@ class DashboardScreen extends ConsumerWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Suraksha',
-                style: TextStyle(
+              Text(
+                l10n.t('appTitle'),
+                style: const TextStyle(
                   fontSize: 13,
                   letterSpacing: 1.2,
                   color: AppTheme.textSecondary,
@@ -1018,14 +1030,7 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   String _greetingPrefix(BuildContext context) {
-    switch (Localizations.localeOf(context).languageCode) {
-      case 'hi':
-        return 'नमस्ते';
-      case 'mr':
-        return 'नमस्कार';
-      default:
-        return 'Hello';
-    }
+    return AppLocalizations.of(context).t('greetingHello');
   }
 
   IconData _iconForCommunityAlert(CommunityAlertKind kind) {
@@ -1076,6 +1081,7 @@ class DashboardScreen extends ConsumerWidget {
 
   Widget _buildPoliceNumberCard(BuildContext context) {
     final isLight = Theme.of(context).brightness == Brightness.light;
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1121,7 +1127,7 @@ class DashboardScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Police Emergency',
+                  l10n.t('policeEmergency'),
                   style: TextStyle(
                     color: isLight ? const Color(0xFF172235) : Colors.white,
                     fontWeight: FontWeight.w600,
@@ -1374,8 +1380,10 @@ class DashboardScreen extends ConsumerWidget {
                     const SizedBox(height: 2),
                     Text(
                       nearbyState.places.isNotEmpty
-                          ? '${nearbyState.places.length} nearby results'
-                          : 'Choose a service to scan your area',
+                        ? l10n
+                          .t('nearbyResultsCount')
+                          .replaceFirst('{count}', nearbyState.places.length.toString())
+                        : l10n.t('chooseServiceToScanYourArea'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -1779,7 +1787,9 @@ class DashboardScreen extends ConsumerWidget {
                         _nearbyChip(
                           context: context,
                           icon: Icons.route_rounded,
-                          label: place.distanceText,
+                          label: place.distanceTextFor(
+                            Localizations.localeOf(context).languageCode,
+                          ),
                           color: const Color(0xFF3B82F6),
                         ),
                         _nearbyChip(
@@ -1892,7 +1902,8 @@ class _PoppingActionCardState extends State<_PoppingActionCard> {
         : Colors.white.withValues(alpha: 0.66);
     final scale = _pressed ? 0.96 : (_popped ? 1.07 : 1.0);
     final lift = _popped ? -5.0 : (_pressed ? 2.0 : 0.0);
-    final compact = widget.width < 176;
+    final safeWidth = widget.width.clamp(0.0, double.infinity);
+    final compact = safeWidth < 176;
     final horizontalPadding = compact ? 12.0 : 16.0;
     final iconBoxSize = compact ? 42.0 : 46.0;
     final labelFontSize = compact ? 13.5 : 15.0;
@@ -1922,7 +1933,7 @@ class _PoppingActionCardState extends State<_PoppingActionCard> {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 190),
             curve: Curves.easeOutCubic,
-            width: widget.width,
+            width: safeWidth,
             padding: EdgeInsets.symmetric(
               horizontal: horizontalPadding,
               vertical: 16,

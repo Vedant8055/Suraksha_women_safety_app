@@ -9,6 +9,7 @@ import 'package:suraksha_women_safety_app/constants/api_constants.dart';
 import 'package:suraksha_women_safety_app/core/network/dio_client.dart';
 import 'package:suraksha_women_safety_app/theme/app_theme.dart';
 import 'package:suraksha_women_safety_app/widgets/save_feedback_dialog.dart';
+import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
 
 class CyberCrimeScreen extends StatefulWidget {
   const CyberCrimeScreen({super.key});
@@ -27,15 +28,15 @@ class _CyberCrimeScreenState extends State<CyberCrimeScreen> {
       length: 5,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Cyber Crime Protection'),
-          bottom: const TabBar(
+          title: Text(AppLocalizations.of(context).t('cyberCrimeProtection')), 
+          bottom: TabBar(
             isScrollable: true,
             tabs: [
-              Tab(icon: Icon(Icons.psychology_rounded), text: 'AI Assist'),
-              Tab(icon: Icon(Icons.assignment_rounded), text: 'Report'),
-              Tab(icon: Icon(Icons.lock_rounded), text: 'Vault'),
-              Tab(icon: Icon(Icons.school_rounded), text: 'Learn'),
-              Tab(icon: Icon(Icons.warning_rounded), text: 'Deepfake'),
+              Tab(icon: Icon(Icons.psychology_rounded), text: AppLocalizations.of(context).t('aiAssist')),
+              Tab(icon: Icon(Icons.assignment_rounded), text: AppLocalizations.of(context).t('report')),
+              Tab(icon: Icon(Icons.lock_rounded), text: AppLocalizations.of(context).t('vault')),
+              Tab(icon: Icon(Icons.school_rounded), text: AppLocalizations.of(context).t('learn')),
+              Tab(icon: Icon(Icons.warning_rounded), text: AppLocalizations.of(context).t('deepfake')),
             ],
           ),
         ),
@@ -258,9 +259,8 @@ class _CyberAssistantTabState extends State<_CyberAssistantTab> {
     return _CyberScroll(
       children: [
         _SectionHeader(
-          title: 'AI Scam & Fraud Detection Assistant',
-          subtitle:
-              'Paste suspicious messages, links, chats or questions. Attach screenshots as evidence context.',
+          title: AppLocalizations.of(context).t('aiScamFraudAssistantTitle'),
+          subtitle: AppLocalizations.of(context).t('pasteEvidenceContext'),
           icon: Icons.psychology_rounded,
           color: const Color(0xFF8E7CF4),
         ),
@@ -269,20 +269,20 @@ class _CyberAssistantTabState extends State<_CyberAssistantTab> {
             children: [
               _MultilineInput(
                 controller: _messageController,
-                label: 'Suspicious message, email or chat',
-                hint: 'Paste the full message here...',
+                label: AppLocalizations.of(context).t('suspiciousMessageLabel'),
+                hint: AppLocalizations.of(context).t('pasteFullMessageHereHint'),
               ),
               const SizedBox(height: 12),
               _TextInput(
                 controller: _linkController,
-                label: 'Suspicious links',
-                hint: 'https://example.com, bit.ly/...',
+                label: AppLocalizations.of(context).t('suspiciousLinksLabel'),
+                hint: AppLocalizations.of(context).t('urlHint'),
               ),
               const SizedBox(height: 12),
               _TextInput(
                 controller: _questionController,
-                label: 'Ask a question',
-                hint: 'Is this a scam? Is this profile fake?',
+                label: AppLocalizations.of(context).t('askQuestionLabel'),
+                hint: AppLocalizations.of(context).t('scamQuestionHint'),
               ),
               const SizedBox(height: 12),
               Row(
@@ -309,7 +309,7 @@ class _CyberAssistantTabState extends State<_CyberAssistantTab> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.security_rounded),
-                    label: const Text('Analyze'),
+                      label: Text(AppLocalizations.of(context).t('analyze')),
                   ),
                 ],
               ),
@@ -449,7 +449,7 @@ class _CyberReportTabState extends State<_CyberReportTab> {
         _lastReport = report;
         _step = 3;
       });
-      _showSnack(context, draft ? 'Draft saved online.' : 'Report generated.');
+      _showSnack(context, draft ? AppLocalizations.of(context).t('draftSavedOnline') : AppLocalizations.of(context).t('reportGenerated'));
     } on DioException catch (error) {
       await _saveDraft();
       if (!mounted) return;
@@ -464,12 +464,17 @@ class _CyberReportTabState extends State<_CyberReportTab> {
     return _CyberScroll(
       children: [
         _SectionHeader(
-          title: 'One-Tap Cyber Crime Reporting',
-          subtitle: 'Create a structured complaint with evidence and export-ready FIR-style text.',
+          title: AppLocalizations.of(context).t('report'),
+          subtitle: AppLocalizations.of(context).t('reportGenerated'),
           icon: Icons.assignment_rounded,
           color: const Color(0xFF3B82F6),
         ),
-        StepProgress(current: _step, labels: const ['Type', 'Details', 'Evidence', 'Summary']),
+        StepProgress(current: _step, labels: [
+          AppLocalizations.of(context).t('selectIncidentType'),
+          AppLocalizations.of(context).t('incidentDescription'),
+          AppLocalizations.of(context).t('attachScreenshotsOrProof'),
+          AppLocalizations.of(context).t('summary'),
+        ]),
         const SizedBox(height: 14),
         if (_step == 0) _buildTypeStep(),
         if (_step == 1) _buildDetailsStep(),
@@ -517,20 +522,20 @@ class _CyberReportTabState extends State<_CyberReportTab> {
           const SizedBox(height: 12),
           _TextInput(
             controller: _suspectController,
-            label: 'Phone/email/profile link',
-            hint: 'Suspect contact or profile URL',
+            label: AppLocalizations.of(context).t('suspectContactLabel'),
+            hint: AppLocalizations.of(context).t('suspectContactHint'),
           ),
           const SizedBox(height: 12),
           _TextInput(
             controller: _transactionController,
-            label: 'Transaction ID',
-            hint: 'UPI/ref no. if financial fraud',
+            label: AppLocalizations.of(context).t('transactionIdLabel'),
+            hint: AppLocalizations.of(context).t('transactionIdHint'),
           ),
           const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: _pickDateTime,
             icon: const Icon(Icons.event_rounded),
-            label: Text('Incident time: ${_incidentAt.toLocal()}'.split('.').first),
+            label: Text(AppLocalizations.of(context).t('incidentTime').replaceFirst('{time}', _incidentAt.toLocal().toString().split('.').first)),
           ),
           const SizedBox(height: 16),
           _WizardButtons(
@@ -548,15 +553,15 @@ class _CyberReportTabState extends State<_CyberReportTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _CardTitle('Attach screenshots or transaction proof'),
+          _CardTitle(AppLocalizations.of(context).t('attachScreenshotsOrProof')),
           OutlinedButton.icon(
             onPressed: _pickEvidence,
             icon: const Icon(Icons.upload_file_rounded),
-            label: const Text('Upload screenshots'),
+            label: Text(AppLocalizations.of(context).t('attachScreenshot')),
           ),
           const SizedBox(height: 8),
           if (_evidence.isEmpty)
-            const Text('No files selected yet.', style: TextStyle(color: Colors.white60))
+            Text(AppLocalizations.of(context).t('noFilesSelectedYet'), style: const TextStyle(color: Colors.white60))
           else
             ..._evidence.asMap().entries.map(
                   (entry) => ListTile(
@@ -575,11 +580,11 @@ class _CyberReportTabState extends State<_CyberReportTab> {
                   ),
                 ),
           const SizedBox(height: 16),
-          _WizardButtons(
+            _WizardButtons(
             onBack: () => setState(() => _step = 1),
             onNext: () => _submit(draft: false),
             onDraft: () => _submit(draft: true),
-            nextLabel: _isSubmitting ? 'Submitting...' : 'Generate',
+            nextLabel: _isSubmitting ? AppLocalizations.of(context).t('submitting') : AppLocalizations.of(context).t('generate'),
           ),
         ],
       ),
@@ -592,9 +597,9 @@ class _CyberReportTabState extends State<_CyberReportTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _CardTitle('Generated complaint'),
+          _CardTitle(AppLocalizations.of(context).t('generatedComplaint')),
           Text(
-            report?.firStyleReport ?? 'Report summary unavailable.',
+            report?.firStyleReport ?? AppLocalizations.of(context).t('reportSummaryUnavailable'),
             style: const TextStyle(color: Colors.white70, height: 1.35),
           ),
           const SizedBox(height: 14),
@@ -606,10 +611,10 @@ class _CyberReportTabState extends State<_CyberReportTab> {
                       ? null
                       : () => _showSnack(
                             context,
-                            'PDF payload generated. Export integration can save/share it from backend response.',
+                            AppLocalizations.of(context).t('pdfPayloadGenerated'),
                           ),
                   icon: const Icon(Icons.picture_as_pdf_rounded),
-                  label: const Text('PDF ready'),
+                  label: Text(AppLocalizations.of(context).t('pdfReady')),
                 ),
               ),
               const SizedBox(width: 10),
@@ -617,7 +622,7 @@ class _CyberReportTabState extends State<_CyberReportTab> {
                 child: ElevatedButton.icon(
                   onPressed: () => setState(() => _step = 0),
                   icon: const Icon(Icons.add_rounded),
-                  label: const Text('New report'),
+                  label: Text(AppLocalizations.of(context).t('newReport')),
                 ),
               ),
             ],
@@ -737,13 +742,13 @@ class _EvidenceVaultTabState extends State<_EvidenceVaultTab> {
             children: [
               _TextInput(
                 controller: _titleController,
-                label: 'Evidence title',
-                hint: 'Threat screenshot, UPI proof...',
+                label: AppLocalizations.of(context).t('evidenceTitleLabel'),
+                hint: AppLocalizations.of(context).t('evidenceTitleHint'),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: _category,
-                decoration: _inputDecoration('Category'),
+                decoration: _inputDecoration(AppLocalizations.of(context).t('category')),
                 items: _categories
                     .where((item) => item != 'All')
                     .map((item) => DropdownMenuItem(value: item, child: Text(item)))
@@ -759,10 +764,10 @@ class _EvidenceVaultTabState extends State<_EvidenceVaultTab> {
                 ),
                 child: Row(
                   children: [
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'Private',
-                        style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
+                        AppLocalizations.of(context).t('private'),
+                        style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
                       ),
                     ),
                     Switch(
@@ -775,8 +780,8 @@ class _EvidenceVaultTabState extends State<_EvidenceVaultTab> {
               const SizedBox(height: 12),
               _TextInput(
                 controller: _tagController,
-                label: 'Tags',
-                hint: 'blackmail, instagram, payment',
+                label: AppLocalizations.of(context).t('tags'),
+                hint: AppLocalizations.of(context).t('tagsHint'),
               ),
               const SizedBox(height: 12),
               ElevatedButton.icon(
@@ -784,7 +789,7 @@ class _EvidenceVaultTabState extends State<_EvidenceVaultTab> {
                 icon: _isUploading
                     ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(Icons.upload_rounded),
-                label: const Text('Upload encrypted evidence'),
+                label: Text(AppLocalizations.of(context).t('uploadEncryptedEvidence')),
               ),
             ],
           ),
@@ -892,7 +897,9 @@ class _LearningHubTabState extends State<_LearningHubTab> {
               LinearProgressIndicator(value: progress),
               const SizedBox(height: 8),
               Text(
-                '${(progress * 100).round()}% complete | Badge: ${progress >= 1 ? 'Cyber Defender' : 'Cyber Learner'}',
+                AppLocalizations.of(context).t('progressBadge')
+                    .replaceFirst('{percent}', '${(progress * 100).round()}')
+                    .replaceFirst('{badge}', AppLocalizations.of(context).t(progress >= 1 ? 'cyberDefender' : 'cyberLearner')),
                 style: const TextStyle(color: Colors.white70),
               ),
             ],
@@ -925,7 +932,7 @@ class _LearningHubTabState extends State<_LearningHubTab> {
                   ElevatedButton.icon(
                     onPressed: () => _completeQuiz(topic),
                     icon: const Icon(Icons.quiz_rounded),
-                    label: const Text('Take quiz'),
+                    label: Text(AppLocalizations.of(context).t('takeQuiz')),
                   ),
                 ],
               ),
@@ -965,15 +972,14 @@ class _DeepfakeSupportTabState extends State<_DeepfakeSupportTab> {
   Widget build(BuildContext context) {
     return _CyberScroll(
       children: [
-        _SectionHeader(
+                _SectionHeader(
           title: _resources.title,
-          subtitle: 'Awareness, emergency response, legal guidance and helpline access.',
+          subtitle: AppLocalizations.of(context).t('deepfakeSubtitle'),
           icon: Icons.warning_rounded,
           color: const Color(0xFFE53935),
         ),
         _WarningBanner(
-          text:
-              'If someone threatens to leak morphed/private media, do not pay or negotiate. Preserve evidence and report quickly.',
+          text: AppLocalizations.of(context).t('deepfakeWarning'),
         ),
         ..._resources.sections.map(
           (section) => _CyberCard(
@@ -990,15 +996,15 @@ class _DeepfakeSupportTabState extends State<_DeepfakeSupportTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const _CardTitle('Emergency actions'),
+              _CardTitle(AppLocalizations.of(context).t('emergencyActions')),
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
                 children: [
-                  _ActionButton(label: 'Call 1930', icon: Icons.call, onTap: () => _dial('1930')),
-                  _ActionButton(label: 'Police 100', icon: Icons.local_police_rounded, onTap: () => _dial('100')),
+                  _ActionButton(label: AppLocalizations.of(context).t('call1930'), icon: Icons.call, onTap: () => _dial('1930')),
+                  _ActionButton(label: AppLocalizations.of(context).t('police100'), icon: Icons.local_police_rounded, onTap: () => _dial('100')),
                   _ActionButton(
-                    label: 'Cyber Portal',
+                    label: AppLocalizations.of(context).t('cyberPortal'),
                     icon: Icons.open_in_new_rounded,
                     onTap: () => _openLink('https://cybercrime.gov.in'),
                   ),
@@ -1053,10 +1059,10 @@ class _CyberReportResult {
   factory _CyberReportResult.fromJson(Map<String, dynamic> json) {
     return _CyberReportResult(
       id: (json['_id'] ?? json['id'] ?? '').toString(),
-      firStyleReport:
+        firStyleReport:
           json['firStyleReport']?.toString() ??
           json['complaintSummary']?.toString() ??
-          'Complaint generated.',
+          'Report generated.',
       pdfBase64: json['pdfBase64']?.toString(),
     );
   }
@@ -1471,7 +1477,7 @@ class _WizardButtons extends StatelessWidget {
           child: OutlinedButton.icon(
             onPressed: onDraft,
             icon: const Icon(Icons.save_rounded),
-            label: const Text('Save draft'),
+            label: Text(AppLocalizations.of(context).t('saveDraft')),
           ),
         ),
         const SizedBox(width: 10),
@@ -1499,7 +1505,7 @@ class _NextButton extends StatelessWidget {
       child: ElevatedButton.icon(
         onPressed: onPressed,
         icon: const Icon(Icons.arrow_forward_rounded),
-        label: const Text('Continue'),
+        label: Text(AppLocalizations.of(context).t('continueLabel')),
       ),
     );
   }
@@ -1583,7 +1589,7 @@ class _QuizDialogState extends State<_QuizDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(AppLocalizations.of(context).t('cancel'))),
         ElevatedButton(
           onPressed: () {
             var correct = 0;
@@ -1593,7 +1599,7 @@ class _QuizDialogState extends State<_QuizDialog> {
             final total = widget.topic.quiz.isEmpty ? 1 : widget.topic.quiz.length;
             Navigator.pop(context, ((correct / total) * 100).round());
           },
-          child: const Text('Finish'),
+          child: Text(AppLocalizations.of(context).t('finish')),
         ),
       ],
     );

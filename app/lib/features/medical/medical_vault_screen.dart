@@ -8,6 +8,7 @@ import 'package:suraksha_women_safety_app/constants/api_constants.dart';
 import 'package:suraksha_women_safety_app/core/network/dio_client.dart';
 import 'package:suraksha_women_safety_app/theme/app_theme.dart';
 import 'package:suraksha_women_safety_app/widgets/save_feedback_dialog.dart';
+import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
 
 class MedicalVaultScreen extends StatefulWidget {
   const MedicalVaultScreen({super.key});
@@ -119,7 +120,7 @@ class _MedicalVaultScreenState extends State<MedicalVaultScreen> {
     final isLight = Theme.of(context).brightness == Brightness.light;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Medical Health Vault'),
+        title: Text(AppLocalizations.of(context).t('medicalHealthVault')),
         flexibleSpace: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -151,28 +152,28 @@ class _MedicalVaultScreenState extends State<MedicalVaultScreen> {
               FadeInDown(child: _buildEmergencyQR()),
               const SizedBox(height: 20),
               _buildMedicalSection(
-                'Blood Group',
+                AppLocalizations.of(context).t('bloodGroup'),
                 _bloodGroup,
                 Icons.bloodtype_rounded,
                 const Color(0xFFE53935),
               ),
               const SizedBox(height: 14),
               _buildMedicalSection(
-                'Allergies',
+                AppLocalizations.of(context).t('allergies'),
                 _allergies,
                 Icons.warning_amber_rounded,
                 const Color(0xFFF3B13E),
               ),
               const SizedBox(height: 14),
               _buildMedicalSection(
-                'Medical Conditions',
+                AppLocalizations.of(context).t('medicalConditions'),
                 _medicalConditions,
                 Icons.medical_information_rounded,
                 const Color(0xFF3B82F6),
               ),
               const SizedBox(height: 14),
               _buildMedicalSection(
-                'Current Medications',
+                AppLocalizations.of(context).t('currentMedications'),
                 _medications,
                 Icons.medication_rounded,
                 const Color(0xFF2ED6C5),
@@ -183,7 +184,7 @@ class _MedicalVaultScreenState extends State<MedicalVaultScreen> {
                 child: ElevatedButton.icon(
                   onPressed: _isSaving ? null : _showEditMedicalDialog,
                   icon: const Icon(Icons.edit_rounded),
-                  label: const Text('EDIT MEDICAL PROFILE'),
+                  label: Text(AppLocalizations.of(context).t('editMedicalProfile')),
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 55),
                   ),
@@ -247,7 +248,7 @@ class _MedicalVaultScreenState extends State<MedicalVaultScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Medical Vault',
+                  AppLocalizations.of(context).t('medicalHealthVault'),
                   style: TextStyle(
                     color: textColor,
                     fontSize: 21,
@@ -256,7 +257,8 @@ class _MedicalVaultScreenState extends State<MedicalVaultScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Keep emergency medical information beautifully organized for quick use.',
+                  AppLocalizations.of(context)
+                      .t('keepEmergencyMedicalInformationOrganized'),
                   style: TextStyle(
                     color: mutedColor,
                     height: 1.35,
@@ -299,7 +301,7 @@ class _MedicalVaultScreenState extends State<MedicalVaultScreen> {
       child: Column(
         children: [
           Text(
-            'Emergency Medical ID',
+            AppLocalizations.of(context).t('emergencyMedicalId'),
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w900,
@@ -326,7 +328,7 @@ class _MedicalVaultScreenState extends State<MedicalVaultScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Scan in case of medical emergency',
+            AppLocalizations.of(context).t('scanInCaseOfMedicalEmergency'),
             style: TextStyle(
               color: isLight ? const Color(0xFF5F6F8A) : Colors.white70,
               fontSize: 12,
@@ -394,7 +396,9 @@ class _MedicalVaultScreenState extends State<MedicalVaultScreen> {
                   ),
                 ),
                 Text(
-                  value.trim().isEmpty ? 'Not provided' : value,
+                  value.trim().isEmpty
+                      ? AppLocalizations.of(context).t('notProvided')
+                      : value,
                   style: TextStyle(
                     color: isLight ? const Color(0xFF172235) : Colors.white,
                     fontSize: 16,
@@ -421,29 +425,33 @@ class _MedicalVaultScreenState extends State<MedicalVaultScreen> {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Edit Medical Profile'),
+        title: Text(AppLocalizations.of(context).t('editMedicalProfile')),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: bloodController,
-                decoration: const InputDecoration(labelText: 'Blood Group'),
+                decoration: InputDecoration(
+                    labelText: AppLocalizations.of(context).t('bloodGroup')),
               ),
               TextField(
                 controller: allergiesController,
-                decoration: const InputDecoration(labelText: 'Allergies'),
+                decoration: InputDecoration(
+                    labelText: AppLocalizations.of(context).t('allergies')),
               ),
               TextField(
                 controller: conditionsController,
-                decoration: const InputDecoration(
-                  labelText: 'Medical Conditions',
+                decoration: InputDecoration(
+                  labelText:
+                      AppLocalizations.of(context).t('medicalConditions'),
                 ),
               ),
               TextField(
                 controller: medsController,
-                decoration: const InputDecoration(
-                  labelText: 'Current Medications',
+                decoration: InputDecoration(
+                  labelText:
+                      AppLocalizations.of(context).t('currentMedications'),
                 ),
               ),
             ],
@@ -452,7 +460,7 @@ class _MedicalVaultScreenState extends State<MedicalVaultScreen> {
         actions: [
           TextButton(
             onPressed: () => navigator.pop(),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context).t('cancel')),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -464,7 +472,7 @@ class _MedicalVaultScreenState extends State<MedicalVaultScreen> {
               );
               if (mounted) navigator.pop();
             },
-            child: const Text('Save'),
+            child: Text(AppLocalizations.of(context).t('save')),
           ),
         ],
       ),
@@ -495,8 +503,8 @@ class _MedicalVaultScreenState extends State<MedicalVaultScreen> {
       });
       await showSaveSuccessDialog(
         context,
-        title: 'Medical profile saved',
-        message: 'Your medical details are ready for emergency use.',
+        title: AppLocalizations.of(context).t('medicalProfileSaved'),
+        message: AppLocalizations.of(context).t('medicalDetailsReady'),
       );
       unawaited(
         _syncMedicalProfileToServer(
@@ -509,7 +517,9 @@ class _MedicalVaultScreenState extends State<MedicalVaultScreen> {
     } on DioException {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Saved locally on this device.')),
+          SnackBar(
+              content: Text(
+                  AppLocalizations.of(context).t('savedLocallyOnThisDevice'))),
         );
       }
     } finally {
@@ -536,7 +546,9 @@ class _MedicalVaultScreenState extends State<MedicalVaultScreen> {
     } on DioException {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Medical profile saved locally. Sync will retry later.')),
+          SnackBar(
+              content: Text(AppLocalizations.of(context)
+                  .t('medicalProfileSavedLocallySyncRetryLater'))),
         );
       }
     } catch (_) {

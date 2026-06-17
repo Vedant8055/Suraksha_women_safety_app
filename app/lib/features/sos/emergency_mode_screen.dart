@@ -4,6 +4,7 @@ import 'package:suraksha_women_safety_app/features/sos/sos_provider.dart';
 import 'package:suraksha_women_safety_app/features/profile/emergency_contacts_provider.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:suraksha_women_safety_app/widgets/premium_dialog.dart';
+import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
 
 class EmergencyModeScreen extends ConsumerStatefulWidget {
   const EmergencyModeScreen({super.key});
@@ -33,8 +34,8 @@ class _EmergencyModeScreenState extends ConsumerState<EmergencyModeScreen> {
     showDialog(
       context: context,
       builder: (dialogContext) => PremiumDialogSurface(
-        title: 'Emergency Contacts Informed',
-        message: 'Live location has been shared with:',
+        title: AppLocalizations.of(dialogContext).t('emergencyContactsInformed'),
+        message: AppLocalizations.of(dialogContext).t('liveLocationSharedWith'),
         icon: Icons.groups_rounded,
         accentColor: const Color(0xFFE53935),
         actions: [
@@ -58,7 +59,7 @@ class _EmergencyModeScreenState extends ConsumerState<EmergencyModeScreen> {
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
-            child: const Text('OK'),
+            child: Text(AppLocalizations.of(dialogContext).t('ok')),
           ),
         ],
         child: ConstrainedBox(
@@ -146,24 +147,24 @@ class _EmergencyModeScreenState extends ConsumerState<EmergencyModeScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              const Text(
-                'EMERGENCY MODE ACTIVE',
-                style: TextStyle(
+              Text(
+                AppLocalizations.of(context).t('emergencyModeActive'),
+                style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Help is on the way. Your live location is being shared.',
+              Text(
+                AppLocalizations.of(context).t('helpOnTheWay'),
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.white70),
+                style: const TextStyle(fontSize: 16, color: Colors.white70),
               ),
               const Spacer(),
-              _buildInfoCard('Current Location', locationText),
+                  _buildInfoCard(AppLocalizations.of(context).t('currentLocation'), locationText),
               const SizedBox(height: 16),
-              _buildInfoCard('Status', statusText),
+              _buildInfoCard(AppLocalizations.of(context).t('status'), statusText),
               const Spacer(),
               SizedBox(
                 width: double.infinity,
@@ -177,7 +178,7 @@ class _EmergencyModeScreenState extends ConsumerState<EmergencyModeScreen> {
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.red.shade900,
                   ),
-                  child: const Text('I AM SAFE - CANCEL SOS'),
+                  child: Text(AppLocalizations.of(context).t('iAmSafeCancelSos')),
                 ),
               ),
               const SizedBox(height: 20),

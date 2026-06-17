@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
 import 'package:suraksha_women_safety_app/theme/app_theme.dart';
 
 class LiveSafetyControlsSheet extends StatelessWidget {
@@ -57,14 +58,14 @@ class LiveSafetyControlsSheet extends StatelessWidget {
                     children: [
                       const Icon(Icons.shield, color: AppTheme.primaryColor, size: 18),
                       const SizedBox(width: 8),
-                      const Text(
-                        'Live Safety Map',
-                        style: TextStyle(fontWeight: FontWeight.w700),
+                      Text(
+                        AppLocalizations.of(context).t('liveSafetyMapTitle'),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                       const Spacer(),
                       Text(
                         position == null
-                            ? 'Locating...'
+                            ? AppLocalizations.of(context).t('locating')
                             : '${position!.latitude.toStringAsFixed(4)}, ${position!.longitude.toStringAsFixed(4)}',
                         style: const TextStyle(fontSize: 11, color: Colors.white70),
                       ),
@@ -84,7 +85,7 @@ class LiveSafetyControlsSheet extends StatelessWidget {
                         child: OutlinedButton.icon(
                           onPressed: onMyLocation,
                           icon: const Icon(Icons.my_location, size: 16),
-                          label: const Text('My Location'),
+                          label: Text(AppLocalizations.of(context).t('myLocation')),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -92,7 +93,7 @@ class LiveSafetyControlsSheet extends StatelessWidget {
                         child: OutlinedButton.icon(
                           onPressed: onRefreshNearby,
                           icon: const Icon(Icons.local_police, size: 16),
-                          label: const Text('Refresh Nearby'),
+                          label: Text(AppLocalizations.of(context).t('refreshNearby')),
                         ),
                       ),
                     ],
@@ -103,7 +104,7 @@ class LiveSafetyControlsSheet extends StatelessWidget {
                     child: OutlinedButton.icon(
                       onPressed: onRetryLiveLocation,
                       icon: const Icon(Icons.gps_fixed, size: 16),
-                      label: const Text('Retry Live Location'),
+                      label: Text(AppLocalizations.of(context).t('retryLiveLocation')),
                     ),
                   ),
                 ],

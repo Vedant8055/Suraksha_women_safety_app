@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:suraksha_women_safety_app/theme/app_theme.dart';
 import 'package:suraksha_women_safety_app/features/auth/auth_provider.dart';
 import 'package:animate_do/animate_do.dart';
+import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -41,21 +42,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             FadeInDown(
-              child: const Text(
-                'Welcome Back',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
+              child: Text(
+                  AppLocalizations.of(context).t('welcomeBack'),
+                  style: const TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textPrimary,
+                  ),
                 ),
-              ),
             ),
             const SizedBox(height: 8),
             FadeInDown(
               delay: const Duration(milliseconds: 200),
-              child: const Text(
-                'Sign in to continue your safety journey',
-                style: TextStyle(fontSize: 16, color: AppTheme.textSecondary),
+              child: Text(
+                AppLocalizations.of(context).t('signInToContinue'),
+                style: const TextStyle(fontSize: 16, color: AppTheme.textSecondary),
               ),
             ),
             const SizedBox(height: 48),
@@ -63,7 +64,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               delay: const Duration(milliseconds: 400),
               child: _buildTextField(
                 controller: _identifierController,
-                hint: 'Email or Phone Number',
+                hint: AppLocalizations.of(context).t('emailOrPhone'),
                 icon: Icons.person_outline,
               ),
             ),
@@ -72,7 +73,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               delay: const Duration(milliseconds: 600),
               child: _buildTextField(
                 controller: _passwordController,
-                hint: 'Password',
+                hint: AppLocalizations.of(context).t('password'),
                 icon: Icons.lock_outline,
                 isPassword: true,
               ),
@@ -100,9 +101,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 _passwordController.text,
                               );
                         },
-                  child: authState.isLoading
+                    child: authState.isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('LOGIN'),
+                      : Text(AppLocalizations.of(context).t('login')),
                 ),
               ),
             ),

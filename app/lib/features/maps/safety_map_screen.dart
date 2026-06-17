@@ -14,6 +14,7 @@ import 'package:suraksha_women_safety_app/config/app_environment.dart';
 import 'package:suraksha_women_safety_app/core/network/dio_client.dart';
 import 'package:suraksha_women_safety_app/features/maps/widgets/live_safety_controls_sheet.dart';
 import 'package:suraksha_women_safety_app/features/routes/route_safety_provider.dart';
+import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
 import 'package:suraksha_women_safety_app/theme/app_theme.dart';
 
 class SafetyMapScreen extends ConsumerStatefulWidget {
@@ -130,8 +131,7 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
       if (current == null) {
         setState(() {
           _isLoading = false;
-          _statusText =
-              'Unable to fetch location. Move near open sky and try again.';
+          _statusText = AppLocalizations.of(context).t('unableToFetchLocation');
         });
         return;
       }
@@ -141,7 +141,7 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
       setState(() {
         _position = current;
         _isLoading = false;
-        _statusText = 'Loading nearby safety points...';
+        _statusText = AppLocalizations.of(context).t('loadingNearbySafetyPoints');
       });
 
       _setOrUpdateSelfMarker(current);
@@ -152,7 +152,7 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _statusText = 'Could not fetch your location.';
+        _statusText = AppLocalizations.of(context).t('couldNotFetchYourLocation');
       });
     }
   }
@@ -249,8 +249,8 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
               _setOrUpdateSelfMarker(pos);
               _updateJourneyProgress(pos);
               _statusText = _journeyActive
-                  ? 'Journey tracking active'
-                  : 'Live tracking active';
+                  ? AppLocalizations.of(context).t('journeyTrackingActive')
+                  : AppLocalizations.of(context).t('liveTrackingActive');
             });
 
             if (_followMe && _mapController != null) {
@@ -292,7 +292,7 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
       );
       _stableEtaSeconds = _routeEtaSeconds;
       _remainingEtaSeconds = _computeStableEtaSeconds(pos);
-      _statusText = 'Journey tracking active';
+      _statusText = AppLocalizations.of(context).t('journeyTrackingActive');
     });
 
     unawaited(ref.read(routeSafetyProvider.notifier).refreshNow());
@@ -307,7 +307,7 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
       _smoothedTravelSpeedMps = null;
       _stableEtaSeconds = null;
       _lastEtaUpdateAt = null;
-      _statusText = 'Journey stopped';
+      _statusText = AppLocalizations.of(context).t('journeyStopped');
     });
     unawaited(ref.read(routeSafetyProvider.notifier).clearActiveMapRoute());
   }
@@ -540,8 +540,8 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
         );
         _markers.addAll(markers);
         if (!_journeyActive &&
-            (_statusText?.contains('Loading nearby safety points') ?? false)) {
-          _statusText = 'Live tracking active';
+            (_statusText?.contains(AppLocalizations.of(context).t('loadingNearbySafetyPoints')) ?? false)) {
+          _statusText = AppLocalizations.of(context).t('liveTrackingActive');
         }
       });
     } on DioException {
@@ -1048,14 +1048,14 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
         Marker(
           markerId: const MarkerId('custom_pin'),
           position: point,
-          infoWindow: const InfoWindow(title: 'Custom Pin'),
+          infoWindow: InfoWindow(title: AppLocalizations.of(context).t('customPin')),
           icon: BitmapDescriptor.defaultMarkerWithHue(
             BitmapDescriptor.hueOrange,
           ),
         ),
       );
     });
-    _selectDestination(point, 'Custom Pin');
+    _selectDestination(point, AppLocalizations.of(context).t('customPin'));
   }
 
   @override
@@ -1068,7 +1068,7 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
         ? 126.0
         : 244.0;
     return Scaffold(
-      appBar: AppBar(title: const Text('Safety Intelligence Map')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context).t('safetyIntelligenceMap'))),
       body: Stack(
         children: [
           if (position == null)
@@ -1345,7 +1345,7 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
                           Expanded(
                             child: Text(
                               routeDistance == null
-                                  ? 'Calculating route'
+                                  ? AppLocalizations.of(context).t('calculatingRoute')
                                   : '${_formatDistance(routeDistance)} total route',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -1419,8 +1419,8 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
                                 const SizedBox(height: 4),
                                 Text(
                                   _journeyActive
-                                      ? 'Following your route with live progress'
-                                      : 'Ready with distance and estimated travel time',
+                                      ? AppLocalizations.of(context).t('followingYourRoute')
+                                      : AppLocalizations.of(context).t('readyWithDistanceAndEstimatedTravelTime'),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
@@ -1446,7 +1446,7 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
                               ),
                               const SizedBox(height: 10),
                               _journeyActionButton(
-                                label: _journeyActive ? 'Stop' : 'Start',
+                                label: AppLocalizations.of(context).t(_journeyActive ? 'stop' : 'start'),
                                 icon: _journeyActive
                                     ? Icons.stop_rounded
                                     : Icons.play_arrow_rounded,
@@ -1492,7 +1492,7 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
                           Expanded(
                             child: Text(
                               routeDistance == null
-                                  ? 'Calculating route distance'
+                                  ? AppLocalizations.of(context).t('calculatingRouteDistance')
                                   : '${_formatDistance(routeDistance)} total route',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -1522,7 +1522,7 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
                         children: [
                           Expanded(
                             child: _journeyStat(
-                              label: 'Covered',
+                              label: AppLocalizations.of(context).t('covered'),
                               value: _formatDistance(_coveredDistanceMeters),
                               isLight: isLight,
                               icon: Icons.explore_rounded,
@@ -1532,7 +1532,7 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: _journeyStat(
-                              label: 'Remaining',
+                              label: AppLocalizations.of(context).t('remaining'),
                               value: remaining == null
                                   ? '--'
                                   : _formatDistance(remaining),
@@ -1544,7 +1544,7 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: _journeyStat(
-                              label: 'ETA',
+                              label: AppLocalizations.of(context).t('eta'),
                               value: eta == null ? '--' : _formatDuration(eta),
                               isLight: isLight,
                               icon: Icons.schedule_rounded,
@@ -1755,7 +1755,7 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'The map will open directly around you once GPS is ready.',
+                AppLocalizations.of(context).t('mapWillOpenAroundYou'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: isLight ? const Color(0xFF65758F) : Colors.white70,
@@ -1866,7 +1866,7 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
                               fontWeight: FontWeight.w600,
                             ),
                             decoration: InputDecoration(
-                              hintText: 'Search location...',
+                              hintText: AppLocalizations.of(context).t('searchLocation'),
                               hintStyle: TextStyle(
                                 color: isLight
                                     ? const Color(0xFF7E8DA6)

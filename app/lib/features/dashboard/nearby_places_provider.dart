@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:suraksha_women_safety_app/config/app_environment.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/safety_monitor_provider.dart';
+import 'package:suraksha_women_safety_app/localization/locale_provider.dart';
 
 class NearbyPlaceItem {
   final String id;
@@ -26,12 +27,27 @@ class NearbyPlaceItem {
     this.rating,
   });
 
-  String get distanceText {
+  String distanceTextFor(String languageCode) {
     if (distanceMeters < 1000) {
-      return '${distanceMeters.round()} m away';
+      final value = '${distanceMeters.round()} m';
+      return switch (_normalizeLanguageCode(languageCode)) {
+        'hi' => '$value दूर',
+        'mr' => '$value दूर',
+        _ => '$value away',
+      };
     }
-    return '${(distanceMeters / 1000).toStringAsFixed(1)} km away';
+    final value = '${(distanceMeters / 1000).toStringAsFixed(1)} km';
+    return switch (_normalizeLanguageCode(languageCode)) {
+      'hi' => '$value दूर',
+      'mr' => '$value दूर',
+      _ => '$value away',
+    };
   }
+}
+
+String _normalizeLanguageCode(String code) {
+  final normalized = code.trim().toLowerCase().split(RegExp(r'[_-]')).first;
+  return normalized == 'hi' || normalized == 'mr' ? normalized : 'en';
 }
 
 enum NearbyPlaceType { hospitals, policeStations, washrooms, bloodBanks }
@@ -101,7 +117,11 @@ class NearbyPlacesNotifier extends StateNotifier<NearbyPlacesState> {
         isLoading: false,
         activeType: type,
         places: const [],
-        error: 'Live GPS not available. Please keep location ON.',
+        error: _text(
+          en: 'Live GPS not available. Please keep location ON.',
+          hi: 'लाइव GPS उपलब्ध नहीं है। कृपया लोकेशन ON रखें।',
+          mr: 'लाइव्ह GPS उपलब्ध नाही. कृपया लोकेशन ON ठेवा.',
+        ),
       );
       return;
     }
@@ -113,7 +133,11 @@ class NearbyPlacesNotifier extends StateNotifier<NearbyPlacesState> {
         activeType: type,
         places: const [],
         error:
-            'Google Maps API key is missing. Add GOOGLE_MAPS_API_KEY in build config.',
+            _text(
+          en: 'Google Maps API key is missing. Add GOOGLE_MAPS_API_KEY in build config.',
+          hi: 'Google Maps API key उपलब्ध नहीं है। build config में GOOGLE_MAPS_API_KEY जोड़ें।',
+          mr: 'Google Maps API key उपलब्ध नाही. build config मध्ये GOOGLE_MAPS_API_KEY जोडा.',
+        ),
       );
       return;
     }
@@ -145,7 +169,11 @@ class NearbyPlacesNotifier extends StateNotifier<NearbyPlacesState> {
         if (status != 'OK' && status != 'ZERO_RESULTS') {
           state = state.copyWith(
             isLoading: false,
-            error: 'Places API error: $status',
+            error: _text(
+              en: 'Places API error: $status',
+              hi: 'Places API त्रुटि: $status',
+              mr: 'Places API त्रुटी: $status',
+            ),
           );
           return;
         }
@@ -210,7 +238,11 @@ class NearbyPlacesNotifier extends StateNotifier<NearbyPlacesState> {
       state = state.copyWith(
         isLoading: false,
         places: const [],
-        error: 'Unable to fetch nearby places right now. Please try again.',
+        error: _text(
+          en: 'Unable to fetch nearby places right now. Please try again.',
+          hi: 'अभी नज़दीकी स्थान लोड नहीं हो सके। कृपया फिर कोशिश करें।',
+          mr: 'सध्या जवळची ठिकाणे लोड झाली नाहीत. कृपया पुन्हा प्रयत्न करा.',
+        ),
       );
     }
   }
@@ -224,6 +256,7 @@ class NearbyPlacesNotifier extends StateNotifier<NearbyPlacesState> {
       'location': '${position.latitude},${position.longitude}',
       'radius': 5000,
       'key': apiKey,
+      'language': _googlePlacesLanguageCode(),
     };
 
     if (type == NearbyPlaceType.hospitals) {
@@ -267,5 +300,21 @@ class NearbyPlacesNotifier extends StateNotifier<NearbyPlacesState> {
     return washroomKeywords
         .map((keyword) => {...base, 'keyword': keyword})
         .toList();
+  }
+
+  String _googlePlacesLanguageCode() {
+    return _normalizeLanguageCode(_ref.read(appLocaleProvider).languageCode);
+  }
+
+  String _text({
+    required String en,
+    required String hi,
+    required String mr,
+  }) {
+    return switch (_normalizeLanguageCode(_ref.read(appLocaleProvider).languageCode)) {
+      'hi' => hi,
+      'mr' => mr,
+      _ => en,
+    };
   }
 }
