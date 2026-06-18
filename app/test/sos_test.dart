@@ -13,11 +13,11 @@ void main() {
       expect(notifier.state.currentPosition, null);
     });
 
-    test('cancelSOS should set isActive to false', () {
+    test('cancelSOS should set isActive to false', () async {
       final notifier = SOSNotifier.test(userId: 'user_123', token: 'token_123');
       addTearDown(notifier.dispose);
 
-      notifier.cancelSOS();
+      await notifier.cancelSOS();
       expect(notifier.state.isActive, false);
     });
   });

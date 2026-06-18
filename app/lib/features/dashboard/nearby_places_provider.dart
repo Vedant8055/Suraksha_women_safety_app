@@ -50,7 +50,13 @@ String _normalizeLanguageCode(String code) {
   return normalized == 'hi' || normalized == 'mr' ? normalized : 'en';
 }
 
-enum NearbyPlaceType { hospitals, policeStations, washrooms, bloodBanks }
+enum NearbyPlaceType {
+  hospitals,
+  policeStations,
+  pharmacies,
+  washrooms,
+  bloodBanks,
+}
 
 class NearbyPlacesState {
   final bool isLoading;
@@ -132,8 +138,7 @@ class NearbyPlacesNotifier extends StateNotifier<NearbyPlacesState> {
         isLoading: false,
         activeType: type,
         places: const [],
-        error:
-            _text(
+        error: _text(
           en: 'Google Maps API key is missing. Add GOOGLE_MAPS_API_KEY in build config.',
           hi: 'Google Maps API key उपलब्ध नहीं है। build config में GOOGLE_MAPS_API_KEY जोड़ें।',
           mr: 'Google Maps API key उपलब्ध नाही. build config मध्ये GOOGLE_MAPS_API_KEY जोडा.',
@@ -271,6 +276,24 @@ class NearbyPlacesNotifier extends StateNotifier<NearbyPlacesState> {
       ];
     }
 
+    if (type == NearbyPlaceType.pharmacies) {
+      const pharmacyKeywords = [
+        'medical store',
+        'medical shop',
+        'medical hall',
+        'chemist',
+        'pharmacy',
+        'drug store',
+        'drugstore',
+        'medicals',
+      ];
+
+      return [
+        {...base, 'type': 'pharmacy'},
+        ...pharmacyKeywords.map((keyword) => {...base, 'keyword': keyword}),
+      ];
+    }
+
     if (type == NearbyPlaceType.bloodBanks) {
       const bloodBankKeywords = [
         'blood bank',
@@ -306,12 +329,10 @@ class NearbyPlacesNotifier extends StateNotifier<NearbyPlacesState> {
     return _normalizeLanguageCode(_ref.read(appLocaleProvider).languageCode);
   }
 
-  String _text({
-    required String en,
-    required String hi,
-    required String mr,
-  }) {
-    return switch (_normalizeLanguageCode(_ref.read(appLocaleProvider).languageCode)) {
+  String _text({required String en, required String hi, required String mr}) {
+    return switch (_normalizeLanguageCode(
+      _ref.read(appLocaleProvider).languageCode,
+    )) {
       'hi' => hi,
       'mr' => mr,
       _ => en,

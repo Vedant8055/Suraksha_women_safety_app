@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:suraksha_women_safety_app/theme/app_theme.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -120,6 +121,7 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final screenWidth = MediaQuery.of(context).size.width;
     final cardWidth = (screenWidth - 68) / 2;
+    final safetyState = ref.watch(safetyMonitorProvider);
     ref.watch(appLocaleProvider);
     ref.listen(appLocaleProvider, (previous, next) {
       if (previous?.languageCode == next.languageCode) return;
@@ -131,6 +133,10 @@ class DashboardScreen extends ConsumerWidget {
         );
       }
     });
+
+    if (!safetyState.gpsEnabled || !safetyState.permissionGranted) {
+      return _buildLocationRequiredScreen(context, ref, safetyState);
+    }
 
     return Scaffold(
       body: Stack(
@@ -1020,18 +1026,11 @@ class DashboardScreen extends ConsumerWidget {
       ),
     );
 
-    return shouldEmphasizeRefresh && !alertsState.isLoading
-        ? Pulse(
-            infinite: true,
-            duration: const Duration(milliseconds: 1200),
-            child: button,
-          )
-        : button;
+    // Show a simple refresh button; avoid distracting infinite animations.
+    return button;
   }
 
-  String _greetingPrefix(BuildContext context) {
-    return AppLocalizations.of(context).t('greetingHello');
-  }
+  // Removed unused _greetingPrefix to satisfy analyzer (unused element).
 
   IconData _iconForCommunityAlert(CommunityAlertKind kind) {
     switch (kind) {
@@ -1077,6 +1076,109 @@ class DashboardScreen extends ConsumerWidget {
         ),
       );
     }
+  }
+
+  Widget _buildLocationRequiredScreen(
+    BuildContext context,
+    WidgetRef ref,
+    SafetyMonitorState safetyState,
+  ) {
+    final l10n = AppLocalizations.of(context);
+    final isLight = Theme.of(context).brightness == Brightness.light;
+
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 106,
+                  height: 106,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isLight
+                        ? const Color(0xFFDBEAFE)
+                        : const Color(0xFF1F2937),
+                  ),
+                  child: const Icon(
+                    Icons.location_off_rounded,
+                    size: 56,
+                    color: Color(0xFF2563EB),
+                  ),
+                ),
+                const SizedBox(height: 22),
+                Text(
+                  l10n.t('locationRequiredTitle'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: isLight ? const Color(0xFF172235) : Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  l10n.t('locationRequiredMessage'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: isLight
+                        ? const Color(0xFF4B5563)
+                        : Colors.white.withValues(alpha: 0.72),
+                    fontSize: 15,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  safetyState.statusMessage,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: isLight
+                        ? const Color(0xFF475569)
+                        : Colors.white.withValues(alpha: 0.62),
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  l10n.t('locationAutoRefreshMessage'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: isLight
+                        ? const Color(0xFF64748B)
+                        : Colors.white.withValues(alpha: 0.62),
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 28),
+                ElevatedButton(
+                  onPressed: () {
+                    unawaited(
+                      ref
+                          .read(safetyMonitorProvider.notifier)
+                          .retry()
+                          .catchError((_) {}),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 52),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: Text(l10n.t('retryLocation')),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildPoliceNumberCard(BuildContext context) {
@@ -1380,10 +1482,13 @@ class DashboardScreen extends ConsumerWidget {
                     const SizedBox(height: 2),
                     Text(
                       nearbyState.places.isNotEmpty
-                        ? l10n
-                          .t('nearbyResultsCount')
-                          .replaceFirst('{count}', nearbyState.places.length.toString())
-                        : l10n.t('chooseServiceToScanYourArea'),
+                          ? l10n
+                                .t('nearbyResultsCount')
+                                .replaceFirst(
+                                  '{count}',
+                                  nearbyState.places.length.toString(),
+                                )
+                          : l10n.t('chooseServiceToScanYourArea'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -1404,65 +1509,77 @@ class DashboardScreen extends ConsumerWidget {
             builder: (context, constraints) {
               const gap = 10.0;
               final tileWidth = (constraints.maxWidth - gap) / 2;
-              return Wrap(
-                spacing: gap,
-                runSpacing: gap,
+              Widget rowTile({
+                required String label,
+                required IconData icon,
+                required Color color,
+                required NearbyPlaceType type,
+                bool useCustomAsset = false,
+              }) {
+                return _nearbyServiceTile(
+                  context: context,
+                  width: tileWidth,
+                  label: label,
+                  icon: icon,
+                  color: color,
+                  active: activeType == type,
+                  loading: nearbyState.isLoading && activeType == type,
+                  useCustomAsset: useCustomAsset,
+                  onPressed: () => ref
+                      .read(nearbyPlacesProvider.notifier)
+                      .toggleNearby(type),
+                );
+              }
+
+              return Column(
                 children: [
-                  _nearbyServiceTile(
-                    context: context,
-                    width: tileWidth,
-                    label: l10n.t('nearbyHospitals'),
-                    icon: Icons.local_hospital_rounded,
-                    color: const Color(0xFFE45858),
-                    active: activeType == NearbyPlaceType.hospitals,
-                    loading:
-                        nearbyState.isLoading &&
-                        activeType == NearbyPlaceType.hospitals,
-                    onPressed: () => ref
-                        .read(nearbyPlacesProvider.notifier)
-                        .toggleNearby(NearbyPlaceType.hospitals),
+                  Row(
+                    children: [
+                      rowTile(
+                        label: l10n.t('nearbyHospitals'),
+                        icon: Icons.local_hospital_rounded,
+                        color: const Color(0xFFE45858),
+                        type: NearbyPlaceType.hospitals,
+                      ),
+                      const SizedBox(width: gap),
+                      rowTile(
+                        label: l10n.t('policeStations'),
+                        icon: Icons.local_police_rounded,
+                        color: const Color(0xFF3B82F6),
+                        type: NearbyPlaceType.policeStations,
+                      ),
+                    ],
                   ),
-                  _nearbyServiceTile(
-                    context: context,
-                    width: tileWidth,
-                    label: l10n.t('policeStations'),
-                    icon: Icons.local_police_rounded,
-                    color: const Color(0xFF3B82F6),
-                    active: activeType == NearbyPlaceType.policeStations,
-                    loading:
-                        nearbyState.isLoading &&
-                        activeType == NearbyPlaceType.policeStations,
-                    onPressed: () => ref
-                        .read(nearbyPlacesProvider.notifier)
-                        .toggleNearby(NearbyPlaceType.policeStations),
+                  const SizedBox(height: gap),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      rowTile(
+                        label: l10n.t('nearbyPharmacies'),
+                        icon: Icons.local_pharmacy_rounded,
+                        color: const Color(0xFF2EAD74),
+                        type: NearbyPlaceType.pharmacies,
+                        useCustomAsset: true,
+                      ),
+                    ],
                   ),
-                  _nearbyServiceTile(
-                    context: context,
-                    width: tileWidth,
-                    label: l10n.t('nearbyWashrooms'),
-                    icon: Icons.wc_rounded,
-                    color: const Color(0xFF2FB79E),
-                    active: activeType == NearbyPlaceType.washrooms,
-                    loading:
-                        nearbyState.isLoading &&
-                        activeType == NearbyPlaceType.washrooms,
-                    onPressed: () => ref
-                        .read(nearbyPlacesProvider.notifier)
-                        .toggleNearby(NearbyPlaceType.washrooms),
-                  ),
-                  _nearbyServiceTile(
-                    context: context,
-                    width: tileWidth,
-                    label: l10n.t('nearbyBloodBanks'),
-                    icon: Icons.bloodtype_rounded,
-                    color: const Color(0xFFD64271),
-                    active: activeType == NearbyPlaceType.bloodBanks,
-                    loading:
-                        nearbyState.isLoading &&
-                        activeType == NearbyPlaceType.bloodBanks,
-                    onPressed: () => ref
-                        .read(nearbyPlacesProvider.notifier)
-                        .toggleNearby(NearbyPlaceType.bloodBanks),
+                  const SizedBox(height: gap),
+                  Row(
+                    children: [
+                      rowTile(
+                        label: l10n.t('nearbyWashrooms'),
+                        icon: Icons.wc_rounded,
+                        color: const Color(0xFF2FB79E),
+                        type: NearbyPlaceType.washrooms,
+                      ),
+                      const SizedBox(width: gap),
+                      rowTile(
+                        label: l10n.t('nearbyBloodBanks'),
+                        icon: Icons.bloodtype_rounded,
+                        color: const Color(0xFFD64271),
+                        type: NearbyPlaceType.bloodBanks,
+                      ),
+                    ],
                   ),
                 ],
               );
@@ -1483,6 +1600,8 @@ class DashboardScreen extends ConsumerWidget {
               title: 'Scanning nearby places...',
               tone: activeType == NearbyPlaceType.bloodBanks
                   ? const Color(0xFFD64271)
+                  : activeType == NearbyPlaceType.pharmacies
+                  ? const Color(0xFF2EAD74)
                   : activeType == NearbyPlaceType.washrooms
                   ? const Color(0xFF2FB79E)
                   : activeType == NearbyPlaceType.policeStations
@@ -1530,6 +1649,7 @@ class DashboardScreen extends ConsumerWidget {
     required Color color,
     required bool active,
     required bool loading,
+    required bool useCustomAsset,
     required VoidCallback onPressed,
   }) {
     final isLight = Theme.of(context).brightness == Brightness.light;
@@ -1605,6 +1725,14 @@ class DashboardScreen extends ConsumerWidget {
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               color: Colors.white,
+                            ),
+                          )
+                        : useCustomAsset
+                        ? Padding(
+                            padding: const EdgeInsets.all(6),
+                            child: SvgPicture.asset(
+                              'assets/icons/pharmacy_badge.svg',
+                              fit: BoxFit.contain,
                             ),
                           )
                         : Icon(icon, color: active ? Colors.white : color),
@@ -2141,12 +2269,12 @@ class _PoppingAlertCardState extends State<_PoppingAlertCard> {
                 ),
                 BoxShadow(
                   color: isLight
-                      ? const Color(0xFF3B82F6).withValues(
-                          alpha: _popped ? 0.18 : 0.06,
-                        )
-                      : const Color(0xFF2ED6C5).withValues(
-                          alpha: _popped ? 0.16 : 0.04,
-                        ),
+                      ? const Color(
+                          0xFF3B82F6,
+                        ).withValues(alpha: _popped ? 0.18 : 0.06)
+                      : const Color(
+                          0xFF2ED6C5,
+                        ).withValues(alpha: _popped ? 0.16 : 0.04),
                   blurRadius: _popped ? 18 : 10,
                   offset: const Offset(0, 0),
                 ),

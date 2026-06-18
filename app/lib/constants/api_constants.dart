@@ -9,6 +9,7 @@ class ApiConstants {
   static const String profile = '/profile';
 
   static const String createSOS = '/sos/create';
+  static const String cancelSOS = '/sos/cancel';
   static const String activeSOS = '/sos/active';
   static const String updateLocation = '/location/update';
 

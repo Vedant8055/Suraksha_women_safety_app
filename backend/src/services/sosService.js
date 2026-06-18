@@ -10,8 +10,21 @@ const createSos = ({ userId, lat, lng, mode, notes }) => SOSEvent.create({
   mode,
   notes,
 });
-const resolveSos = async ({ eventId, status = 'resolved' }) => {
-  const event = await SOSEvent.findByIdAndUpdate(eventId, { status, resolvedAt: new Date() }, { new: true });
+
+const resolveSos = async ({ eventId, userId, status = 'resolved' }) => {
+  const filter = eventId
+    ? { _id: eventId, ...(userId ? { userId } : {}) }
+    : { userId, status: 'active' };
+  const options = { new: true };
+  if (!eventId) {
+    options.sort = { createdAt: -1 };
+  }
+
+  const event = await SOSEvent.findOneAndUpdate(
+    filter,
+    { status, resolvedAt: new Date() },
+    options,
+  );
   if (event) {
     await EmergencyHistory.create({ userId: event.userId, sosEventId: event._id, outcome: status === 'cancelled' ? 'cancelled' : 'resolved' });
   }

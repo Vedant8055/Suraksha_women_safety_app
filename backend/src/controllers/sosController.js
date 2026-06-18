@@ -4,6 +4,12 @@ const sosService = require('../services/sosService');
 const SOSEvent = require('../models/SOSEvent');
 
 const createSosSchema = z.object({ body: z.object({ lat: z.number(), lng: z.number(), mode: z.enum(['normal', 'silent']).default('normal'), notes: z.string().optional() }) });
+const cancelSosSchema = z.object({
+  body: z.object({
+    eventId: z.string().optional(),
+    sosEventId: z.string().optional(),
+  }),
+});
 
 const create = asyncHandler(async (req, res) => {
   const sos = await sosService.createSos({ userId: req.user._id, ...req.validated.body });
@@ -16,4 +22,19 @@ const active = asyncHandler(async (req, res) => {
   res.json(events);
 });
 
-module.exports = { create, active, createSosSchema };
+const cancel = asyncHandler(async (req, res) => {
+  const eventId = req.validated.body.eventId || req.validated.body.sosEventId || null;
+  const sos = await sosService.resolveSos({
+    eventId,
+    userId: req.user._id,
+    status: 'cancelled',
+  });
+
+  if (!sos) {
+    return res.status(404).json({ message: 'Active SOS not found.' });
+  }
+
+  res.json({ ...sos.toObject(), status: 'cancelled' });
+});
+
+module.exports = { cancel, create, active, createSosSchema, cancelSosSchema };

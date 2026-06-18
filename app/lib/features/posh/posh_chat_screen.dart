@@ -184,7 +184,7 @@ class _POSHLegalPortalScreenState extends State<POSHLegalPortalScreen> {
   Workplace: ${workplace.isEmpty ? l10n.t('notProvided') : workplace}
   Incident Date: ${incidentDate.isEmpty ? l10n.t('notProvided') : incidentDate}
   Incident Location: ${incidentLocation.isEmpty ? l10n.t('notProvided') : incidentLocation}
-  Witnesses: ${witnesses.isEmpty ? l10n.t('noneProvided') ?? 'None provided' : witnesses}
+  Witnesses: ${witnesses.isEmpty ? l10n.t('noneProvided') : witnesses}
   Complaint Details: $details
   ''';
 
@@ -422,9 +422,9 @@ class _POSHLegalPortalScreenState extends State<POSHLegalPortalScreen> {
           const SizedBox(height: 14),
           _buildCertificateCard(context),
         ],
-        const SizedBox(height: 14),
+        const SizedBox(height: 8),
         _buildLevelSelector(context),
-        const SizedBox(height: 14),
+        const SizedBox(height: 8),
         _buildLevelIntroCard(context, currentLevel),
         const SizedBox(height: 14),
         _buildQuestionCard(context, currentLevel, _activeLevelIndex, _activeQuestionIndex),
@@ -706,6 +706,7 @@ class _POSHLegalPortalScreenState extends State<POSHLegalPortalScreen> {
     final isLast = questionIndex == level.questions.length - 1;
     final isFirst = questionIndex == 0;
     final locked = levelIndex > 0 && !_passedLevels.contains(levelIndex - 1);
+    final canProceed = !locked && selected.isNotEmpty;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -794,20 +795,20 @@ class _POSHLegalPortalScreenState extends State<POSHLegalPortalScreen> {
                 ),
               ),
               const SizedBox(width: 10),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: locked
-                      ? null
-                      : isLast
-                      ? () => _submitLevel(levelIndex)
-                      : () => setState(() => _activeQuestionIndex += 1),
-                  child: Text(
-                    isLast
-                        ? AppLocalizations.of(context).t('submitQuiz')
-                        : AppLocalizations.of(context).t('next'),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: canProceed
+                          ? (isLast
+                              ? () => _submitLevel(levelIndex)
+                              : () => setState(() => _activeQuestionIndex += 1))
+                          : null,
+                      child: Text(
+                        isLast
+                            ? AppLocalizations.of(context).t('submitQuiz')
+                            : AppLocalizations.of(context).t('next'),
+                      ),
+                    ),
                   ),
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -1005,70 +1006,44 @@ class _POSHLegalPortalScreenState extends State<POSHLegalPortalScreen> {
 
   Widget _buildLevelSelector(BuildContext context) {
     final colors = _PoshColors(context);
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: List.generate(_levels.length, (index) {
-        final level = _levels[index];
-        final passed = _passedLevels.contains(index);
-        final selected = index == _activeLevelIndex;
-        final unlocked = index == 0 || _passedLevels.contains(index - 1) || passed;
-        return GestureDetector(
-          onTap: unlocked
-              ? () => setState(() {
-                  _activeLevelIndex = index;
-                  _activeQuestionIndex = 0;
-                })
-              : null,
-          child: Container(
-            width: 112,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: selected ? AppTheme.primaryColor : colors.card,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: passed
-                    ? const Color(0xFF2ED6C5)
-                    : selected
-                    ? Colors.transparent
-                    : colors.border,
+    final l10n = AppLocalizations.of(context);
+    final levelTitle = '${l10n.t('level')} ${_activeLevelIndex + 1}';
+
+    return GestureDetector(
+      onTap: () => setState(() => _activeQuestionIndex = 0),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: colors.fieldFill,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: colors.border),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              levelTitle,
+              style: TextStyle(
+                color: colors.text,
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
               ),
             ),
-            child: Column(
-              children: [
-                Icon(
-                  passed ? Icons.check_circle_rounded : unlocked ? Icons.lock_open_rounded : Icons.lock_rounded,
-                  color: selected ? Colors.white : AppTheme.primaryColor,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  level.title,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: selected ? Colors.white : colors.text,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  passed
-                      ? AppLocalizations.of(context).t('passed')
-                      : unlocked
-                      ? AppLocalizations.of(context).t('unlocked')
-                      : AppLocalizations.of(context).t('locked'),
-                  style: TextStyle(
-                    color: selected ? Colors.white70 : colors.mutedText,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
+            Text(
+              l10n.t('currentLevel'),
+              style: TextStyle(
+                color: colors.mutedText,
+                fontSize: 12,
+              ),
             ),
-          ),
-        );
-      }),
+          ],
+        ),
+      ),
     );
   }
 }
+
 
 class POSHActGuideScreen extends StatelessWidget {
   const POSHActGuideScreen({super.key});
@@ -1595,12 +1570,12 @@ List<_PoshQuizLevel> _buildPoshQuizLevels() {
           multiSelect: true,
         ),
         _PoshQuizQuestion(
-          question: 'Which is a form of sexual harassment?',
+          question: 'Which item is a valid example of evidence in a POSH inquiry?',
           options: [
-            'Showing pornography without consent',
-            'Organizing a team lunch',
-            'Assigning a deadline',
-            'Sending a meeting invite',
+            'Witness statements and communication records',
+            'Only attendance logs',
+            'Only social media likes',
+            'Only lunch menu receipts',
           ],
           correctIndexes: {0},
         ),

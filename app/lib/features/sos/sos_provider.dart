@@ -41,7 +41,9 @@ class SOSState {
     bool? isStreaming,
     DateTime? lastLocationUpdate,
     String? sosEventId,
+    bool clearSosEventId = false,
     String? trackingUrl,
+    bool clearTrackingUrl = false,
   }) {
     return SOSState(
       isActive: isActive ?? this.isActive,
@@ -49,8 +51,8 @@ class SOSState {
       error: error,
       isStreaming: isStreaming ?? this.isStreaming,
       lastLocationUpdate: lastLocationUpdate ?? this.lastLocationUpdate,
-      sosEventId: sosEventId ?? this.sosEventId,
-      trackingUrl: trackingUrl ?? this.trackingUrl,
+      sosEventId: clearSosEventId ? null : (sosEventId ?? this.sosEventId),
+      trackingUrl: clearTrackingUrl ? null : (trackingUrl ?? this.trackingUrl),
     );
   }
 }
@@ -167,7 +169,7 @@ class SOSNotifier extends StateNotifier<SOSState> {
         });
       }
 
-      _sendEmergencySms(position, trackingUrl: trackingUrl);
+      await _sendEmergencySms(position, trackingUrl: trackingUrl);
 
       // Start continuous location updates
       _startLiveTracking();
@@ -185,6 +187,7 @@ class SOSNotifier extends StateNotifier<SOSState> {
         position,
         contacts: await _emergencyContactsForSms(),
         trackingUrl: trackingUrl,
+        senderName: _currentUserName(),
       );
       if (!sent) {
         state = state.copyWith(
@@ -196,6 +199,49 @@ class SOSNotifier extends StateNotifier<SOSState> {
         error: 'SOS activated. SMS alert could not be sent from this device.',
       );
     }
+  }
+
+  Future<bool> _cancelSosOnServer(String? sosEventId) async {
+    if (sosEventId == null || sosEventId.isEmpty) return false;
+
+    try {
+      await _dioClient.dio.post(
+        ApiConstants.cancelSOS,
+        data: {'sosEventId': sosEventId},
+      );
+      return true;
+    } catch (_) {
+      // Fall back to the realtime socket signal if the HTTP cancel fails.
+      return false;
+    }
+  }
+
+  Future<void> sendSafeSms() async {
+    final currentPosition = state.currentPosition;
+    try {
+      final sent = await _smsService.sendSafeSms(
+        await _emergencyContactsForSms(),
+        senderName: _currentUserName(),
+        position: currentPosition,
+      );
+      if (!sent) {
+        state = state.copyWith(
+          error:
+              'Alert cleared. SMS permission is needed to notify emergency contacts.',
+        );
+      }
+    } catch (_) {
+      state = state.copyWith(
+        error:
+            'Alert cleared. Safe notification could not be sent from this device.',
+      );
+    }
+  }
+
+  String? _currentUserName() {
+    final ref = _ref;
+    if (ref == null) return null;
+    return ref.read(authProvider).user?.name;
   }
 
   Future<List<EmergencyContact>> _emergencyContactsForSms() async {
@@ -240,12 +286,34 @@ class SOSNotifier extends StateNotifier<SOSState> {
         });
   }
 
-  void cancelSOS() {
-    state = state.copyWith(isActive: false, isStreaming: false);
-    _positionSubscription?.cancel();
-    if (_socket != null) {
-      _socket!.emit('cancel_sos');
+  Future<void> cancelSOS() async {
+    final currentEventId = state.sosEventId;
+    final currentPosition = state.currentPosition;
+
+    state = state.copyWith(
+      isActive: false,
+      isStreaming: false,
+      clearSosEventId: true,
+      clearTrackingUrl: true,
+    );
+    await _positionSubscription?.cancel();
+    _positionSubscription = null;
+
+    final cancelPersisted = await _cancelSosOnServer(currentEventId);
+
+    await sendSafeSms();
+
+    final cancelPayload = <String, dynamic>{};
+    if (currentEventId != null) {
+      cancelPayload['sosEventId'] = currentEventId;
     }
+    if (cancelPersisted) {
+      cancelPayload['skipPersistence'] = true;
+    }
+
+    _socket?.emit('cancel_sos', cancelPayload);
+
+    state = state.copyWith(currentPosition: currentPosition);
   }
 
   @override

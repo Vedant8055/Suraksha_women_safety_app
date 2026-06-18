@@ -34,7 +34,9 @@ class _EmergencyModeScreenState extends ConsumerState<EmergencyModeScreen> {
     showDialog(
       context: context,
       builder: (dialogContext) => PremiumDialogSurface(
-        title: AppLocalizations.of(dialogContext).t('emergencyContactsInformed'),
+        title: AppLocalizations.of(
+          dialogContext,
+        ).t('emergencyContactsInformed'),
         message: AppLocalizations.of(dialogContext).t('liveLocationSharedWith'),
         icon: Icons.groups_rounded,
         accentColor: const Color(0xFFE53935),
@@ -162,23 +164,33 @@ class _EmergencyModeScreenState extends ConsumerState<EmergencyModeScreen> {
                 style: const TextStyle(fontSize: 16, color: Colors.white70),
               ),
               const Spacer(),
-                  _buildInfoCard(AppLocalizations.of(context).t('currentLocation'), locationText),
+              _buildInfoCard(
+                AppLocalizations.of(context).t('currentLocation'),
+                locationText,
+              ),
               const SizedBox(height: 16),
-              _buildInfoCard(AppLocalizations.of(context).t('status'), statusText),
+              _buildInfoCard(
+                AppLocalizations.of(context).t('status'),
+                statusText,
+              ),
               const Spacer(),
               SizedBox(
                 width: double.infinity,
                 height: 60,
                 child: ElevatedButton(
-                  onPressed: () {
-                    ref.read(sosProvider.notifier).cancelSOS();
-                    Navigator.pop(context);
+                  onPressed: () async {
+                    await ref.read(sosProvider.notifier).cancelSOS();
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.red.shade900,
                   ),
-                  child: Text(AppLocalizations.of(context).t('iAmSafeCancelSos')),
+                  child: Text(
+                    AppLocalizations.of(context).t('iAmSafeCancelSos'),
+                  ),
                 ),
               ),
               const SizedBox(height: 20),

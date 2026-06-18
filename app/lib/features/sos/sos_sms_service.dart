@@ -12,8 +12,39 @@ class SOSSmsService {
     Position position, {
     required List<EmergencyContact> contacts,
     String? trackingUrl,
+    String? senderName,
+  }) async {
+    return _sendStatusSms(
+      contacts: contacts,
+      senderName: senderName,
+      position: position,
+      trackingUrl: trackingUrl,
+      template: _SmsTemplate.emergency,
+    );
+  }
+
+  Future<bool> sendSafeSms(
+    List<EmergencyContact> contacts, {
+    String? senderName,
+    Position? position,
+  }) async {
+    return _sendStatusSms(
+      contacts: contacts,
+      senderName: senderName,
+      position: position,
+      template: _SmsTemplate.safe,
+    );
+  }
+
+  Future<bool> _sendStatusSms({
+    required List<EmergencyContact> contacts,
+    String? senderName,
+    Position? position,
+    String? trackingUrl,
+    required _SmsTemplate template,
   }) async {
     if (!Platform.isAndroid) return false;
+
     final phoneNumbers = contacts
         .map((contact) => EmergencyContact.normalizePhoneNumber(contact.phone))
         .where((phone) => phone.isNotEmpty)
@@ -24,13 +55,18 @@ class SOSSmsService {
     final permission = await Permission.sms.request();
     if (!permission.isGranted) return false;
 
-    final mapsUrl =
-        'https://maps.google.com/?q=${position.latitude},${position.longitude}';
-    final message =
-        'Kaveri is in danger, please send help to her immediately. '
-        '${trackingUrl == null ? '' : 'Track live location: $trackingUrl '}'
-        'Current location: $mapsUrl '
-        'Coordinates: ${position.latitude}, ${position.longitude}';
+    final senderLabel = senderName?.trim().isNotEmpty == true
+        ? senderName!.trim()
+        : 'Your contact';
+    final locationSnippet = position != null
+        ? 'Last known location: https://maps.google.com/?q=${position.latitude},${position.longitude} Coordinates: ${position.latitude}, ${position.longitude}.'
+        : '';
+
+    final message = template == _SmsTemplate.emergency
+        ? '$senderLabel is in danger. Please send help immediately. '
+            '${trackingUrl == null ? '' : 'Track live location: $trackingUrl. '}'
+            '${position != null ? 'Current location: https://maps.google.com/?q=${position.latitude},${position.longitude}. Coordinates: ${position.latitude}, ${position.longitude}.' : ''}'
+        : '$senderLabel is now safe. The emergency alert has been cleared. $locationSnippet';
 
     var sentCount = 0;
     for (final phoneNumber in phoneNumbers) {
@@ -48,3 +84,5 @@ class SOSSmsService {
     return sentCount > 0;
   }
 }
+
+enum _SmsTemplate { emergency, safe }

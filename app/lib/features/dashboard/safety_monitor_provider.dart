@@ -74,13 +74,14 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
   DateTime? _lastNearbyRefreshAt;
 
   Future<void> start() async {
-    if (_started) return;
+    if (_started && state.trackingActive) return;
     _started = true;
 
     try {
       await _ensureGpsAndPermission();
       if (!state.gpsEnabled || !state.permissionGranted) {
         state = state.copyWith(trackingActive: false);
+        _started = false;
         return;
       }
 

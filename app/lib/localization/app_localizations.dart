@@ -19,32 +19,33 @@ class AppLocalizations {
         : 'en';
   }
 
-    static final Map<String, Map<String, String>> _values = {
+  static final Map<String, Map<String, String>> _values = {
     'en': {
       'appTitle': 'Suraksha',
-    'greetingHello': 'Hello',
-        'welcomeBack': 'Welcome Back',
-        'signInToContinue': 'Sign in to continue your safety journey',
-        'emailOrPhone': 'Email or Phone Number',
-        'password': 'Password',
-        'login': 'LOGIN',
-        'emergencyContactsInformed': 'Emergency Contacts Informed',
-        'liveLocationSharedWith': 'Live location has been shared with:',
-        'fetchingLocation': 'Fetching location...',
-        'liveFeedActive': 'Live Feed Active ({time})',
-        'startingLiveTransmission': 'Starting live transmission...',
-        'liveTransmissionPaused': 'Live transmission paused',
-        'emergencyModeActive': 'EMERGENCY MODE ACTIVE',
-        'helpOnTheWay': 'Help is on the way. Your live location is being shared.',
-        'currentLocation': 'Current Location',
-        'status': 'Status',
-        'iAmSafeCancelSos': 'I AM SAFE - CANCEL SOS',
+      'greetingHello': 'Hello',
+      'welcomeBack': 'Welcome Back',
+      'signInToContinue': 'Sign in to continue your safety journey',
+      'emailOrPhone': 'Email or Phone Number',
+      'password': 'Password',
+      'login': 'LOGIN',
+      'emergencyContactsInformed': 'Emergency Contacts Informed',
+      'liveLocationSharedWith': 'Live location has been shared with:',
+      'fetchingLocation': 'Fetching location...',
+      'liveFeedActive': 'Live Feed Active ({time})',
+      'startingLiveTransmission': 'Starting live transmission...',
+      'liveTransmissionPaused': 'Live transmission paused',
+      'emergencyModeActive': 'EMERGENCY MODE ACTIVE',
+      'helpOnTheWay': 'Help is on the way. Your live location is being shared.',
+      'currentLocation': 'Current Location',
+      'status': 'Status',
+      'iAmSafeCancelSos': 'I AM SAFE - CANCEL SOS',
       'myProfile': 'My Profile',
       'profileSubtitle':
           'Manage your safety identity, language, and emergency readiness.',
       'profileOverview': 'Profile Overview',
       'profileStatsTitle': 'Your safety snapshot',
-      'profileHeroCta': 'Personalize your profile for faster emergency support.',
+      'profileHeroCta':
+          'Personalize your profile for faster emergency support.',
       'languageSelectionTitle': 'Choose app language',
       'darkMode': 'Dark Mode',
       'darkModeSubtitleOn': 'Dark Bluish Theme',
@@ -87,13 +88,15 @@ class AppLocalizations {
       'screamDetectionDisabled': 'Scream detection disabled.',
       'screamDetectionEnableFailed': 'Could not enable scream detection.',
       'microphoneSafetyMonitorActive': 'Microphone safety monitor is active.',
-      'microphoneSafetyMonitorInactive': 'Microphone stays off while this is disabled.',
+      'microphoneSafetyMonitorInactive':
+          'Microphone stays off while this is disabled.',
       'impactDetection': 'Impact Detection',
       'impactDetectionEnabled': 'Impact detection enabled.',
       'impactDetectionDisabled': 'Impact detection disabled.',
       'impactDetectionEnableFailed': 'Could not enable impact detection.',
       'motionSensorsActive': 'Motion sensors are watching for sudden impact.',
-      'motionSensorsInactive': 'Motion sensors stay off while this is disabled.',
+      'motionSensorsInactive':
+          'Motion sensors stay off while this is disabled.',
       'phoneNumberRequired': 'Phone number is required.',
       'nameAndPhoneRequired': 'Name and phone number are required.',
       'duplicatePhoneNumber': 'This phone number is already saved.',
@@ -109,22 +112,30 @@ class AppLocalizations {
       'contactSavedMessage':
           'Emergency contact details were updated successfully.',
       'draftSavedTitle': 'Draft saved',
-      'draftSavedMessage':
-          'Your draft has been stored locally on this device.',
+      'draftSavedMessage': 'Your draft has been stored locally on this device.',
       'emergencyServices': 'Emergency Services',
       'communityAlerts': 'Community Alerts',
       'tapForAlerts': 'Tap for alerts',
       'tapRefreshTryAgain': 'Tap refresh to try again',
       'loadingLiveAreaAlerts': 'Loading live area alerts...',
-      'checkingTrafficTransportNearbyActivity': 'Checking traffic, transport and nearby activity',
+      'checkingTrafficTransportNearbyActivity':
+          'Checking traffic, transport and nearby activity',
       'liveAlertsWillAppearHere': 'Live alerts will appear here',
-      'keepGpsOnForRealtimeCommunityUpdates': 'Keep GPS on for realtime community updates',
+      'keepGpsOnForRealtimeCommunityUpdates':
+          'Keep GPS on for realtime community updates',
+      'locationRequiredTitle': 'Location required',
+      'locationRequiredMessage':
+          'Suraksha requires GPS and location permission to work. Please enable them to continue.',
+      'locationAutoRefreshMessage':
+          'Once location is enabled, services refresh automatically.',
+      'retryLocation': 'Retry location setup',
       'womenHelpline': 'Women Helpline',
       'nearbyServices': 'Nearby Services',
       'nearbyHospitals': 'Nearby Hospitals',
       'policeStations': 'Police Stations',
       'nearbyWashrooms': 'Nearby Washrooms',
       'nearbyBloodBanks': 'Nearby Blood Banks',
+      'nearbyPharmacies': 'Nearby Pharmacies',
       'tapToLoadNearby': 'Tap a button to load nearby real-time services.',
       'noNearbyPlaces': 'No nearby places found in 5 km radius.',
       'safeZoneActive': 'Prioritizing your Safety',
@@ -133,10 +144,10 @@ class AppLocalizations {
       'openSafetyMapConfirm': 'Want to see this location on the map?',
       'yes': 'Yes',
       'no': 'No',
-            'couldNotOpenDialer': 'Could not open dialer',
-            'policeEmergency': 'Police Emergency',
-            'scanningNearbyPlaces': 'Scanning nearby places...',
-            'nearbyResultsCount': '{count} nearby results',
+      'couldNotOpenDialer': 'Could not open dialer',
+      'policeEmergency': 'Police Emergency',
+      'scanningNearbyPlaces': 'Scanning nearby places...',
+      'nearbyResultsCount': '{count} nearby results',
       'cyberCrimeProtection': 'Cyber Crime Protection',
       'aiAssist': 'AI Assist',
       'report': 'Report',
@@ -177,8 +188,10 @@ class AppLocalizations {
       'progressBadge': '{percent}% complete | Badge: {badge}',
       'cyberDefender': 'Cyber Defender',
       'cyberLearner': 'Cyber Learner',
-      'deepfakeSubtitle': 'Awareness, emergency response, legal guidance and helpline access.',
-      'deepfakeWarning': 'If someone threatens to leak morphed/private media, do not pay or negotiate. Preserve evidence and report quickly.',
+      'deepfakeSubtitle':
+          'Awareness, emergency response, legal guidance and helpline access.',
+      'deepfakeWarning':
+          'If someone threatens to leak morphed/private media, do not pay or negotiate. Preserve evidence and report quickly.',
       'emergencyActions': 'Emergency actions',
       'call1930': 'Call 1930',
       'police100': 'Police 100',
@@ -188,17 +201,19 @@ class AppLocalizations {
       'generate': 'Generate',
       'generatedComplaint': 'Generated complaint',
       'reportSummaryUnavailable': 'Report summary unavailable.',
-      'pdfPayloadGenerated': 'PDF payload generated. Export integration can save/share it from backend response.',
+      'pdfPayloadGenerated':
+          'PDF payload generated. Export integration can save/share it from backend response.',
       'evidenceTitleLabel': 'Evidence title',
       'evidenceTitleHint': 'Threat screenshot, UPI proof...',
       'category': 'Category',
       'private': 'Private',
-        'tags': 'Tags',
-        'tagsHint': 'blackmail, instagram, payment',
-        'finish': 'Finish',
-        'searchVault': 'Search vault',
+      'tags': 'Tags',
+      'tagsHint': 'blackmail, instagram, payment',
+      'finish': 'Finish',
+      'searchVault': 'Search vault',
       'searchByTitle': 'Search by title',
-      'noEvidenceFound': 'No evidence found. Upload evidence to start your secure vault.',
+      'noEvidenceFound':
+          'No evidence found. Upload evidence to start your secure vault.',
       'deepfakeEmergencySupportTitle':
           'Deepfake & Morphed Image Emergency Support',
       'medicalHealthVault': 'Medical Health Vault',
@@ -207,7 +222,8 @@ class AppLocalizations {
       'emergencyMedicalId': 'Emergency Medical ID',
       'scanInCaseOfMedicalEmergency': 'Scan in case of medical emergency',
       'medicalProfileSaved': 'Medical profile saved',
-      'medicalDetailsReady': 'Your medical details are ready for emergency use.',
+      'medicalDetailsReady':
+          'Your medical details are ready for emergency use.',
       'savedLocallyOnThisDevice': 'Saved locally on this device.',
       'medicalProfileSavedLocallySyncRetryLater':
           'Medical profile saved locally. Sync will retry later.',
@@ -220,11 +236,13 @@ class AppLocalizations {
       'safeZoneUpdatedNearby': 'Safe zone updated nearby',
       'crowdedAreaWarning': 'Crowded area warning',
       'loadingNearbySafetyPoints': 'Loading nearby safety points...',
-      'unableToFetchLocation': 'Unable to fetch location. Move near open sky and try again.',
+      'unableToFetchLocation':
+          'Unable to fetch location. Move near open sky and try again.',
       'couldNotFetchYourLocation': 'Could not fetch your location.',
       'youAreHere': 'You are here',
       'surakshaLiveLocationNotificationTitle': 'Suraksha Live Location',
-      'surakshaLiveLocationNotificationText': 'Tracking live location for safety features.',
+      'surakshaLiveLocationNotificationText':
+          'Tracking live location for safety features.',
       'journeyStopped': 'Journey stopped',
       'totalRoute': 'total route',
       'stop': 'Stop',
@@ -244,9 +262,11 @@ class AppLocalizations {
       'couldNotFindThatLocation': 'Could not find that location.',
       'couldNotOpenThisPlace': 'Could not open this place.',
       'tryAgain': 'Try again',
-      'longPressDropPinPreviewRoute': 'Long press to drop pin. Tap markers to preview route.',
+      'longPressDropPinPreviewRoute':
+          'Long press to drop pin. Tap markers to preview route.',
       'fetchingYourLocation': 'Fetching your current location...',
-      'mapWillOpenAroundYou': 'The map will open directly around you once GPS is ready.',
+      'mapWillOpenAroundYou':
+          'The map will open directly around you once GPS is ready.',
       'searchLocation': 'Search location...',
       'liveTrackingActive': 'Live tracking active',
       'journeyTrackingActive': 'Journey tracking active',
@@ -257,7 +277,8 @@ class AppLocalizations {
       'routePreview': 'Route preview',
       'liveNavigation': 'Live navigation',
       'followingYourRoute': 'Following your route with live progress',
-      'readyWithDistanceAndEstimatedTravelTime': 'Ready with distance and estimated travel time',
+      'readyWithDistanceAndEstimatedTravelTime':
+          'Ready with distance and estimated travel time',
       'calculatingRouteDistance': 'Calculating route distance',
       'covered': 'Covered',
       'eta': 'ETA',
@@ -268,39 +289,62 @@ class AppLocalizations {
       'complaint': 'Complaint',
       'poshActLearningHub': 'POSH Act Learning Hub',
       'poshStudy1Title': 'What the POSH Act Covers',
-      'poshStudy1Bullet1': 'The POSH Act is the Sexual Harassment of Women at Workplace Act, 2013.',
-      'poshStudy1Bullet2': 'It protects dignity, equality, and safe working conditions.',
-      'poshStudy1Bullet3': 'It applies to public and private workplaces, offices, shops, hospitals, schools, NGOs, transport provided by employer, and work-related visits.',
-      'poshStudy1Bullet4': 'The law covers employees, trainees, interns, contract staff, volunteers, and workplace visitors in the relevant context.',
-      'poshStudy1Bullet5': 'Unwelcome conduct of a sexual nature can be verbal, written, digital, or physical.',
-      'poshStudy1Bullet6': 'Examples include unwanted touching, sexual remarks, sexual messages, repeated harassment, or showing pornography.',
+      'poshStudy1Bullet1':
+          'The POSH Act is the Sexual Harassment of Women at Workplace Act, 2013.',
+      'poshStudy1Bullet2':
+          'It protects dignity, equality, and safe working conditions.',
+      'poshStudy1Bullet3':
+          'It applies to public and private workplaces, offices, shops, hospitals, schools, NGOs, transport provided by employer, and work-related visits.',
+      'poshStudy1Bullet4':
+          'The law covers employees, trainees, interns, contract staff, volunteers, and workplace visitors in the relevant context.',
+      'poshStudy1Bullet5':
+          'Unwelcome conduct of a sexual nature can be verbal, written, digital, or physical.',
+      'poshStudy1Bullet6':
+          'Examples include unwanted touching, sexual remarks, sexual messages, repeated harassment, or showing pornography.',
       'poshStudy2Title': 'Complaint Process and IC Handling',
-      'poshStudy2Bullet1': 'The complaint should normally be filed in writing within 3 months of the incident or last incident in a continuing pattern.',
-      'poshStudy2Bullet2': 'The Internal Committee should be properly formed where the workplace has 10 or more employees.',
-      'poshStudy2Bullet3': 'The committee generally includes a senior woman presiding officer, employee members, and an external member familiar with harassment matters.',
-      'poshStudy2Bullet4': 'Conciliation can be used only if the complainant wants it, and it should not be forced.',
-      'poshStudy2Bullet5': 'If no conciliation happens, the IC conducts a formal inquiry with both sides heard fairly.',
-      'poshStudy2Bullet6': 'The process should stay confidential, written, and documented.',
+      'poshStudy2Bullet1':
+          'The complaint should normally be filed in writing within 3 months of the incident or last incident in a continuing pattern.',
+      'poshStudy2Bullet2':
+          'The Internal Committee should be properly formed where the workplace has 10 or more employees.',
+      'poshStudy2Bullet3':
+          'The committee generally includes a senior woman presiding officer, employee members, and an external member familiar with harassment matters.',
+      'poshStudy2Bullet4':
+          'Conciliation can be used only if the complainant wants it, and it should not be forced.',
+      'poshStudy2Bullet5':
+          'If no conciliation happens, the IC conducts a formal inquiry with both sides heard fairly.',
+      'poshStudy2Bullet6':
+          'The process should stay confidential, written, and documented.',
       'poshStudy3Title': 'Evidence, Safety, and Employer Duties',
-      'poshStudy3Bullet1': 'Keep chats, emails, screenshots, call logs, witness names, dates, and location details.',
-      'poshStudy3Bullet2': 'Interim relief can include leave, transfer, no-contact directions, or reporting-line changes if needed for safety.',
-      'poshStudy3Bullet3': 'If the facts also show criminal conduct, a police complaint or FIR can be filed in addition to the POSH process.',
-      'poshStudy3Bullet4': 'Employers should display the policy, train staff, support the IC, and implement recommendations in time.',
-      'poshStudy3Bullet5': 'Confidentiality applies to complainant, respondent, witnesses, and proceedings.',
-      'poshStudy3Bullet6': 'A complaint is not fake just because it could not be proven; deliberate falsehood is a different standard.',
+      'poshStudy3Bullet1':
+          'Keep chats, emails, screenshots, call logs, witness names, dates, and location details.',
+      'poshStudy3Bullet2':
+          'Interim relief can include leave, transfer, no-contact directions, or reporting-line changes if needed for safety.',
+      'poshStudy3Bullet3':
+          'If the facts also show criminal conduct, a police complaint or FIR can be filed in addition to the POSH process.',
+      'poshStudy3Bullet4':
+          'Employers should display the policy, train staff, support the IC, and implement recommendations in time.',
+      'poshStudy3Bullet5':
+          'Confidentiality applies to complainant, respondent, witnesses, and proceedings.',
+      'poshStudy3Bullet6':
+          'A complaint is not fake just because it could not be proven; deliberate falsehood is a different standard.',
       'poshStudy4Title': 'Important POSH Boundaries',
-      'poshStudy4Bullet1': 'Do not use the mechanism for unrelated personal disputes or knowingly fabricated allegations.',
+      'poshStudy4Bullet1':
+          'Do not use the mechanism for unrelated personal disputes or knowingly fabricated allegations.',
       'poshStudy4Bullet2': 'Do not delete evidence or pressure witnesses.',
-      'poshStudy4Bullet3': 'Do not ignore repeated small incidents; patterns matter.',
+      'poshStudy4Bullet3':
+          'Do not ignore repeated small incidents; patterns matter.',
       'poshStudy4Bullet4': 'Use factual, dated, and detailed reporting.',
-      'poshStudy4Bullet5': 'When in immediate danger, call emergency services first.',
-      'poshStudy4Bullet6': 'The POSH portal is for learning, documenting, and structured complaint preparation.',
+      'poshStudy4Bullet5':
+          'When in immediate danger, call emergency services first.',
+      'poshStudy4Bullet6':
+          'The POSH portal is for learning, documenting, and structured complaint preparation.',
       'studyFirst': 'Study first',
       'readAllSectionsBeforeQuiz1': 'Read all sections before Quiz 1',
       'threeLevels': 'Three levels',
       'twentyMcqsEachQuiz': '20 MCQs in each quiz',
       'quizCertificationTrack': 'Quiz Certification Track',
-      'studyFirstThenClearQuizzesInOrder': 'Study first, then clear the quizzes in order.',
+      'studyFirstThenClearQuizzesInOrder':
+          'Study first, then clear the quizzes in order.',
       'level': 'Level',
       'levelPassed': 'Level Passed',
       'passed': 'Passed',
@@ -399,31 +443,35 @@ class AppLocalizations {
       'complaintSubmittedSuccessfully': 'Complaint submitted successfully.',
       'submissionFailedTryAgain': 'Submission failed. Please try again.',
       'openDetailedPoshActGuide': 'OPEN DETAILED POSH ACT GUIDE',
-      'clearPreviousQuizToUnlockThisLevel': 'Clear the previous quiz to unlock this level.',
+      'clearPreviousQuizToUnlockThisLevel':
+          'Clear the previous quiz to unlock this level.',
       'previous': 'Previous',
       'retryQuiz': 'Retry quiz',
       'pleaseAnswerEveryQuestionFirst': 'Please answer every question first.',
+      'pleaseAnswerThisQuestionBeforeContinuing':
+          'Please answer this question before continuing.',
+      'currentLevel': 'Current level',
       'detailedPoshActGuide': 'Detailed POSH Act Guide',
     },
     'hi': {
       'appTitle': 'सुरक्षा',
-    'greetingHello': 'नमस्ते',
-        'welcomeBack': 'वापस स्वागत है',
-        'signInToContinue': 'अपनी सुरक्षा यात्रा जारी रखने के लिए साइन इन करें',
-        'emailOrPhone': 'ईमेल या फोन नंबर',
-        'password': 'पासवर्ड',
-        'login': 'लॉगिन',
-        'emergencyContactsInformed': 'आपातकालीन संपर्कों को सूचित किया गया',
-        'liveLocationSharedWith': 'लाइव लोकेशन साझा की गई है:',
-        'fetchingLocation': 'स्थान प्राप्त किया जा रहा है...',
-        'liveFeedActive': 'लाइव फ़ीड सक्रिय ({time})',
-        'startingLiveTransmission': 'लाइव ट्रांसमिशन शुरू हो रहा है...',
-        'liveTransmissionPaused': 'लाइव ट्रांसमिशन रुका हुआ है',
-        'emergencyModeActive': 'आपातकालीन मोड सक्रिय',
-        'helpOnTheWay': 'मदद आ रही है। आपकी लाइव लोकेशन साझा की जा रही है।',
-        'currentLocation': 'मौजूदा स्थान',
-        'status': 'स्थिति',
-        'iAmSafeCancelSos': 'मैं सुरक्षित हूँ - SOS रद्द करें',
+      'greetingHello': 'नमस्ते',
+      'welcomeBack': 'वापस स्वागत है',
+      'signInToContinue': 'अपनी सुरक्षा यात्रा जारी रखने के लिए साइन इन करें',
+      'emailOrPhone': 'ईमेल या फोन नंबर',
+      'password': 'पासवर्ड',
+      'login': 'लॉगिन',
+      'emergencyContactsInformed': 'आपातकालीन संपर्कों को सूचित किया गया',
+      'liveLocationSharedWith': 'लाइव लोकेशन साझा की गई है:',
+      'fetchingLocation': 'स्थान प्राप्त किया जा रहा है...',
+      'liveFeedActive': 'लाइव फ़ीड सक्रिय ({time})',
+      'startingLiveTransmission': 'लाइव ट्रांसमिशन शुरू हो रहा है...',
+      'liveTransmissionPaused': 'लाइव ट्रांसमिशन रुका हुआ है',
+      'emergencyModeActive': 'आपातकालीन मोड सक्रिय',
+      'helpOnTheWay': 'मदद आ रही है। आपकी लाइव लोकेशन साझा की जा रही है।',
+      'currentLocation': 'मौजूदा स्थान',
+      'status': 'स्थिति',
+      'iAmSafeCancelSos': 'मैं सुरक्षित हूँ - SOS रद्द करें',
       'myProfile': 'मेरा प्रोफाइल',
       'profileSubtitle':
           'अपनी सुरक्षा पहचान, भाषा और आपातकालीन तैयारी संभालें।',
@@ -450,11 +498,13 @@ class AppLocalizations {
       'phone': 'फोन नंबर',
       'relation': 'नाते',
       'loadingNearbySafetyPoints': 'नज़दीकी सुरक्षा बिंदु लोड हो रहे हैं...',
-      'unableToFetchLocation': 'स्थान प्राप्त नहीं किया जा सका। खुले आसमान के पास जाएँ और फिर प्रयास करें।',
+      'unableToFetchLocation':
+          'स्थान प्राप्त नहीं किया जा सका। खुले आसमान के पास जाएँ और फिर प्रयास करें।',
       'couldNotFetchYourLocation': 'आपका स्थान प्राप्त नहीं किया जा सका।',
       'youAreHere': 'आप यहाँ हैं',
       'surakshaLiveLocationNotificationTitle': 'सुरक्षा लाइव लोकेशन',
-      'surakshaLiveLocationNotificationText': 'सुरक्षा सुविधाओं के लिए लाइव लोकेशन ट्रैक की जा रही है।',
+      'surakshaLiveLocationNotificationText':
+          'सुरक्षा सुविधाओं के लिए लाइव लोकेशन ट्रैक की जा रही है।',
       'journeyStopped': 'यात्रा बंद की गई',
       'totalRoute': 'कुल मार्ग',
       'stop': 'बंद करें',
@@ -482,7 +532,8 @@ class AppLocalizations {
       'screamDetectionDisabled': 'चीख पहचान बंद की गई।',
       'screamDetectionEnableFailed': 'चीख पहचान चालू नहीं की जा सकी।',
       'microphoneSafetyMonitorActive': 'माइक्रोफोन सुरक्षा मॉनिटर चालू है।',
-      'microphoneSafetyMonitorInactive': 'यह बंद रहने पर माइक्रोफोन बंद रहता है।',
+      'microphoneSafetyMonitorInactive':
+          'यह बंद रहने पर माइक्रोफोन बंद रहता है।',
       'impactDetection': 'झटका पहचान',
       'impactDetectionEnabled': 'झटका पहचान चालू की गई।',
       'impactDetectionDisabled': 'झटका पहचान बंद की गई।',
@@ -492,7 +543,8 @@ class AppLocalizations {
       'phoneNumberRequired': 'फोन नंबर आवश्यक है।',
       'nameAndPhoneRequired': 'नाम और फोन नंबर आवश्यक हैं।',
       'duplicatePhoneNumber': 'यह फोन नंबर पहले से सहेजा गया है।',
-      'savedLocallyRetryLater': 'स्थानीय रूप से सहेजा गया। सर्वर सिंक बाद में फिर से कोशिश करेगा।',
+      'savedLocallyRetryLater':
+          'स्थानीय रूप से सहेजा गया। सर्वर सिंक बाद में फिर से कोशिश करेगा।',
       'photoSavedLocally': 'फ़ोटो स्थानीय रूप से सहेजी गई।',
       'serverSyncWillRetryLater': 'सर्वर सिंक बाद में फिर से कोशिश करेगा।',
       'profileSavedTitle': 'प्रोफाइल सहेजा गया',
@@ -508,15 +560,24 @@ class AppLocalizations {
       'tapForAlerts': 'अलर्ट देखने के लिए टैप करें',
       'tapRefreshTryAgain': 'फिर कोशिश के लिए रिफ्रेश टैप करें',
       'loadingLiveAreaAlerts': 'लाइव क्षेत्र अलर्ट लोड हो रहे हैं...',
-      'checkingTrafficTransportNearbyActivity': 'ट्रैफ़िक, परिवहन और आसपास की गतिविधि जाँच रहे हैं',
+      'checkingTrafficTransportNearbyActivity':
+          'ट्रैफ़िक, परिवहन और आसपास की गतिविधि जाँच रहे हैं',
       'liveAlertsWillAppearHere': 'लाइव अलर्ट यहाँ दिखेंगे',
-      'keepGpsOnForRealtimeCommunityUpdates': 'रीयलटाइम community updates के लिए GPS चालू रखें',
+      'keepGpsOnForRealtimeCommunityUpdates':
+          'रीयलटाइम community updates के लिए GPS चालू रखें',
+      'locationRequiredTitle': 'स्थान आवश्यक है',
+      'locationRequiredMessage':
+          'Suraksha को काम करने के लिए GPS और स्थान अनुमति चाहिए। जारी रखने के लिए इन्हें सक्षम करें।',
+      'locationAutoRefreshMessage':
+          'स्थान सक्षम होने के बाद सेवाएँ स्वतः ताज़ा होंगी।',
+      'retryLocation': 'स्थान सेटअप पुनः प्रयास करें',
       'womenHelpline': 'महिला हेल्पलाइन',
       'nearbyServices': 'नज़दीकी सेवाएं',
       'nearbyHospitals': 'नज़दीकी अस्पताल',
       'policeStations': 'पुलिस स्टेशन',
       'nearbyWashrooms': 'नज़दीकी वॉशरूम',
       'nearbyBloodBanks': 'नज़दीकी ब्लड बैंक',
+      'nearbyPharmacies': 'नज़दीकी फ़ार्मेसी',
       'tapToLoadNearby': 'नज़दीकी सेवाएं लोड करने के लिए बटन दबाएं।',
       'noNearbyPlaces': '5 किमी के दायरे में कोई स्थान नहीं मिला।',
       'safeZoneActive': 'सुरक्षा प्राथमिकता',
@@ -525,10 +586,10 @@ class AppLocalizations {
       'openSafetyMapConfirm': 'क्या आप यह स्थान मानचित्र पर देखना चाहते हैं?',
       'yes': 'हाँ',
       'no': 'नहीं',
-        'couldNotOpenDialer': 'डायलर नहीं खुल सका',
-        'policeEmergency': 'पुलिस आपातकालीन',
-        'scanningNearbyPlaces': 'नज़दीकी स्थान स्कैन किए जा रहे हैं...',
-        'nearbyResultsCount': '{count} नज़दीकी परिणाम',
+      'couldNotOpenDialer': 'डायलर नहीं खुल सका',
+      'policeEmergency': 'पुलिस आपातकालीन',
+      'scanningNearbyPlaces': 'नज़दीकी स्थान स्कैन किए जा रहे हैं...',
+      'nearbyResultsCount': '{count} नज़दीकी परिणाम',
       'cyberCrimeProtection': 'साइबर क्राइम सुरक्षा',
       'aiAssist': 'एआई सहायता',
       'report': 'रिपोर्ट',
@@ -561,7 +622,8 @@ class AppLocalizations {
       'saveDraft': 'ड्राफ्ट सहेजें',
       'reportGenerated': 'रिपोर्ट तैयार हुई।',
       'draftSavedOnline': 'ड्राफ्ट ऑनलाइन सहेजा गया।',
-      'couldNotSubmitOnline': 'ऑनलाइन सबमिट नहीं हो सका। कृपया फिर प्रयास करें।',
+      'couldNotSubmitOnline':
+          'ऑनलाइन सबमिट नहीं हो सका। कृपया फिर प्रयास करें।',
       'secureEvidenceVault': 'सुरक्षित साक्ष्य वॉल्ट',
       'uploadTagSearchPackageEvidence':
           'साइबर साक्ष्य अपलोड करें, टैग करें, खोजें और पैकेज करें। बैकएंड फ़ाइलें AES एन्क्रिप्टेड हैं।',
@@ -569,8 +631,10 @@ class AppLocalizations {
       'progressBadge': '{percent}% पूरा | बैज: {badge}',
       'cyberDefender': 'साइबर डिफेंडर',
       'cyberLearner': 'साइबर लर्नर',
-      'deepfakeSubtitle': 'जागरूकता, आपातकालीन प्रतिक्रिया, कानूनी मार्गदर्शन और हेल्पलाइन पहुंच।',
-      'deepfakeWarning': 'यदि कोई मोर्फ़्ड/निजी मीडिया लीक करने की धमकी देता है, तो भुगतान न करें या समझौता न करें। साक्ष्य सुरक्षित रखें और तुरंत रिपोर्ट करें।',
+      'deepfakeSubtitle':
+          'जागरूकता, आपातकालीन प्रतिक्रिया, कानूनी मार्गदर्शन और हेल्पलाइन पहुंच।',
+      'deepfakeWarning':
+          'यदि कोई मोर्फ़्ड/निजी मीडिया लीक करने की धमकी देता है, तो भुगतान न करें या समझौता न करें। साक्ष्य सुरक्षित रखें और तुरंत रिपोर्ट करें।',
       'emergencyActions': 'आपातकालीन कार्यवाही',
       'call1930': '1930 पर कॉल करें',
       'police100': 'पुलिस 100',
@@ -580,26 +644,30 @@ class AppLocalizations {
       'generate': 'जनरेट करें',
       'generatedComplaint': 'उत्पन्न शिकायत',
       'reportSummaryUnavailable': 'रिपोर्ट सारांश उपलब्ध नहीं है।',
-      'pdfPayloadGenerated': 'PDF पेलोड तैयार हुआ। निर्यात एकीकरण बैकएंड उत्तर से सहेज/साझा कर सकता है।',
+      'pdfPayloadGenerated':
+          'PDF पेलोड तैयार हुआ। निर्यात एकीकरण बैकएंड उत्तर से सहेज/साझा कर सकता है।',
       'evidenceTitleLabel': 'साक्ष्य शीर्षक',
       'evidenceTitleHint': 'धमकी स्क्रीनशॉट, UPI प्रमाण...',
       'category': 'श्रेणी',
       'private': 'निजी',
-        'tags': 'टैग',
-        'tagsHint': 'ब्लैकमेल, इंस्टाग्राम, पेमेंट',
-        'finish': 'समाप्त',
-        'searchVault': 'वॉल्ट खोजें',
+      'tags': 'टैग',
+      'tagsHint': 'ब्लैकमेल, इंस्टाग्राम, पेमेंट',
+      'finish': 'समाप्त',
+      'searchVault': 'वॉल्ट खोजें',
       'searchByTitle': 'शीर्षक द्वारा खोजें',
-      'noEvidenceFound': 'कोई साक्ष्य नहीं मिला। अपना सुरक्षित वॉल्ट शुरू करने के लिए साक्ष्य अपलोड करें।',
+      'noEvidenceFound':
+          'कोई साक्ष्य नहीं मिला। अपना सुरक्षित वॉल्ट शुरू करने के लिए साक्ष्य अपलोड करें।',
       'deepfakeEmergencySupportTitle':
           'डीपफेक और मॉर्फ़्ड इमेज इमरजेंसी सहायता',
       'medicalHealthVault': 'मेडिकल हेल्थ वॉल्ट',
       'keepEmergencyMedicalInformationOrganized':
           'आपातकालीन चिकित्सा जानकारी को तेज़ उपयोग के लिए व्यवस्थित रखें।',
       'emergencyMedicalId': 'आपातकालीन मेडिकल आईडी',
-      'scanInCaseOfMedicalEmergency': 'चिकित्सीय आपातकाल के मामले में स्कैन करें',
+      'scanInCaseOfMedicalEmergency':
+          'चिकित्सीय आपातकाल के मामले में स्कैन करें',
       'medicalProfileSaved': 'मेडिकल प्रोफ़ाइल सहेजी गई',
-      'medicalDetailsReady': 'आपकी मेडिकल जानकारी आपातकालीन उपयोग के लिए तैयार है।',
+      'medicalDetailsReady':
+          'आपकी मेडिकल जानकारी आपातकालीन उपयोग के लिए तैयार है।',
       'savedLocallyOnThisDevice': 'यह डिवाइस पर स्थानीय रूप से सहेजा गया।',
       'medicalProfileSavedLocallySyncRetryLater':
           'चिकित्सीय प्रोफ़ाइल स्थानीय रूप से सहेजी गई। सिंक बाद में पुन: प्रयास करेगा।',
@@ -622,39 +690,62 @@ class AppLocalizations {
       'complaint': 'शिकायत',
       'poshActLearningHub': 'POSH अधिनियम अध्ययन केंद्र',
       'poshStudy1Title': 'POSH अधिनियम क्या कवर करता है',
-      'poshStudy1Bullet1': 'POSH अधिनियम कार्यस्थल पर महिलाओं के यौन उत्पीड़न (2013) को संबोधित करता है।',
-      'poshStudy1Bullet2': 'यह गरिमा, समानता और सुरक्षित कार्य स्थितियों की रक्षा करता है।',
-      'poshStudy1Bullet3': 'यह सार्वजनिक व निजी कार्यस्थलों, कार्यालयों, दुकानों, अस्पतालों, स्कूलों, NGO और नियोक्ता द्वारा प्रदान किए गए परिवहन पर लागू होता है।',
-      'poshStudy1Bullet4': 'कानून कर्मचारियों, प्रशिक्षुओं, इंटर्न, संविदा कर्मचारियों, स्वयंसेवकों और कार्यस्थल पर आने वाले आगंतुकों को कवर करता है।',
-      'poshStudy1Bullet5': 'यौन प्रकृति का अवांछित आचरण मौखिक, लिखित, डिजिटल या शारीरिक हो सकता है।',
-      'poshStudy1Bullet6': 'उदाहरण: अवांछित छूना, यौन टिप्पणियाँ, संदेश, दोहराया उत्पीड़न, या अश्लील सामग्री दिखाना।',
+      'poshStudy1Bullet1':
+          'POSH अधिनियम कार्यस्थल पर महिलाओं के यौन उत्पीड़न (2013) को संबोधित करता है।',
+      'poshStudy1Bullet2':
+          'यह गरिमा, समानता और सुरक्षित कार्य स्थितियों की रक्षा करता है।',
+      'poshStudy1Bullet3':
+          'यह सार्वजनिक व निजी कार्यस्थलों, कार्यालयों, दुकानों, अस्पतालों, स्कूलों, NGO और नियोक्ता द्वारा प्रदान किए गए परिवहन पर लागू होता है।',
+      'poshStudy1Bullet4':
+          'कानून कर्मचारियों, प्रशिक्षुओं, इंटर्न, संविदा कर्मचारियों, स्वयंसेवकों और कार्यस्थल पर आने वाले आगंतुकों को कवर करता है।',
+      'poshStudy1Bullet5':
+          'यौन प्रकृति का अवांछित आचरण मौखिक, लिखित, डिजिटल या शारीरिक हो सकता है।',
+      'poshStudy1Bullet6':
+          'उदाहरण: अवांछित छूना, यौन टिप्पणियाँ, संदेश, दोहराया उत्पीड़न, या अश्लील सामग्री दिखाना।',
       'poshStudy2Title': 'शिकायत प्रक्रिया और आंतरिक समिति (IC)',
-      'poshStudy2Bullet1': 'शिकायत सामान्यतः घटना के 3 महीनों के भीतर लिखित रूप में दी जानी चाहिए।',
-      'poshStudy2Bullet2': '10 या अधिक कर्मचारियों वाले कार्यस्थलों में आंतरिक समिति सही ढंग से गठित होनी चाहिए।',
-      'poshStudy2Bullet3': 'समिति में आमतौर पर एक वरिष्ठ महिला अध्यक्ष, कर्मचारी सदस्य और एक बाहरी सदस्य शामिल होते हैं।',
-      'poshStudy2Bullet4': 'सुलह केवल तब किया जा सकता है जब शिकायतकर्ता चाहे; यह जबरदस्ती नहीं होना चाहिए।',
-      'poshStudy2Bullet5': 'यदि सुलह नहीं होती, तो IC निष्पक्ष जाँच करती है जहाँ दोनों पक्षों को सुना जाता है।',
+      'poshStudy2Bullet1':
+          'शिकायत सामान्यतः घटना के 3 महीनों के भीतर लिखित रूप में दी जानी चाहिए।',
+      'poshStudy2Bullet2':
+          '10 या अधिक कर्मचारियों वाले कार्यस्थलों में आंतरिक समिति सही ढंग से गठित होनी चाहिए।',
+      'poshStudy2Bullet3':
+          'समिति में आमतौर पर एक वरिष्ठ महिला अध्यक्ष, कर्मचारी सदस्य और एक बाहरी सदस्य शामिल होते हैं।',
+      'poshStudy2Bullet4':
+          'सुलह केवल तब किया जा सकता है जब शिकायतकर्ता चाहे; यह जबरदस्ती नहीं होना चाहिए।',
+      'poshStudy2Bullet5':
+          'यदि सुलह नहीं होती, तो IC निष्पक्ष जाँच करती है जहाँ दोनों पक्षों को सुना जाता है।',
       'poshStudy2Bullet6': 'प्रक्रिया गोपनीय, लिखित और दस्तावेजीकृत रहे।',
       'poshStudy3Title': 'साक्ष्य, सुरक्षा और नियोक्ता कर्तव्य',
-      'poshStudy3Bullet1': 'चैट्स, ईमेल, स्क्रीनशॉट, कॉल लॉग, गवाहों के नाम, तिथियाँ और स्थान का रिकॉर्ड रखें।',
-      'poshStudy3Bullet2': 'अंतरिम सहायता के रूप में तबादला, रजा, संपर्क-निषेध, या रिपोर्टिंग-लाइन में बदलाव शामिल हो सकते हैं।',
-      'poshStudy3Bullet3': 'यदि तथ्य अपराध को दर्शाते हैं तो पुलिस में शिकायत/FIR भी दर्ज की जा सकती है।',
-      'poshStudy3Bullet4': 'नियोक्ता नीति दिखाएँ, कर्मचारियों को प्रशिक्षित करें, IC का समर्थन करें और सिफारिशें लागू करें।',
-      'poshStudy3Bullet5': 'गोपनीयता शिकायतकर्ता, प्रतिवादी, गवाह और कार्यवाही पर लागू होती है।',
-      'poshStudy3Bullet6': 'एक शिकायत केवल इसलिए झूठी नहीं होती कि उसे प्रमाणित नहीं किया जा सका; जानबूझकर झूठ अलग मामला है।',
+      'poshStudy3Bullet1':
+          'चैट्स, ईमेल, स्क्रीनशॉट, कॉल लॉग, गवाहों के नाम, तिथियाँ और स्थान का रिकॉर्ड रखें।',
+      'poshStudy3Bullet2':
+          'अंतरिम सहायता के रूप में तबादला, रजा, संपर्क-निषेध, या रिपोर्टिंग-लाइन में बदलाव शामिल हो सकते हैं।',
+      'poshStudy3Bullet3':
+          'यदि तथ्य अपराध को दर्शाते हैं तो पुलिस में शिकायत/FIR भी दर्ज की जा सकती है।',
+      'poshStudy3Bullet4':
+          'नियोक्ता नीति दिखाएँ, कर्मचारियों को प्रशिक्षित करें, IC का समर्थन करें और सिफारिशें लागू करें।',
+      'poshStudy3Bullet5':
+          'गोपनीयता शिकायतकर्ता, प्रतिवादी, गवाह और कार्यवाही पर लागू होती है।',
+      'poshStudy3Bullet6':
+          'एक शिकायत केवल इसलिए झूठी नहीं होती कि उसे प्रमाणित नहीं किया जा सका; जानबूझकर झूठ अलग मामला है।',
       'poshStudy4Title': 'महत्वपूर्ण POSH सीमाएँ',
-      'poshStudy4Bullet1': 'अप्रासंगिक व्यक्तिगत विवादों या जानबूझकर बनाए गए आरोपों के लिए तंत्र का उपयोग न करें।',
+      'poshStudy4Bullet1':
+          'अप्रासंगिक व्यक्तिगत विवादों या जानबूझकर बनाए गए आरोपों के लिए तंत्र का उपयोग न करें।',
       'poshStudy4Bullet2': 'साक्ष्य न मिटाएँ और गवाहों पर दबाव न डालें।',
-      'poshStudy4Bullet3': 'छोटी बारंबार घटनाओं की अनदेखी न करें; पैटर्न मायने रखता है।',
-      'poshStudy4Bullet4': 'तथ्यात्मक, दिनांकित और विस्तृत रिपोर्टिंग का उपयोग करें।',
-      'poshStudy4Bullet5': 'तत्काल खतरे में होने पर पहले आपातकालीन सेवाओं को कॉल करें।',
-      'poshStudy4Bullet6': 'POSH पोर्टल सीखने, दस्तावेजीकरण और संरचित शिकायत तैयारी के लिए है।',
+      'poshStudy4Bullet3':
+          'छोटी बारंबार घटनाओं की अनदेखी न करें; पैटर्न मायने रखता है।',
+      'poshStudy4Bullet4':
+          'तथ्यात्मक, दिनांकित और विस्तृत रिपोर्टिंग का उपयोग करें।',
+      'poshStudy4Bullet5':
+          'तत्काल खतरे में होने पर पहले आपातकालीन सेवाओं को कॉल करें।',
+      'poshStudy4Bullet6':
+          'POSH पोर्टल सीखने, दस्तावेजीकरण और संरचित शिकायत तैयारी के लिए है।',
       'studyFirst': 'पहले अध्ययन करें',
       'readAllSectionsBeforeQuiz1': 'क्विज़ 1 से पहले सभी अनुभाग पढ़ें',
       'threeLevels': 'तीन स्तर',
       'twentyMcqsEachQuiz': 'हर क्विज़ में 20 MCQ',
       'quizCertificationTrack': 'क्विज़ प्रमाणन ट्रैक',
-      'studyFirstThenClearQuizzesInOrder': 'पहले अध्ययन करें, फिर क्विज़ को क्रम से पूरा करें।',
+      'studyFirstThenClearQuizzesInOrder':
+          'पहले अध्ययन करें, फिर क्विज़ को क्रम से पूरा करें।',
       'level': 'स्तर',
       'levelPassed': 'स्तर पास',
       'passed': 'पास',
@@ -672,7 +763,8 @@ class AppLocalizations {
       'fileWorkplaceComplaint': 'कार्यस्थल शिकायत दर्ज करें',
       'fileWorkplaceComplaintSubtitle':
           'विस्तृत शिकायत रिकॉर्ड तैयार करें और भेजें। तुरंत खतरे में 112 पर कॉल करें।',
-      'keepRecordsFactual': 'अपने रिकॉर्ड तथ्यात्मक रखें और संभव हो तो साक्ष्य जोड़ें।',
+      'keepRecordsFactual':
+          'अपने रिकॉर्ड तथ्यात्मक रखें और संभव हो तो साक्ष्य जोड़ें।',
       'yourFullName': 'आपका पूरा नाम',
       'yourPhoneNumber': 'आपका फोन नंबर',
       'yourEmailAddress': 'आपका ईमेल पता',
@@ -744,7 +836,8 @@ class AppLocalizations {
       'refresh': 'रीफ़्रेश',
       'openMap': 'मानचित्र खोलें',
       'resetHomeWorkplaceRouteLearning': 'घर-कार्यस्थल मार्ग सीखना रीसेट करें',
-      'homeWorkplaceRouteLearningReset': 'घर-कार्यस्थल मार्ग सीखना रीसेट हो गया।',
+      'homeWorkplaceRouteLearningReset':
+          'घर-कार्यस्थल मार्ग सीखना रीसेट हो गया।',
       'safetyCheckEndsIn': 'सुरक्षा जांच समाप्त होगी',
       'unlessYouConfirm': 'जब तक आप पुष्टि नहीं करते।',
       'imSafe': 'मैं सुरक्षित हूँ',
@@ -752,34 +845,37 @@ class AppLocalizations {
       'complaintSubmittedSuccessfully': 'शिकायत सफलतापूर्वक सबमिट की गई।',
       'submissionFailedTryAgain': 'सबमिशन विफल रहा। कृपया पुनः प्रयास करें।',
       'openDetailedPoshActGuide': 'विस्तृत POSH अधिनियम मार्गदर्शिका खोलें',
-      'clearPreviousQuizToUnlockThisLevel': 'इस स्तर को अनलॉक करने के लिए पिछला क्विज़ साफ़ करें।',
+      'clearPreviousQuizToUnlockThisLevel':
+          'इस स्तर को अनलॉक करने के लिए पिछला क्विज़ साफ़ करें।',
       'previous': 'पिछला',
       'retryQuiz': 'क्विज़ फिर से प्रयास करें',
       'pleaseAnswerEveryQuestionFirst': 'कृपया पहले हर प्रश्न का उत्तर दें।',
+      'pleaseAnswerThisQuestionBeforeContinuing':
+          'कृपया जारी रखने से पहले इस प्रश्न का उत्तर दें।',
+      'currentLevel': 'वर्तमान स्तर',
       'detailedPoshActGuide': 'विस्तृत POSH अधिनियम मार्गदर्शिका',
     },
     'mr': {
       'appTitle': 'सुरक्षा',
-    'greetingHello': 'नमस्कार',
-        'welcomeBack': 'परत स्वागत आहे',
-        'signInToContinue': 'आपली सुरक्षा यात्रा सुरू ठेवण्यासाठी साइन इन करा',
-        'emailOrPhone': 'ईमेल किंवा फोन नंबर',
-        'password': 'पासवर्ड',
-        'login': 'लॉगिन',
-        'emergencyContactsInformed': 'आपत्कालीन संपर्कांना सूचित केले',
-        'liveLocationSharedWith': 'लाइव्ह स्थान शेअर केले गेले आहे:',
-        'fetchingLocation': 'स्थान शोधत आहे...',
-        'liveFeedActive': 'लाइव्ह फीड सक्रिय ({time})',
-        'startingLiveTransmission': 'लाइव्ह ट्रान्समिशन सुरू केले जात आहे...',
-        'liveTransmissionPaused': 'लाइव्ह ट्रान्समिशन थांबलं आहे',
-        'emergencyModeActive': 'आपत्कालीन मोड सक्रिय',
-        'helpOnTheWay': 'मदत येत आहे. तुमचं लाइव्ह स्थान शेअर केलं जात आहे.',
-        'currentLocation': 'सध्याचे स्थान',
-        'status': 'स्थिती',
-        'iAmSafeCancelSos': 'मी सुरक्षित आहे - SOS रद्द करा',
+      'greetingHello': 'नमस्कार',
+      'welcomeBack': 'परत स्वागत आहे',
+      'signInToContinue': 'आपली सुरक्षा यात्रा सुरू ठेवण्यासाठी साइन इन करा',
+      'emailOrPhone': 'ईमेल किंवा फोन नंबर',
+      'password': 'पासवर्ड',
+      'login': 'लॉगिन',
+      'emergencyContactsInformed': 'आपत्कालीन संपर्कांना सूचित केले',
+      'liveLocationSharedWith': 'लाइव्ह स्थान शेअर केले गेले आहे:',
+      'fetchingLocation': 'स्थान शोधत आहे...',
+      'liveFeedActive': 'लाइव्ह फीड सक्रिय ({time})',
+      'startingLiveTransmission': 'लाइव्ह ट्रान्समिशन सुरू केले जात आहे...',
+      'liveTransmissionPaused': 'लाइव्ह ट्रान्समिशन थांबलं आहे',
+      'emergencyModeActive': 'आपत्कालीन मोड सक्रिय',
+      'helpOnTheWay': 'मदत येत आहे. तुमचं लाइव्ह स्थान शेअर केलं जात आहे.',
+      'currentLocation': 'सध्याचे स्थान',
+      'status': 'स्थिती',
+      'iAmSafeCancelSos': 'मी सुरक्षित आहे - SOS रद्द करा',
       'myProfile': 'माझे प्रोफाइल',
-      'profileSubtitle':
-          'तुमची सुरक्षा ओळख, भाषा आणि आपत्कालीन तयारी सांभाळा.',
+      'profileSubtitle': 'तुमची सुरक्षा ओळख, भाषा आणि आपत्कालीन तयारी सांभाळा.',
       'profileOverview': 'प्रोफाइल सारांश',
       'profileStatsTitle': 'तुमचा सुरक्षा स्नॅपशॉट',
       'profileHeroCta': 'जलद मदतीसाठी प्रोफाइल वैयक्तिक बनवा.',
@@ -835,14 +931,14 @@ class AppLocalizations {
       'phoneNumberRequired': 'फोन नंबर आवश्यक आहे.',
       'nameAndPhoneRequired': 'नाव आणि फोन नंबर आवश्यक आहेत.',
       'duplicatePhoneNumber': 'हा फोन नंबर आधीच जतन केला आहे.',
-      'savedLocallyRetryLater': 'स्थानिकरित्या जतन केले. सर्व्हर सिंक नंतर पुन्हा प्रयत्न करेल.',
+      'savedLocallyRetryLater':
+          'स्थानिकरित्या जतन केले. सर्व्हर सिंक नंतर पुन्हा प्रयत्न करेल.',
       'photoSavedLocally': 'फोटो स्थानिकरित्या जतन केला.',
       'serverSyncWillRetryLater': 'सर्व्हर सिंक नंतर पुन्हा प्रयत्न करेल.',
       'profileSavedTitle': 'प्रोफाइल जतन झाले',
       'profileSavedMessage': 'तुमची माहिती सुरक्षितपणे जतन झाली आहे.',
       'medicalSavedTitle': 'मेडिकल प्रोफाइल जतन झाले',
-      'medicalSavedMessage':
-          'तुमची मेडिकल माहिती यशस्वीरित्या अपडेट झाली आहे.',
+      'medicalSavedMessage': 'तुमची मेडिकल माहिती यशस्वीरित्या अपडेट झाली आहे.',
       'contactSavedTitle': 'संपर्क जतन झाला',
       'contactSavedMessage':
           'आपत्कालीन संपर्क तपशील यशस्वीरित्या अपडेट झाले आहेत.',
@@ -853,15 +949,24 @@ class AppLocalizations {
       'tapForAlerts': 'अलर्ट पाहण्यासाठी टॅप करा',
       'tapRefreshTryAgain': 'पुन्हा प्रयत्न करण्यासाठी रिफ्रेश टॅप करा',
       'loadingLiveAreaAlerts': 'लाईव्ह परिसर अलर्ट लोड होत आहेत...',
-      'checkingTrafficTransportNearbyActivity': 'वाहतूक, परिवहन आणि जवळची हालचाल तपासत आहोत',
+      'checkingTrafficTransportNearbyActivity':
+          'वाहतूक, परिवहन आणि जवळची हालचाल तपासत आहोत',
       'liveAlertsWillAppearHere': 'लाईव्ह अलर्ट इथे दिसतील',
-      'keepGpsOnForRealtimeCommunityUpdates': 'रीअलटाइम community updates साठी GPS चालू ठेवा',
+      'keepGpsOnForRealtimeCommunityUpdates':
+          'रीअलटाइम community updates साठी GPS चालू ठेवा',
+      'locationRequiredTitle': 'स्थान आवश्यक आहे',
+      'locationRequiredMessage':
+          'Suraksha वापरण्यासाठी GPS आणि स्थान परवानगी आवश्यक आहे. सुरू ठेवण्यासाठी त्यांना सक्षम करा.',
+      'locationAutoRefreshMessage':
+          'स्थान सक्षम केल्यावर सेवा स्वयंचलितपणे रीफ्रेश होतील.',
+      'retryLocation': 'स्थान सेटअप पुन्हा प्रयत्न करा',
       'womenHelpline': 'महिला हेल्पलाइन',
       'nearbyServices': 'जवळच्या सेवा',
       'nearbyHospitals': 'जवळची रुग्णालये',
       'policeStations': 'पोलीस ठाणे',
       'nearbyWashrooms': 'जवळचे वॉशरूम',
       'nearbyBloodBanks': 'जवळच्या रक्तपेढ्या',
+      'nearbyPharmacies': 'जवळच्या फार्मसी',
       'tapToLoadNearby': 'जवळच्या सेवा लोड करण्यासाठी बटण दाबा.',
       'noNearbyPlaces': '5 किमी परिसरात कोणतीही जागा सापडली नाही.',
       'safeZoneActive': 'सुरक्षा प्राधान्य',
@@ -870,10 +975,10 @@ class AppLocalizations {
       'openSafetyMapConfirm': 'हे ठिकाण नकाशावर पाहायचे आहे का?',
       'yes': 'हो',
       'no': 'नाही',
-            'couldNotOpenDialer': 'डायलर उघडता आला नाही',
-        'policeEmergency': 'पोलीस अपातकालीन',
-        'scanningNearbyPlaces': 'जवळच्या ठिकाणांची स्कॅनिंग केली जात आहे...',
-        'nearbyResultsCount': '{count} जवळचे परिणाम',
+      'couldNotOpenDialer': 'डायलर उघडता आला नाही',
+      'policeEmergency': 'पोलीस अपातकालीन',
+      'scanningNearbyPlaces': 'जवळच्या ठिकाणांची स्कॅनिंग केली जात आहे...',
+      'nearbyResultsCount': '{count} जवळचे परिणाम',
       'cyberCrimeProtection': 'सायबर क्राइम संरक्षण',
       'aiAssist': 'एआय सहाय्य',
       'report': 'रिपोर्ट',
@@ -914,8 +1019,10 @@ class AppLocalizations {
       'progressBadge': '{percent}% पूर्ण | बॅज: {badge}',
       'cyberDefender': 'सायबर डिफेंडर',
       'cyberLearner': 'सायबर लर्नर',
-      'deepfakeSubtitle': 'जागरूकता, आपत्कालीन प्रतिक्रिया, कायदेशीर मार्गदर्शन आणि हेल्पलाइन प्रवेश.',
-      'deepfakeWarning': 'कोणीतरी मॉर्फ/खाजगी मीडिया लीक करण्याची धमकी देत असल्यास, पैसे देऊ नका किंवा वाटाघाटी करू नका. पुरावे जतन करा आणि लवकर रिपोर्ट करा.',
+      'deepfakeSubtitle':
+          'जागरूकता, आपत्कालीन प्रतिक्रिया, कायदेशीर मार्गदर्शन आणि हेल्पलाइन प्रवेश.',
+      'deepfakeWarning':
+          'कोणीतरी मॉर्फ/खाजगी मीडिया लीक करण्याची धमकी देत असल्यास, पैसे देऊ नका किंवा वाटाघाटी करू नका. पुरावे जतन करा आणि लवकर रिपोर्ट करा.',
       'emergencyActions': 'आपत्कालीन क्रिया',
       'call1930': '1930 कॉल करा',
       'police100': 'पोलीस 100',
@@ -925,26 +1032,28 @@ class AppLocalizations {
       'generate': 'निर्माण करा',
       'generatedComplaint': 'निर्मित तक्रार',
       'reportSummaryUnavailable': 'रिपोर्ट सारांश उपलब्ध नाही.',
-      'pdfPayloadGenerated': 'PDF पेलोड तयार. निर्यात एकीकरण बॅकएंड प्रतिसादापासून साठवू/शेअर करू शकते.',
+      'pdfPayloadGenerated':
+          'PDF पेलोड तयार. निर्यात एकीकरण बॅकएंड प्रतिसादापासून साठवू/शेअर करू शकते.',
       'evidenceTitleLabel': 'साक्ष्य शीर्षक',
       'evidenceTitleHint': 'धमकी स्क्रीनशॉट, UPI पुरावा...',
       'category': 'श्रेणी',
       'private': 'खाजगी',
-        'tags': 'टॅग',
-        'tagsHint': 'ब्लॅकमेल, इंस्टाग्राम, पेमेंट',
-        'finish': 'पूर्ण',
-        'searchVault': 'वॉल्ट शोधा',
+      'tags': 'टॅग',
+      'tagsHint': 'ब्लॅकमेल, इंस्टाग्राम, पेमेंट',
+      'finish': 'पूर्ण',
+      'searchVault': 'वॉल्ट शोधा',
       'searchByTitle': 'शीर्षकानुसार शोधा',
-      'noEvidenceFound': 'कोणतेही साक्ष्य सापडले नाही. आपले सुरक्षित वॉल्ट सुरू करण्यासाठी साक्ष्य अपलोड करा.',
-      'deepfakeEmergencySupportTitle':
-          'डीपफेक व मोर्फ्ड इमेज तातडीची मदत',
+      'noEvidenceFound':
+          'कोणतेही साक्ष्य सापडले नाही. आपले सुरक्षित वॉल्ट सुरू करण्यासाठी साक्ष्य अपलोड करा.',
+      'deepfakeEmergencySupportTitle': 'डीपफेक व मोर्फ्ड इमेज तातडीची मदत',
       'medicalHealthVault': 'मेडिकल हेल्थ वॉल्ट',
       'keepEmergencyMedicalInformationOrganized':
           'आपातकालीन वैद्यकीय माहिती जलद वापरासाठी व्यवस्थित ठेवा.',
       'emergencyMedicalId': 'आपत्कालीन वैद्यकीय आयडी',
       'scanInCaseOfMedicalEmergency': 'वैद्यकीय आपातकाळाच्या बाबतीत स्कॅन करा',
       'medicalProfileSaved': 'वैद्यकीय प्रोफाइल जतन केली गेली',
-      'medicalDetailsReady': 'आपली वैद्यकीय माहिती आपत्कालीन वापरासाठी तयार आहे.',
+      'medicalDetailsReady':
+          'आपली वैद्यकीय माहिती आपत्कालीन वापरासाठी तयार आहे.',
       'savedLocallyOnThisDevice': 'हे डिव्हाइसवर स्थानिकपणे जतन केले.',
       'medicalProfileSavedLocallySyncRetryLater':
           'वैद्यकीय प्रोफाइल स्थानिकपणे जतन केली गेली. सिंक नंतर पुन्हा प्रयत्न करेल.',
@@ -967,39 +1076,63 @@ class AppLocalizations {
       'complaint': 'तक्रार',
       'poshActLearningHub': 'POSH कायदा अभ्यास केंद्र',
       'poshStudy1Title': 'POSH कायदा काय कव्हर करतो',
-      'poshStudy1Bullet1': 'POSH कायदा कार्यस्थळी महिला विरोधी लैंगिक छळ (2013) यांचा अंतर्भाव करतो.',
-      'poshStudy1Bullet2': 'हा सन्मान, समानता आणि सुरक्षित कामाच्या अटींचे रक्षण करतो.',
-      'poshStudy1Bullet3': 'हा सार्वजनिक व खासगी कार्यस्थळे, कार्यालये, दुकाने, रुग्णालये, शाळा, NGO आणि नियोक्ता प्रदान केलेले प्रवास यावर लागू होतो.',
-      'poshStudy1Bullet4': 'कायदा कर्मचारी, प्रशिक्षार्थी, इंटर्न, करार कर्मचारी, स्वयंसेवक आणि कार्यस्थलावर येणाऱ्या अभ्यागतांना कव्हर करतो.',
-      'poshStudy1Bullet5': 'लैंगिक स्वरूपाचा अनिच्छित वागणूक मौखिक, लिखित, डिजिटल किंवा शारीरिक असू शकतो.',
-      'poshStudy1Bullet6': 'उदाहरण: अनिच्छित स्पर्श, लैंगिक टिप्पणी, संदेश, सतत छळ किंवा अश्लील सामग्री दाखवणे.',
+      'poshStudy1Bullet1':
+          'POSH कायदा कार्यस्थळी महिला विरोधी लैंगिक छळ (2013) यांचा अंतर्भाव करतो.',
+      'poshStudy1Bullet2':
+          'हा सन्मान, समानता आणि सुरक्षित कामाच्या अटींचे रक्षण करतो.',
+      'poshStudy1Bullet3':
+          'हा सार्वजनिक व खासगी कार्यस्थळे, कार्यालये, दुकाने, रुग्णालये, शाळा, NGO आणि नियोक्ता प्रदान केलेले प्रवास यावर लागू होतो.',
+      'poshStudy1Bullet4':
+          'कायदा कर्मचारी, प्रशिक्षार्थी, इंटर्न, करार कर्मचारी, स्वयंसेवक आणि कार्यस्थलावर येणाऱ्या अभ्यागतांना कव्हर करतो.',
+      'poshStudy1Bullet5':
+          'लैंगिक स्वरूपाचा अनिच्छित वागणूक मौखिक, लिखित, डिजिटल किंवा शारीरिक असू शकतो.',
+      'poshStudy1Bullet6':
+          'उदाहरण: अनिच्छित स्पर्श, लैंगिक टिप्पणी, संदेश, सतत छळ किंवा अश्लील सामग्री दाखवणे.',
       'poshStudy2Title': 'तक्रार प्रक्रिया आणि आंतरिक समिती (IC)',
-      'poshStudy2Bullet1': 'तक्रार सामान्यतः घटना घडल्यापासून 3 महिन्यांमध्ये लेखी स्वरूपात नोंदवावी.',
-      'poshStudy2Bullet2': '10 किंवा अधिक कर्मचारी असलेल्या कार्यस्थळी आंतरिक समिती योग्य रचनेनुसार असावी.',
-      'poshStudy2Bullet3': 'समितीत सामान्यतः वरिष्ठ महिला अध्यक्ष, कर्मचारी सदस्य आणि बाह्य सदस्य समाविष्ट असतात.',
-      'poshStudy2Bullet4': 'समेट फक्त तक्रारकर्त्याने हवे असल्यास वापरता येतो; हे जबरदस्तीचे नसावे.',
-      'poshStudy2Bullet5': 'जर समेट झाले नाही तर IC निष्पक्ष चौकशी करते जिथे दोन्ही बाजू ऐकल्या जातात.',
+      'poshStudy2Bullet1':
+          'तक्रार सामान्यतः घटना घडल्यापासून 3 महिन्यांमध्ये लेखी स्वरूपात नोंदवावी.',
+      'poshStudy2Bullet2':
+          '10 किंवा अधिक कर्मचारी असलेल्या कार्यस्थळी आंतरिक समिती योग्य रचनेनुसार असावी.',
+      'poshStudy2Bullet3':
+          'समितीत सामान्यतः वरिष्ठ महिला अध्यक्ष, कर्मचारी सदस्य आणि बाह्य सदस्य समाविष्ट असतात.',
+      'poshStudy2Bullet4':
+          'समेट फक्त तक्रारकर्त्याने हवे असल्यास वापरता येतो; हे जबरदस्तीचे नसावे.',
+      'poshStudy2Bullet5':
+          'जर समेट झाले नाही तर IC निष्पक्ष चौकशी करते जिथे दोन्ही बाजू ऐकल्या जातात.',
       'poshStudy2Bullet6': 'प्रक्रिया गोपनीय, लेखी आणि दस्तऐवजीकृत राहावी.',
       'poshStudy3Title': 'पुरावे, सुरक्षा आणि नियोक्त्याचे कर्तव्य',
-      'poshStudy3Bullet1': 'चॅट, ईमेल, स्क्रीनशॉट, कॉल लॉग, साक्षीदारांची नावे, तारखा आणि ठिकाणे नोंद ठेवा.',
-      'poshStudy3Bullet2': 'अंतरिम मदत म्हणून बदली, रजा, संपर्क-निषेध किंवा रिपोर्टिंग-लाइन बदल समाविष्ट असू शकतो.',
-      'poshStudy3Bullet3': 'जर तथ्यांनी गुन्हे दाखवले तर POSH प्रक्रियेव्यतिरिक्त पोलिस तक्रार/FIR नोंदवता येऊ शकते.',
-      'poshStudy3Bullet4': 'नियोक्त्यांनी धोरण प्रदर्शित करावे, कर्मचारी प्रशिक्षण द्यावा, IC ला समर्थन द्यावे आणि शिफारसी लागू कराव्यात.',
-      'poshStudy3Bullet5': 'गोपनीयता तक्रारकर्ता, प्रतिवादी, साक्षीदार आणि कार्यवाहीवर लागू होते.',
-      'poshStudy3Bullet6': 'एक तक्रार फक्त म्हणून खोटी नाही की ती सिद्ध केली जाऊ शकली नाही; जानबूझून खोटेपणा वेगळा प्रकरण आहे.',
+      'poshStudy3Bullet1':
+          'चॅट, ईमेल, स्क्रीनशॉट, कॉल लॉग, साक्षीदारांची नावे, तारखा आणि ठिकाणे नोंद ठेवा.',
+      'poshStudy3Bullet2':
+          'अंतरिम मदत म्हणून बदली, रजा, संपर्क-निषेध किंवा रिपोर्टिंग-लाइन बदल समाविष्ट असू शकतो.',
+      'poshStudy3Bullet3':
+          'जर तथ्यांनी गुन्हे दाखवले तर POSH प्रक्रियेव्यतिरिक्त पोलिस तक्रार/FIR नोंदवता येऊ शकते.',
+      'poshStudy3Bullet4':
+          'नियोक्त्यांनी धोरण प्रदर्शित करावे, कर्मचारी प्रशिक्षण द्यावा, IC ला समर्थन द्यावे आणि शिफारसी लागू कराव्यात.',
+      'poshStudy3Bullet5':
+          'गोपनीयता तक्रारकर्ता, प्रतिवादी, साक्षीदार आणि कार्यवाहीवर लागू होते.',
+      'poshStudy3Bullet6':
+          'एक तक्रार फक्त म्हणून खोटी नाही की ती सिद्ध केली जाऊ शकली नाही; जानबूझून खोटेपणा वेगळा प्रकरण आहे.',
       'poshStudy4Title': 'महत्वाचे POSH मर्यादा',
-      'poshStudy4Bullet1': 'अनावश्यक वैयक्तिक वाद किंवा जाणूनबुजून बनवलेल्या आरोपांसाठी यंत्रणा वापरू नका.',
-      'poshStudy4Bullet2': 'पुरावे नष्ट करू नका आणि साक्षीदारांवर दबाव आणू नका.',
-      'poshStudy4Bullet3': 'लहान परंतु सतत घडणाऱ्या घटनांकडे दुर्लक्ष करू नका; नमुने महत्त्वाचे आहेत.',
-      'poshStudy4Bullet4': 'तथ्यात्मक, तारीख-निहायत आणि तपशीलवार रिपोर्टिंग वापरा.',
-      'poshStudy4Bullet5': 'तत्काळ धोक्यात असाल तर प्रथम आपत्कालीन सेवा कॉल करा.',
-      'poshStudy4Bullet6': 'POSH पोर्टल शिकण्यासाठी, दस्तऐवजीकरणासाठी आणि संरचित तक्रार तयारीसाठी आहे.',
+      'poshStudy4Bullet1':
+          'अनावश्यक वैयक्तिक वाद किंवा जाणूनबुजून बनवलेल्या आरोपांसाठी यंत्रणा वापरू नका.',
+      'poshStudy4Bullet2':
+          'पुरावे नष्ट करू नका आणि साक्षीदारांवर दबाव आणू नका.',
+      'poshStudy4Bullet3':
+          'लहान परंतु सतत घडणाऱ्या घटनांकडे दुर्लक्ष करू नका; नमुने महत्त्वाचे आहेत.',
+      'poshStudy4Bullet4':
+          'तथ्यात्मक, तारीख-निहायत आणि तपशीलवार रिपोर्टिंग वापरा.',
+      'poshStudy4Bullet5':
+          'तत्काळ धोक्यात असाल तर प्रथम आपत्कालीन सेवा कॉल करा.',
+      'poshStudy4Bullet6':
+          'POSH पोर्टल शिकण्यासाठी, दस्तऐवजीकरणासाठी आणि संरचित तक्रार तयारीसाठी आहे.',
       'studyFirst': 'आधी अभ्यास करा',
       'readAllSectionsBeforeQuiz1': 'क्विझ 1 पूर्वी सर्व विभाग वाचा',
       'threeLevels': 'तीन स्तर',
       'twentyMcqsEachQuiz': 'प्रत्येक क्विझमध्ये 20 MCQ',
       'quizCertificationTrack': 'क्विझ प्रमाणपत्र ट्रॅक',
-      'studyFirstThenClearQuizzesInOrder': 'आधी अभ्यास करा, मग क्विझ क्रमाने पूर्ण करा.',
+      'studyFirstThenClearQuizzesInOrder':
+          'आधी अभ्यास करा, मग क्विझ क्रमाने पूर्ण करा.',
       'level': 'स्तर',
       'levelPassed': 'स्तर पूर्ण',
       'passed': 'पूर्ण',
@@ -1017,7 +1150,8 @@ class AppLocalizations {
       'fileWorkplaceComplaint': 'कार्यस्थळी तक्रार नोंदवा',
       'fileWorkplaceComplaintSubtitle':
           'तपशीलवार तक्रार नोंद तयार करा आणि पाठवा. तातडीच्या धोक्यात 112 वर कॉल करा.',
-      'keepRecordsFactual': 'तुमची नोंद तथ्यात्मक ठेवा आणि शक्य असल्यास पुरावा जोडा.',
+      'keepRecordsFactual':
+          'तुमची नोंद तथ्यात्मक ठेवा आणि शक्य असल्यास पुरावा जोडा.',
       'yourFullName': 'तुमचे पूर्ण नाव',
       'yourPhoneNumber': 'तुमचा फोन नंबर',
       'yourEmailAddress': 'तुमचा ईमेल पत्ता',
@@ -1095,12 +1229,18 @@ class AppLocalizations {
       'imSafe': 'मी सुरक्षित आहे',
       'pleaseFillAllRequiredDetails': 'कृपया सर्व आवश्यक तपशील भरा.',
       'complaintSubmittedSuccessfully': 'तक्रार यशस्वीरित्या सबमिट केली.',
-      'submissionFailedTryAgain': 'सबमिशन अयशस्वी झाले. कृपया पुन्हा प्रयत्न करा.',
+      'submissionFailedTryAgain':
+          'सबमिशन अयशस्वी झाले. कृपया पुन्हा प्रयत्न करा.',
       'openDetailedPoshActGuide': 'तपशीलवार POSH कायदा मार्गदर्शक उघडा',
-      'clearPreviousQuizToUnlockThisLevel': 'हा स्तर अनलॉक करण्यासाठी मागील क्विझ साफ करा.',
+      'clearPreviousQuizToUnlockThisLevel':
+          'हा स्तर अनलॉक करण्यासाठी मागील क्विझ साफ करा.',
       'previous': 'मागील',
       'retryQuiz': 'क्विझ पुन्हा प्रयत्न करा',
-      'pleaseAnswerEveryQuestionFirst': 'कृपया आधी प्रत्येक प्रश्नाचे उत्तर द्या.',
+      'pleaseAnswerEveryQuestionFirst':
+          'कृपया आधी प्रत्येक प्रश्नाचे उत्तर द्या.',
+      'pleaseAnswerThisQuestionBeforeContinuing':
+          'कृपया पुढे जाण्यापूर्वी या प्रश्नाचे उत्तर द्या.',
+      'currentLevel': 'सध्याचा स्तर',
       'detailedPoshActGuide': 'तपशीलवार POSH कायदा मार्गदर्शक',
     },
   };

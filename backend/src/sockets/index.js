@@ -1,7 +1,7 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const env = require('../config/env');
-const { createSos } = require('../services/sosService');
+const { createSos, resolveSos } = require('../services/sosService');
 const { addLiveLocation } = require('../services/locationService');
 
 const setupSockets = (httpServer) => {
@@ -29,8 +29,20 @@ const setupSockets = (httpServer) => {
       io.emit('live_location_update', { userId: socket.user.id, lat: payload.lat, lng: payload.lng });
     });
 
-    socket.on('cancel_sos', (payload) => {
-      io.emit('sos_resolved', { userId: socket.user.id, sosEventId: payload?.sosEventId || null });
+    socket.on('cancel_sos', async (payload) => {
+      if (!payload?.skipPersistence) {
+        await resolveSos({
+          eventId: payload?.sosEventId || null,
+          userId: socket.user.id,
+          status: 'cancelled',
+        });
+      }
+
+      io.emit('sos_resolved', {
+        userId: socket.user.id,
+        sosEventId: payload?.sosEventId || null,
+        status: 'cancelled',
+      });
     });
   });
 

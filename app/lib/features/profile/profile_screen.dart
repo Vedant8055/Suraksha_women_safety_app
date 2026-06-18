@@ -645,22 +645,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               children: [
                 Text(
                   label,
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: isLight ? const Color(0xFF5F6F8A) : Colors.white70,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
+                    height: 1.2,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   value,
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: isLight ? const Color(0xFF172235) : Colors.white,
                     fontWeight: FontWeight.w900,
+                    fontSize: 13,
+                    height: 1.2,
                   ),
                 ),
               ],
