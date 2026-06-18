@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:suraksha_women_safety_app/features/sos/sos_provider.dart';
@@ -178,11 +180,9 @@ class _EmergencyModeScreenState extends ConsumerState<EmergencyModeScreen> {
                 width: double.infinity,
                 height: 60,
                 child: ElevatedButton(
-                  onPressed: () async {
-                    await ref.read(sosProvider.notifier).cancelSOS();
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                    }
+                  onPressed: () {
+                    unawaited(ref.read(sosProvider.notifier).cancelSOS());
+                    Navigator.pop(context);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,

@@ -571,28 +571,44 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ],
             ),
             const SizedBox(height: 18),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildMetricPill(
-                    context,
-                    icon: Icons.verified_user_rounded,
-                    label: AppLocalizations.of(context).t('profileOverview'),
-                    value: AppLocalizations.of(context).t('saved'),
-                    isLight: isLight,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildMetricPill(
-                    context,
-                    icon: Icons.shield_rounded,
-                    label: AppLocalizations.of(context).t('profileStatsTitle'),
-                    value: AppLocalizations.of(context).t('emergencyContacts'),
-                    isLight: isLight,
-                  ),
-                ),
-              ],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isCompact = constraints.maxWidth < 360;
+                final overviewCard = _buildMetricPill(
+                  context,
+                  icon: Icons.verified_user_rounded,
+                  label: AppLocalizations.of(context).t('profileOverview'),
+                  value: AppLocalizations.of(context).t('saved'),
+                  isLight: isLight,
+                  compact: isCompact,
+                );
+                final contactsCard = _buildMetricPill(
+                  context,
+                  icon: Icons.shield_rounded,
+                  label: AppLocalizations.of(context).t('profileStatsTitle'),
+                  value: AppLocalizations.of(context).t('emergencyContacts'),
+                  isLight: isLight,
+                  compact: isCompact,
+                );
+
+                if (isCompact) {
+                  return Column(
+                    children: [
+                      SizedBox(width: double.infinity, child: overviewCard),
+                      const SizedBox(height: 10),
+                      SizedBox(width: double.infinity, child: contactsCard),
+                    ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    Expanded(child: overviewCard),
+                    const SizedBox(width: 10),
+                    Expanded(child: contactsCard),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 14),
             SizedBox(
@@ -615,54 +631,78 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     required String label,
     required String value,
     required bool isLight,
+    required bool compact,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      constraints: BoxConstraints(minHeight: compact ? 104 : 88),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 16 : 14,
+        vertical: compact ? 16 : 13,
+      ),
       decoration: BoxDecoration(
-        color: isLight ? const Color(0xFFF7FAFF) : const Color(0xFF0E1727),
+        gradient: LinearGradient(
+          colors: isLight
+              ? const [Color(0xFFF9FCFF), Color(0xFFF1F6FF)]
+              : const [Color(0xFF101A2B), Color(0xFF0B1423)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: isLight
-              ? const Color(0xFFDBE7FA)
+              ? const Color(0xFFD7E3F6)
               : Colors.white.withValues(alpha: 0.08),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isLight ? 0.04 : 0.18),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 36,
-            height: 36,
+            width: compact ? 40 : 38,
+            height: compact ? 40 : 38,
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withValues(alpha: isLight ? 0.12 : 0.22),
-              borderRadius: BorderRadius.circular(12),
+              color: AppTheme.primaryColor.withValues(
+                alpha: isLight ? 0.12 : 0.22,
+              ),
+              borderRadius: BorderRadius.circular(13),
             ),
             child: Icon(icon, color: AppTheme.primaryColor, size: 20),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   label,
                   maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  softWrap: true,
+                  overflow: TextOverflow.visible,
                   style: TextStyle(
                     color: isLight ? const Color(0xFF5F6F8A) : Colors.white70,
-                    fontSize: 11,
+                    fontSize: compact ? 11 : 10.5,
                     fontWeight: FontWeight.w700,
                     height: 1.2,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text(
                   value,
                   maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  softWrap: true,
+                  overflow: TextOverflow.visible,
                   style: TextStyle(
                     color: isLight ? const Color(0xFF172235) : Colors.white,
                     fontWeight: FontWeight.w900,
-                    fontSize: 13,
+                    fontSize: compact ? 13.5 : 12.5,
                     height: 1.2,
                   ),
                 ),
@@ -796,17 +836,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.max,
             children: [
               Icon(icon, size: 16, color: textColor),
               const SizedBox(width: 6),
               Flexible(
+                fit: FlexFit.loose,
                 child: Text(
                   label,
                   textAlign: TextAlign.center,
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.fade,
                   style: TextStyle(
                     color: textColor,
                     fontWeight: FontWeight.w900,
-                    fontSize: 13.5,
+                    fontSize: 12.5,
                   ),
                 ),
               ),

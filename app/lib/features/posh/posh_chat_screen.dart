@@ -770,53 +770,141 @@ class _POSHLegalPortalScreenState extends State<POSHLegalPortalScreen> {
                   ),
                 ),
               ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           if (locked)
             Text(
               'Unlock the previous level to continue.',
               style: TextStyle(color: colors.mutedText, fontSize: 12),
             ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: isFirst
-                      ? null
-                      : () => setState(() => _activeQuestionIndex -= 1),
-                  child: Text(AppLocalizations.of(context).t('previous')),
-                ),
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: Theme.of(context).brightness == Brightness.dark
+                    ? [
+                        Colors.white.withValues(alpha: 0.04),
+                        Colors.white.withValues(alpha: 0.02),
+                      ]
+                    : [
+                        const Color(0xFFFDFEFF),
+                        const Color(0xFFF2F7FF),
+                      ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => _resetLevel(levelIndex),
-                  child: Text(AppLocalizations.of(context).t('retryQuiz')),
-                ),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: colors.border.withValues(alpha: 0.72),
               ),
-              const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: canProceed
-                          ? (isLast
-                              ? () => _submitLevel(levelIndex)
-                              : () => setState(() => _activeQuestionIndex += 1))
-                          : null,
-                      child: Text(
-                        isLast
-                            ? AppLocalizations.of(context).t('submitQuiz')
-                            : AppLocalizations.of(context).t('next'),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(
+                    alpha: Theme.of(context).brightness == Brightness.dark
+                        ? 0.14
+                        : 0.05,
+                  ),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: isFirst
+                            ? null
+                            : () => setState(() => _activeQuestionIndex -= 1),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(52),
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                        child: Text(AppLocalizations.of(context).t('previous')),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: canProceed
+                            ? (isLast
+                                ? () => _submitLevel(levelIndex)
+                                : () => setState(() => _activeQuestionIndex += 1))
+                            : null,
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(52),
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: Text(
+                          isLast
+                              ? AppLocalizations.of(context).t('submitQuiz')
+                              : AppLocalizations.of(context).t('next'),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _resetLevel(levelIndex),
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      side: BorderSide(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.24),
+                        width: 1.2,
+                      ),
+                      foregroundColor: AppTheme.primaryColor,
+                      backgroundColor: AppTheme.primaryColor.withValues(
+                        alpha: 0.08,
+                      ),
+                    ),
+                    label: Text(
+                      AppLocalizations.of(context).t('retryQuiz'),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.2,
                       ),
                     ),
                   ),
-            ],
+                ),
+                if (!allAnswered) ...[
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Answer all questions in this level before submitting.',
+                      style: TextStyle(color: colors.mutedText, fontSize: 12),
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
-          const SizedBox(height: 10),
-          if (!allAnswered)
+          if (locked) ...[
+            const SizedBox(height: 10),
             Text(
-              'Answer all questions in this level before submitting.',
+              'Unlock the previous level to continue.',
               style: TextStyle(color: colors.mutedText, fontSize: 12),
             ),
+          ],
+          const SizedBox(height: 2),
         ],
       ),
     );
@@ -2100,5 +2188,3 @@ List<_PoshQuizLevel> _buildPoshQuizLevels() {
     ),
   ];
 }
-
-

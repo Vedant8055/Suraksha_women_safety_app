@@ -465,70 +465,33 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
 
   Future<void> _fetchNearby(double lat, double lng) async {
     try {
-      final policeRes = await _dio.get(
-        ApiConstants.nearbyPolice,
-        queryParameters: {'lat': lat, 'lng': lng},
-      );
-      final hospitalRes = await _dio.get(
-        ApiConstants.nearbyHospitals,
-        queryParameters: {'lat': lat, 'lng': lng},
-      );
-
       final markers = <Marker>{};
+      final results = await Future.wait([
+        _fetchNearbyMarkers(
+          endpoint: ApiConstants.nearbyPolice,
+          lat: lat,
+          lng: lng,
+          markerPrefix: 'police',
+          markerHue: BitmapDescriptor.hueBlue,
+          fallbackTitle: 'Police Station',
+          serviceLabel: 'Police stations',
+        ),
+        _fetchNearbyMarkers(
+          endpoint: ApiConstants.nearbyHospitals,
+          lat: lat,
+          lng: lng,
+          markerPrefix: 'hospital',
+          markerHue: BitmapDescriptor.hueRed,
+          fallbackTitle: 'Hospital',
+          serviceLabel: 'Hospitals',
+        ),
+      ]);
 
-      for (final p in policeRes.data as List<dynamic>) {
-        final coords = p['location']?['coordinates'];
-        if (coords is List && coords.length == 2) {
-          markers.add(
-            Marker(
-              markerId: MarkerId('police_${p['_id']}'),
-              position: LatLng(
-                (coords[1] as num).toDouble(),
-                (coords[0] as num).toDouble(),
-              ),
-              infoWindow: InfoWindow(
-                title: p['name']?.toString() ?? 'Police Station',
-              ),
-              icon: BitmapDescriptor.defaultMarkerWithHue(
-                BitmapDescriptor.hueBlue,
-              ),
-              onTap: () => _selectDestination(
-                LatLng(
-                  (coords[1] as num).toDouble(),
-                  (coords[0] as num).toDouble(),
-                ),
-                p['name']?.toString() ?? 'Police Station',
-              ),
-            ),
-          );
-        }
-      }
-
-      for (final h in hospitalRes.data as List<dynamic>) {
-        final coords = h['location']?['coordinates'];
-        if (coords is List && coords.length == 2) {
-          markers.add(
-            Marker(
-              markerId: MarkerId('hospital_${h['_id']}'),
-              position: LatLng(
-                (coords[1] as num).toDouble(),
-                (coords[0] as num).toDouble(),
-              ),
-              infoWindow: InfoWindow(
-                title: h['name']?.toString() ?? 'Hospital',
-              ),
-              icon: BitmapDescriptor.defaultMarkerWithHue(
-                BitmapDescriptor.hueRed,
-              ),
-              onTap: () => _selectDestination(
-                LatLng(
-                  (coords[1] as num).toDouble(),
-                  (coords[0] as num).toDouble(),
-                ),
-                h['name']?.toString() ?? 'Hospital',
-              ),
-            ),
-          );
+      final errors = <String>[];
+      for (final result in results) {
+        markers.addAll(result.markers);
+        if (result.errorMessage != null) {
+          errors.add(result.errorMessage!);
         }
       }
 
@@ -539,15 +502,118 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
               m.markerId.value.startsWith('hospital_'),
         );
         _markers.addAll(markers);
-        if (!_journeyActive &&
-            (_statusText?.contains(AppLocalizations.of(context).t('loadingNearbySafetyPoints')) ?? false)) {
-          _statusText = AppLocalizations.of(context).t('liveTrackingActive');
+        if (errors.isEmpty) {
+          if (!_journeyActive &&
+              (_statusText?.contains(
+                    AppLocalizations.of(context).t('loadingNearbySafetyPoints'),
+                  ) ??
+                  false)) {
+            _statusText = AppLocalizations.of(context).t('liveTrackingActive');
+          }
+        } else if (markers.isNotEmpty) {
+          _statusText = 'Nearby services loaded with partial issues: ${errors.join(' • ')}';
+        } else {
+          _statusText = errors.join(' • ');
         }
       });
     } on DioException {
       if (!mounted) return;
-      setState(() => _statusText = 'Nearby services unavailable right now.');
+      setState(
+        () => _statusText = 'Nearby services could not be loaded. Please try again.',
+      );
     }
+  }
+
+  Future<_NearbyFetchResult> _fetchNearbyMarkers({
+    required String endpoint,
+    required double lat,
+    required double lng,
+    required String markerPrefix,
+    required double markerHue,
+    required String fallbackTitle,
+    required String serviceLabel,
+  }) async {
+    try {
+      final response = await _dio.get(
+        endpoint,
+        queryParameters: {'lat': lat, 'lng': lng},
+      );
+
+      final data = response.data;
+      if (data is! List) {
+        return _NearbyFetchResult(
+          errorMessage:
+              '$serviceLabel returned an unexpected response from the server.',
+        );
+      }
+
+      final markers = <Marker>{};
+      for (final item in data) {
+        if (item is! Map<String, dynamic>) continue;
+        final coords = item['location']?['coordinates'];
+        if (coords is List && coords.length == 2) {
+          final itemLat = (coords[1] as num).toDouble();
+          final itemLng = (coords[0] as num).toDouble();
+          final name = item['name']?.toString() ?? fallbackTitle;
+          final id = item['_id']?.toString() ?? '${name}_$itemLat,$itemLng';
+
+          markers.add(
+            Marker(
+              markerId: MarkerId('${markerPrefix}_$id'),
+              position: LatLng(itemLat, itemLng),
+              infoWindow: InfoWindow(title: name),
+              icon: BitmapDescriptor.defaultMarkerWithHue(markerHue),
+              onTap: () => _selectDestination(
+                LatLng(itemLat, itemLng),
+                name,
+              ),
+            ),
+          );
+        }
+      }
+
+      return _NearbyFetchResult(markers: markers);
+    } on DioException catch (error) {
+      return _NearbyFetchResult(
+        errorMessage: _describeNearbyFetchError(
+          serviceLabel: serviceLabel,
+          error: error,
+        ),
+      );
+    }
+  }
+
+  String _describeNearbyFetchError({
+    required String serviceLabel,
+    required DioException error,
+  }) {
+    final statusCode = error.response?.statusCode;
+
+    if (error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.sendTimeout ||
+        error.type == DioExceptionType.receiveTimeout) {
+      return '$serviceLabel could not load because the request timed out.';
+    }
+
+    if (error.type == DioExceptionType.connectionError ||
+        error.error is SocketException) {
+      return '$serviceLabel could not load because the network connection is unavailable.';
+    }
+
+    if (error.type == DioExceptionType.badResponse) {
+      if (statusCode == 401 || statusCode == 403) {
+        return '$serviceLabel could not load because the server rejected the request.';
+      }
+      if (statusCode == 404) {
+        return '$serviceLabel endpoint was not found on the server.';
+      }
+      if (statusCode != null) {
+        return '$serviceLabel service returned HTTP $statusCode.';
+      }
+      return '$serviceLabel service returned an invalid response.';
+    }
+
+    return '$serviceLabel could not load right now.';
   }
 
   Future<void> _searchLocation() async {
@@ -2066,6 +2132,16 @@ class _PlaceSuggestion {
   final String placeId;
   final String title;
   final String subtitle;
+}
+
+class _NearbyFetchResult {
+  const _NearbyFetchResult({
+    this.markers = const {},
+    this.errorMessage,
+  });
+
+  final Set<Marker> markers;
+  final String? errorMessage;
 }
 
 class _DirectionRoute {

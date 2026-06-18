@@ -428,7 +428,8 @@ class DashboardScreen extends ConsumerWidget {
           if (!canTriggerSos) return;
           ref.read(_manualSosLaunchingProvider.notifier).state = true;
           unawaited(ref.read(sosProvider.notifier).triggerSOS());
-          await Future<void>.delayed(const Duration(milliseconds: 3200));
+          // Keep the launch animation to exactly 3 pulse cycles before opening SOS mode.
+          await Future<void>.delayed(const Duration(milliseconds: 2400));
           ref.read(_manualSosLaunchingProvider.notifier).state = false;
           if (!context.mounted) {
             return;

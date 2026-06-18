@@ -879,7 +879,7 @@ class AppLocalizations {
       'profileOverview': 'प्रोफाइल सारांश',
       'profileStatsTitle': 'तुमचा सुरक्षा स्नॅपशॉट',
       'profileHeroCta': 'जलद मदतीसाठी प्रोफाइल वैयक्तिक बनवा.',
-      'languageSelectionTitle': 'अॅपची भाषा निवडा',
+      'languageSelectionTitle': 'ॲपची भाषा निवडा',
       'darkMode': 'डार्क मोड',
       'darkModeSubtitleOn': 'डार्क ब्लू थीम',
       'darkModeSubtitleOff': 'हलकी शांत थीम',
