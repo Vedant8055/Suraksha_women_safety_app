@@ -12,7 +12,6 @@ import 'package:suraksha_women_safety_app/theme/theme_mode_provider.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/dashboard_screen.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/safety_monitor_provider.dart';
 import 'package:suraksha_women_safety_app/features/sos/sensor_service.dart';
-import 'package:suraksha_women_safety_app/features/sos/scream_detection_service.dart';
 import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
 import 'package:suraksha_women_safety_app/localization/locale_provider.dart';
 import 'package:suraksha_women_safety_app/widgets/premium_dialog.dart';
@@ -59,8 +58,6 @@ class _MyAppState extends ConsumerState<MyApp> {
         unawaited(
           ref.read(safetyMonitorProvider.notifier).start().catchError((_) {}),
         );
-        ref.read(impactDetectionProvider);
-        ref.read(screamDetectionProvider);
       });
     }
   }

@@ -379,20 +379,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               const SizedBox(height: 14),
               _buildProfileItem(
                 context,
-                l10n.t('phoneNumber'),
-                displayPhone,
-                Icons.phone_rounded,
-                onTap: _isSaving
-                    ? null
-                    : () => _showEditPhoneDialog(
-                        displayPhone == l10n.t('notProvided')
-                            ? ''
-                            : displayPhone,
-                      ),
-              ),
-              const SizedBox(height: 12),
-              _buildProfileItem(
-                context,
                 l10n.t('emergencyContacts'),
                 '${contacts.length} ${l10n.t('contactsSaved')}',
                 Icons.people_rounded,
@@ -570,46 +556,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 18),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final isCompact = constraints.maxWidth < 360;
-                final overviewCard = _buildMetricPill(
-                  context,
-                  icon: Icons.verified_user_rounded,
-                  label: AppLocalizations.of(context).t('profileOverview'),
-                  value: AppLocalizations.of(context).t('saved'),
-                  isLight: isLight,
-                  compact: isCompact,
-                );
-                final contactsCard = _buildMetricPill(
-                  context,
-                  icon: Icons.shield_rounded,
-                  label: AppLocalizations.of(context).t('profileStatsTitle'),
-                  value: AppLocalizations.of(context).t('emergencyContacts'),
-                  isLight: isLight,
-                  compact: isCompact,
-                );
-
-                if (isCompact) {
-                  return Column(
-                    children: [
-                      SizedBox(width: double.infinity, child: overviewCard),
-                      const SizedBox(height: 10),
-                      SizedBox(width: double.infinity, child: contactsCard),
-                    ],
-                  );
-                }
-
-                return Row(
-                  children: [
-                    Expanded(child: overviewCard),
-                    const SizedBox(width: 10),
-                    Expanded(child: contactsCard),
-                  ],
-                );
-              },
-            ),
             const SizedBox(height: 14),
             SizedBox(
               width: double.infinity,
@@ -621,95 +567,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildMetricPill(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required String value,
-    required bool isLight,
-    required bool compact,
-  }) {
-    return Container(
-      constraints: BoxConstraints(minHeight: compact ? 104 : 88),
-      padding: EdgeInsets.symmetric(
-        horizontal: compact ? 16 : 14,
-        vertical: compact ? 16 : 13,
-      ),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isLight
-              ? const [Color(0xFFF9FCFF), Color(0xFFF1F6FF)]
-              : const [Color(0xFF101A2B), Color(0xFF0B1423)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: isLight
-              ? const Color(0xFFD7E3F6)
-              : Colors.white.withValues(alpha: 0.08),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isLight ? 0.04 : 0.18),
-            blurRadius: 14,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: compact ? 40 : 38,
-            height: compact ? 40 : 38,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withValues(
-                alpha: isLight ? 0.12 : 0.22,
-              ),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Icon(icon, color: AppTheme.primaryColor, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  label,
-                  maxLines: 2,
-                  softWrap: true,
-                  overflow: TextOverflow.visible,
-                  style: TextStyle(
-                    color: isLight ? const Color(0xFF5F6F8A) : Colors.white70,
-                    fontSize: compact ? 11 : 10.5,
-                    fontWeight: FontWeight.w700,
-                    height: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  maxLines: 2,
-                  softWrap: true,
-                  overflow: TextOverflow.visible,
-                  style: TextStyle(
-                    color: isLight ? const Color(0xFF172235) : Colors.white,
-                    fontWeight: FontWeight.w900,
-                    fontSize: compact ? 13.5 : 12.5,
-                    height: 1.2,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1048,29 +905,68 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(l10n.t('editProfile')),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+        contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+        actionsPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+        title: Row(
           children: [
-            TextField(
-              controller: nameController,
-              decoration: InputDecoration(labelText: l10n.t('fullName')),
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF1D8CF8), Color(0xFF2ED6C5)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(Icons.badge_rounded, color: Colors.white),
             ),
-            TextField(
-              controller: emailController,
-              keyboardType: TextInputType.emailAddress,
-              decoration: InputDecoration(labelText: l10n.t('email')),
-            ),
-            TextField(
-              controller: phoneController,
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(labelText: l10n.t('phoneNumber')),
-            ),
-            TextField(
-              controller: bloodController,
-              decoration: InputDecoration(labelText: l10n.t('bloodGroup')),
-            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text(l10n.t('editProfile'))),
           ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(
+                  labelText: l10n.t('fullName'),
+                  prefixIcon: const Icon(Icons.person_rounded),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  labelText: l10n.t('email'),
+                  prefixIcon: const Icon(Icons.email_rounded),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: phoneController,
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(
+                  labelText: l10n.t('phoneNumber'),
+                  prefixIcon: const Icon(Icons.call_rounded),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: bloodController,
+                decoration: InputDecoration(
+                  labelText: l10n.t('bloodGroup'),
+                  prefixIcon: const Icon(Icons.bloodtype_rounded),
+                ),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -1104,81 +1000,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Future<void> _showEditPhoneDialog(String currentPhone) async {
-    final l10n = AppLocalizations.of(context);
-    final navigator = Navigator.of(context);
-    final phoneController = TextEditingController(text: currentPhone);
-    var saving = false;
-    var dialogClosed = false;
-
-    await showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text(l10n.t('editPhoneNumber')),
-          content: TextField(
-            controller: phoneController,
-            keyboardType: TextInputType.phone,
-            decoration: InputDecoration(labelText: l10n.t('phoneNumber')),
-          ),
-          actions: [
-            TextButton(
-              onPressed: saving ? null : () => Navigator.pop(context),
-              child: Text(l10n.t('cancel')),
-            ),
-            ElevatedButton(
-              onPressed: saving
-                  ? null
-                  : () async {
-                      final phone = phoneController.text.trim();
-                      if (phone.isEmpty) {
-                        _showError(l10n.t('phoneNumberRequired'));
-                        return;
-                      }
-
-                      setDialogState(() => saving = true);
-                      try {
-                        await _updateProfile(
-                          fullName:
-                              _localName ??
-                              (ref.read(authProvider).user?.name ?? ''),
-                          email:
-                              _localEmail ??
-                              (ref.read(authProvider).user?.email ?? ''),
-                          phone: phone,
-                          bloodGroup:
-                              _localBloodGroup ??
-                              (ref.read(authProvider).user?.bloodGroup ?? ''),
-                        );
-                        if (!mounted) return;
-                        dialogClosed = true;
-                        navigator.pop();
-                        await _showSaveSuccess(
-                          l10n.t('profileSavedTitle'),
-                          l10n.t('profileSavedMessage'),
-                        );
-                      } catch (error) {
-                        _showError(_extractError(error));
-                      } finally {
-                        if (mounted && !dialogClosed) {
-                          setDialogState(() => saving = false);
-                        }
-                      }
-                    },
-            child: saving
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(l10n.t('save')),
-          ),
-        ],
-      ),
-      ),
-    );
-  }
-
   Future<void> _showAddContactDialog() async {
     final l10n = AppLocalizations.of(context);
     final navigator = Navigator.of(context);
@@ -1191,27 +1012,62 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text(l10n.t('addEmergencyContactTitle')),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+          contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+          actionsPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+          title: Row(
             children: [
-              TextField(
-                controller: nameController,
-                enabled: !saving,
-                decoration: InputDecoration(labelText: l10n.t('name')),
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF2F80ED), Color(0xFF56CCF2)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Icons.group_add_rounded, color: Colors.white),
               ),
-              TextField(
-                controller: phoneController,
-                enabled: !saving,
-                keyboardType: TextInputType.phone,
-                decoration: InputDecoration(labelText: l10n.t('phoneNumber')),
-              ),
-              TextField(
-                controller: relationController,
-                enabled: !saving,
-                decoration: InputDecoration(labelText: l10n.t('relation')),
-              ),
+              const SizedBox(width: 12),
+              Expanded(child: Text(l10n.t('addEmergencyContactTitle'))),
             ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  enabled: !saving,
+                  decoration: InputDecoration(
+                    labelText: l10n.t('name'),
+                    prefixIcon: const Icon(Icons.person_rounded),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: phoneController,
+                  enabled: !saving,
+                  keyboardType: TextInputType.phone,
+                  decoration: InputDecoration(
+                    labelText: l10n.t('phoneNumber'),
+                    prefixIcon: const Icon(Icons.call_rounded),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: relationController,
+                  enabled: !saving,
+                  decoration: InputDecoration(
+                    labelText: l10n.t('relation'),
+                    prefixIcon: const Icon(Icons.family_restroom_rounded),
+                  ),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -1285,24 +1141,59 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(l10n.t('editEmergencyContactTitle')),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+        contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+        actionsPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+        title: Row(
           children: [
-            TextField(
-              controller: nameController,
-              decoration: InputDecoration(labelText: l10n.t('name')),
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF1D8CF8), Color(0xFF2ED6C5)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(Icons.favorite_rounded, color: Colors.white),
             ),
-            TextField(
-              controller: phoneController,
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(labelText: l10n.t('phoneNumber')),
-            ),
-            TextField(
-              controller: relationController,
-              decoration: InputDecoration(labelText: l10n.t('relation')),
-            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text(l10n.t('editEmergencyContactTitle'))),
           ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(
+                  labelText: l10n.t('name'),
+                  prefixIcon: const Icon(Icons.person_rounded),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: phoneController,
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(
+                  labelText: l10n.t('phoneNumber'),
+                  prefixIcon: const Icon(Icons.call_rounded),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: relationController,
+                decoration: InputDecoration(
+                  labelText: l10n.t('relation'),
+                  prefixIcon: const Icon(Icons.family_restroom_rounded),
+                ),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(

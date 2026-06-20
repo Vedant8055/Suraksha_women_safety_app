@@ -107,6 +107,7 @@ class _POSHLegalPortalScreenState extends State<POSHLegalPortalScreen> {
             }
           }
 
+          if (!mounted) return;
           setState(() {
             _passedLevels
               ..clear()
@@ -152,6 +153,74 @@ class _POSHLegalPortalScreenState extends State<POSHLegalPortalScreen> {
     }
   }
 
+  String _extractComplaintErrorMessage(DioException error, AppLocalizations l10n) {
+    final response = error.response;
+    final data = response?.data;
+    final statusCode = response?.statusCode;
+
+    String? message;
+    if (data is Map) {
+      final rawMessage = data['message']?.toString();
+      if (rawMessage != null && rawMessage.trim().isNotEmpty) {
+        message = rawMessage.trim();
+      }
+
+      if (message == 'Validation failed') {
+        final details = data['details'];
+        if (details is Map) {
+          final fieldErrors = details['fieldErrors'];
+          if (fieldErrors is Map && fieldErrors.isNotEmpty) {
+            final firstEntry = fieldErrors.entries.first;
+            final firstError = firstEntry.value;
+            if (firstError is List && firstError.isNotEmpty) {
+              final firstMessage = firstError.first?.toString().trim();
+              if (firstMessage != null && firstMessage.isNotEmpty) {
+                return firstMessage;
+              }
+            }
+            final firstMessage = firstError?.toString().trim();
+            if (firstMessage != null && firstMessage.isNotEmpty) {
+              return firstMessage;
+            }
+          }
+
+          final formErrors = details['formErrors'];
+          if (formErrors is List && formErrors.isNotEmpty) {
+            final firstMessage = formErrors.first?.toString().trim();
+            if (firstMessage != null && firstMessage.isNotEmpty) {
+              return firstMessage;
+            }
+          }
+        }
+      }
+    }
+
+    if (error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.receiveTimeout ||
+        error.type == DioExceptionType.sendTimeout) {
+      return 'The complaint request timed out. Please try again.';
+    }
+
+    if (error.type == DioExceptionType.connectionError) {
+      return 'Network connection unavailable. Please check your internet and try again.';
+    }
+
+    if (statusCode == 401 || statusCode == 403) {
+      return 'Your session expired. Please sign in again to submit a complaint.';
+    }
+
+    if (message != null && message.isNotEmpty) {
+      return message;
+    }
+
+    final errorText = error.error?.toString().trim();
+    if (errorText != null && errorText.isNotEmpty) {
+      return errorText;
+    }
+
+    return l10n.t('submissionFailedTryAgain');
+  }
+
   Future<void> _submitComplaint() async {
     final l10n = AppLocalizations.of(context);
     final complainantName = _complainantNameController.text.trim();
@@ -175,37 +244,42 @@ class _POSHLegalPortalScreenState extends State<POSHLegalPortalScreen> {
       return;
     }
 
-    final compiledDescription = '''
-  POSH Workplace Complaint (Police Filing Intent)
-  Complainant: $complainantName
-  Phone: $complainantPhone
-  Email: ${complainantEmail.isEmpty ? l10n.t('notProvided') : complainantEmail}
-  Accused: $accusedName
-  Workplace: ${workplace.isEmpty ? l10n.t('notProvided') : workplace}
-  Incident Date: ${incidentDate.isEmpty ? l10n.t('notProvided') : incidentDate}
-  Incident Location: ${incidentLocation.isEmpty ? l10n.t('notProvided') : incidentLocation}
-  Witnesses: ${witnesses.isEmpty ? l10n.t('noneProvided') : witnesses}
-  Complaint Details: $details
-  ''';
+    final complaintLines = <String>[
+      'POSH Workplace Complaint',
+      'Complainant: $complainantName',
+      'Phone: $complainantPhone',
+      'Email: ${complainantEmail.isEmpty ? l10n.t('notProvided') : complainantEmail}',
+      'Accused: $accusedName',
+      'Workplace: ${workplace.isEmpty ? l10n.t('notProvided') : workplace}',
+      'Incident Date: ${incidentDate.isEmpty ? l10n.t('notProvided') : incidentDate}',
+      'Incident Location: ${incidentLocation.isEmpty ? l10n.t('notProvided') : incidentLocation}',
+      'Witnesses: ${witnesses.isEmpty ? l10n.t('noneProvided') : witnesses}',
+      'Complaint Details: $details',
+    ];
+    final compiledDescription = complaintLines.join('\n');
 
     setState(() => _submitting = true);
     try {
-      await _dio.post(
+      final response = await _dio.post(
         ApiConstants.incidentReport,
         data: {
           'category': 'POSH Workplace Complaint',
           'description': compiledDescription,
         },
       );
-      if (mounted) {
+      if (mounted && response.statusCode != null && response.statusCode! >= 200 && response.statusCode! < 300) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(l10n.t('complaintSubmittedSuccessfully'))),
         );
-      }
-    } on DioException {
-      if (mounted) {
+      } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(l10n.t('submissionFailedTryAgain'))),
+        );
+      }
+    } on DioException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_extractComplaintErrorMessage(error, l10n))),
         );
       }
     } finally {
