@@ -899,6 +899,7 @@ class DashboardScreen extends ConsumerWidget {
             l10n.t('tapRefreshTryAgain'),
             Icons.warning_amber_rounded,
             const Color(0xFFF3B13E),
+            backgroundColor: const Color(0xFFF8E6E8),
           )
         else if (alertsState.alerts.isEmpty && alertsState.isLoading)
           _buildAlertCard(
@@ -907,6 +908,7 @@ class DashboardScreen extends ConsumerWidget {
             l10n.t('checkingTrafficTransportNearbyActivity'),
             Icons.sync_rounded,
             AppTheme.primaryColor,
+            backgroundColor: const Color(0xFFEAF3FF),
           )
         else if (alertsState.alerts.isEmpty)
           _buildAlertCard(
@@ -915,10 +917,13 @@ class DashboardScreen extends ConsumerWidget {
             l10n.t('keepGpsOnForRealtimeCommunityUpdates'),
             Icons.location_searching_rounded,
             const Color(0xFF26BF96),
+            backgroundColor: const Color(0xFFE6F7EC),
           )
         else
-          ...alertsState.alerts.map(
-            (alert) => Padding(
+          ...alertsState.alerts.asMap().entries.map((entry) {
+            final index = entry.key;
+            final alert = entry.value;
+            return Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: _buildAlertCard(
                 context,
@@ -926,9 +931,10 @@ class DashboardScreen extends ConsumerWidget {
                 '${alert.detail} | ${alert.timeText(l10n.locale.languageCode)}',
                 _iconForCommunityAlert(alert.kind),
                 _colorForCommunityAlert(alert.kind),
+                backgroundColor: _backgroundColorForCommunityAlert(index),
               ),
-            ),
-          ),
+            );
+          }),
       ],
     );
   }
@@ -1067,6 +1073,13 @@ class DashboardScreen extends ConsumerWidget {
     }
   }
 
+  Color _backgroundColorForCommunityAlert(int index) {
+    if (index.isEven) {
+      return const Color(0xFF163A63);
+    }
+    return const Color(0xFF184D3B);
+  }
+
   Future<void> _openDialPad(BuildContext context, String number) async {
     final uri = Uri(scheme: 'tel', path: number);
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -1183,46 +1196,34 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   Widget _buildPoliceNumberCard(BuildContext context) {
-    final isLight = Theme.of(context).brightness == Brightness.light;
     final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isLight
-              ? const [Color(0xFFFFFFFF), Color(0xFFF2F6FF)]
-              : const [AppTheme.cardColor, AppTheme.cardColor],
+        gradient: const LinearGradient(
+          colors: [Color(0xFF163A63), Color(0xFF1E4B7A)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isLight
-              ? const Color(0xFFDCE5F6)
-              : Colors.white.withValues(alpha: 0.08),
-        ),
-        boxShadow: isLight
-            ? [
-                BoxShadow(
-                  color: const Color(0xFF8A9FBE).withValues(alpha: 0.16),
-                  blurRadius: 12,
-                  offset: const Offset(0, 6),
-                ),
-              ]
-            : null,
+        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF163A63).withValues(alpha: 0.28),
+            blurRadius: 14,
+            offset: const Offset(0, 7),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF3B82F6).withValues(alpha: 0.18),
+              color: Colors.white.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(
-              Icons.local_police_rounded,
-              color: Color(0xFF3B82F6),
-            ),
+            child: const Icon(Icons.local_police_rounded, color: Colors.white),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -1232,14 +1233,14 @@ class DashboardScreen extends ConsumerWidget {
                 Text(
                   l10n.t('policeEmergency'),
                   style: TextStyle(
-                    color: isLight ? const Color(0xFF172235) : Colors.white,
+                    color: Colors.white,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 const Text(
                   '100',
                   style: TextStyle(
-                    color: Color(0xFF3B82F6),
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -1256,45 +1257,33 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   Widget _buildWomenHelplineCard(BuildContext context) {
-    final isLight = Theme.of(context).brightness == Brightness.light;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isLight
-              ? const [Color(0xFFFFFFFF), Color(0xFFF2F6FF)]
-              : const [AppTheme.cardColor, AppTheme.cardColor],
+        gradient: const LinearGradient(
+          colors: [Color(0xFF184D3B), Color(0xFF1E664E)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isLight
-              ? const Color(0xFFDCE5F6)
-              : Colors.white.withValues(alpha: 0.08),
-        ),
-        boxShadow: isLight
-            ? [
-                BoxShadow(
-                  color: const Color(0xFF8A9FBE).withValues(alpha: 0.16),
-                  blurRadius: 12,
-                  offset: const Offset(0, 6),
-                ),
-              ]
-            : null,
+        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF184D3B).withValues(alpha: 0.28),
+            blurRadius: 14,
+            offset: const Offset(0, 7),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withValues(alpha: 0.2),
+              color: Colors.white.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(
-              Icons.support_agent,
-              color: AppTheme.primaryColor,
-            ),
+            child: const Icon(Icons.support_agent, color: Colors.white),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -1304,14 +1293,14 @@ class DashboardScreen extends ConsumerWidget {
                 Text(
                   AppLocalizations.of(context).t('womenHelpline'),
                   style: TextStyle(
-                    color: isLight ? const Color(0xFF172235) : Colors.white,
+                    color: Colors.white,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
                   '1091',
                   style: TextStyle(
-                    color: AppTheme.primaryColor,
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -1332,35 +1321,32 @@ class DashboardScreen extends ConsumerWidget {
     String title,
     String time,
     IconData icon,
-    Color color,
-  ) {
+    Color color, {
+    Color? backgroundColor,
+  }) {
     final isLight = Theme.of(context).brightness == Brightness.light;
+    final cardColor = backgroundColor ?? color.withValues(alpha: 0.12);
+    final useLightText =
+        backgroundColor != null &&
+        ThemeData.estimateBrightnessForColor(backgroundColor) ==
+            Brightness.dark;
     return _PoppingAlertCard(
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(17),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              isLight
-                  ? const Color(0xFFFFFFFF)
-                  : AppTheme.surfaceSoft.withValues(alpha: 0.72),
-              isLight
-                  ? const Color(0xFFF1F6FF)
-                  : AppTheme.cardColor.withValues(alpha: 0.76),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          color: isLight
+              ? cardColor
+              : AppTheme.cardColor.withValues(alpha: 0.92),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: isLight
-                ? const Color(0xFFDCE5F6)
+                ? color.withValues(alpha: 0.18)
                 : Colors.white.withValues(alpha: 0.1),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: isLight ? 0.04 : 0.18),
+              color: color.withValues(alpha: isLight ? 0.10 : 0.16),
               blurRadius: 14,
               offset: const Offset(0, 7),
             ),
@@ -1372,10 +1358,12 @@ class DashboardScreen extends ConsumerWidget {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: color.withValues(alpha: isLight ? 0.14 : 0.18),
+                color: useLightText
+                    ? Colors.white.withValues(alpha: 0.14)
+                    : color.withValues(alpha: isLight ? 0.18 : 0.22),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: color),
+              child: Icon(icon, color: useLightText ? Colors.white : color),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -1385,14 +1373,20 @@ class DashboardScreen extends ConsumerWidget {
                   Text(
                     title,
                     style: TextStyle(
-                      color: isLight ? const Color(0xFF172235) : Colors.white,
+                      color: useLightText
+                          ? Colors.white
+                          : isLight
+                          ? const Color(0xFF172235)
+                          : Colors.white,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   Text(
                     time,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
+                    style: TextStyle(
+                      color: useLightText
+                          ? Colors.white.withValues(alpha: 0.78)
+                          : AppTheme.textSecondary,
                       fontSize: 12,
                     ),
                   ),
