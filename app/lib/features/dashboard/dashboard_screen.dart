@@ -1053,13 +1053,13 @@ class DashboardScreen extends ConsumerWidget {
   Color _colorForCommunityAlert(CommunityAlertKind kind) {
     switch (kind) {
       case CommunityAlertKind.traffic:
-        return const Color(0xFFF3B13E);
+        return const Color(0xFFC96A74);
       case CommunityAlertKind.transport:
-        return const Color(0xFF1D8CF8);
+        return const Color(0xFF5CA8F4);
       case CommunityAlertKind.lonelyRoad:
-        return const Color(0xFFFF5D73);
+        return const Color(0xFF67B98A);
       case CommunityAlertKind.silentZone:
-        return const Color(0xFF8E7CF4);
+        return const Color(0xFF9A8AF2);
       case CommunityAlertKind.roadBlock:
         return const Color(0xFFE66E41);
       case CommunityAlertKind.lighting:
@@ -1372,7 +1372,7 @@ class DashboardScreen extends ConsumerWidget {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.2),
+                color: color.withValues(alpha: isLight ? 0.14 : 0.18),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: color),
@@ -1657,6 +1657,8 @@ class DashboardScreen extends ConsumerWidget {
     final textColor = active
         ? Colors.white
         : (isLight ? const Color(0xFF172235) : Colors.white);
+    final inactiveBase = color.withValues(alpha: isLight ? 0.12 : 0.18);
+    final inactiveEdge = color.withValues(alpha: isLight ? 0.2 : 0.28);
 
     return Material(
       color: Colors.transparent,
@@ -1676,12 +1678,10 @@ class DashboardScreen extends ConsumerWidget {
                     end: Alignment.bottomRight,
                   )
                 : LinearGradient(
-                    colors: isLight
-                        ? const [Color(0xFFFFFFFF), Color(0xFFF2F7FF)]
-                        : [
-                            AppTheme.surfaceSoft.withValues(alpha: 0.72),
-                            const Color(0xFF10213A),
-                          ],
+                    colors: [
+                      inactiveBase,
+                      color.withValues(alpha: isLight ? 0.06 : 0.12),
+                    ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -1689,16 +1689,14 @@ class DashboardScreen extends ConsumerWidget {
             border: Border.all(
               color: active
                   ? Colors.white.withValues(alpha: 0.32)
-                  : isLight
-                  ? const Color(0xFFD8E5F7)
-                  : Colors.white.withValues(alpha: 0.1),
+                  : inactiveEdge,
             ),
             boxShadow: [
               BoxShadow(
                 color: active
                     ? color.withValues(alpha: 0.32)
                     : isLight
-                    ? const Color(0xFF8A9FBE).withValues(alpha: 0.12)
+                    ? color.withValues(alpha: 0.10)
                     : Colors.black.withValues(alpha: 0.18),
                 blurRadius: active ? 18 : 10,
                 offset: const Offset(0, 7),
