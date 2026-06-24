@@ -185,8 +185,8 @@ class _MyAppState extends ConsumerState<MyApp> {
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFE53935),
-                  foregroundColor: Colors.white,
+                  backgroundColor: const Color.fromARGB(255, 239, 179, 178),
+                  foregroundColor: const Color.fromARGB(255, 232, 49, 49),
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 18,
