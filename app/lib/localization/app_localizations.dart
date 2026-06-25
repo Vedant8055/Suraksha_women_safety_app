@@ -148,6 +148,8 @@ class AppLocalizations {
       'policeEmergency': 'Police Emergency',
       'scanningNearbyPlaces': 'Scanning nearby places...',
       'nearbyResultsCount': '{count} nearby results',
+      'chooseServiceToScanYourArea':
+          'Choose a service below to scan your current area.',
       'cyberCrimeProtection': 'Cyber Crime Protection',
       'aiAssist': 'AI Assist',
       'report': 'Report',
@@ -590,6 +592,8 @@ class AppLocalizations {
       'policeEmergency': 'पुलिस आपातकालीन',
       'scanningNearbyPlaces': 'नज़दीकी स्थान स्कैन किए जा रहे हैं...',
       'nearbyResultsCount': '{count} नज़दीकी परिणाम',
+      'chooseServiceToScanYourArea':
+          'अपने वर्तमान क्षेत्र को स्कैन करने के लिए नीचे एक सेवा चुनें।',
       'cyberCrimeProtection': 'साइबर क्राइम सुरक्षा',
       'aiAssist': 'एआई सहायता',
       'report': 'रिपोर्ट',
@@ -979,6 +983,8 @@ class AppLocalizations {
       'policeEmergency': 'पोलीस अपातकालीन',
       'scanningNearbyPlaces': 'जवळच्या ठिकाणांची स्कॅनिंग केली जात आहे...',
       'nearbyResultsCount': '{count} जवळचे परिणाम',
+      'chooseServiceToScanYourArea':
+          'तुमचा सध्याचा परिसर स्कॅन करण्यासाठी खाली एक सेवा निवडा.',
       'cyberCrimeProtection': 'सायबर क्राइम संरक्षण',
       'aiAssist': 'एआय सहाय्य',
       'report': 'रिपोर्ट',

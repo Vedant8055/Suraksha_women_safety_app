@@ -29,4 +29,6 @@ class ApiConstants {
   static const String cyberLearningContent = '/cybercrime/learning/content';
   static const String cyberLearningProgress = '/cybercrime/learning/progress';
   static const String cyberDeepfakeResources = '/cybercrime/deepfake/resources';
+  static const String safetyIntelligenceLive = '/safety-intelligence/live';
+  static const String safetyIntelligenceRoutes = '/safety-intelligence/routes';
 }

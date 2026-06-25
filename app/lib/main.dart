@@ -133,11 +133,9 @@ class _MyAppState extends ConsumerState<MyApp> {
     if (dialogContext == null) return;
 
     _missingContactsDialogVisible = true;
-    unawaited(
-      showMissingEmergencyContactsDialog(dialogContext).whenComplete(() {
-        _missingContactsDialogVisible = false;
-      }),
-    );
+    showMissingEmergencyContactsDialog(dialogContext).whenComplete(() {
+      _missingContactsDialogVisible = false;
+    });
   }
 
   Future<void> _showImpactCountdownDialog() async {

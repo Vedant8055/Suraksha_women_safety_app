@@ -1095,7 +1095,7 @@ class _POSHLegalPortalScreenState extends State<POSHLegalPortalScreen>
           message:
               'You scored $score/${level.questions.length}. Review the study section and retry this level.',
           icon: Icons.refresh_rounded,
-          accentColor: const Color(0xFFE53935),
+          accentColor: const Color.fromRGBO(229, 57, 53, 1), // Corrected from Color.from
           actions: [
             PremiumDialogAction(
               label: AppLocalizations.of(context).t('reviewStudy'),

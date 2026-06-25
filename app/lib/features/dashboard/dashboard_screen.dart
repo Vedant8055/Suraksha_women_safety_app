@@ -17,8 +17,8 @@ import 'package:suraksha_women_safety_app/features/maps/safety_map_screen.dart';
 import 'package:suraksha_women_safety_app/features/medical/medical_vault_screen.dart';
 import 'package:suraksha_women_safety_app/features/posh/posh_chat_screen.dart';
 import 'package:suraksha_women_safety_app/features/profile/profile_screen.dart';
-import 'package:suraksha_women_safety_app/features/dashboard/community_alerts_provider.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/nearby_places_provider.dart';
+import 'package:suraksha_women_safety_app/features/dashboard/community_alerts_provider.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/safety_monitor_provider.dart';
 import 'package:suraksha_women_safety_app/features/profile/profile_display_provider.dart';
 import 'package:suraksha_women_safety_app/features/routes/route_safety_provider.dart';
@@ -90,7 +90,7 @@ class DashboardScreen extends ConsumerWidget {
       title: l10n.t('openSafetyMap'),
       message: l10n.t('openSafetyMapConfirm'),
       icon: Icons.map_rounded,
-      accentColor: const Color(0xFF3B82F6),
+      accentColor: const Color(0xFF3B82F6), // A more appropriate map color
       actions: [
         PremiumDialogAction(
           label: l10n.t('no'),
@@ -178,6 +178,13 @@ class DashboardScreen extends ConsumerWidget {
                   const SizedBox(height: 14),
                   FadeInUp(
                     delay: const Duration(milliseconds: 260),
+                    duration: const Duration(milliseconds: 430),
+                    from: 10,
+                    child: _buildSafetyIntelligenceCard(context, ref),
+                  ),
+                  const SizedBox(height: 20),
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 280),
                     duration: const Duration(milliseconds: 430),
                     from: 10,
                     child: _buildWomenHelplineCard(context),
@@ -504,6 +511,214 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
+  Widget _buildSafetyIntelligenceCard(BuildContext context, WidgetRef ref) {
+    final safetyState = ref.watch(safetyMonitorProvider);
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final tone = safetyState.safetyScore >= 81
+        ? const Color(0xFF15803D)
+        : safetyState.safetyScore >= 61
+        ? const Color(0xFF16A34A)
+        : safetyState.safetyScore >= 41
+        ? const Color(0xFFEAB308)
+        : safetyState.safetyScore >= 21
+        ? const Color(0xFFF97316)
+        : const Color(0xFFB91C1C);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isLight
+              ? [
+                  const Color(0xFFFFFFFF),
+                  Color.lerp(const Color(0xFFF5FAFF), tone, 0.12)!,
+                ]
+              : [
+                  Color.lerp(AppTheme.cardColor, tone, 0.18)!,
+                  const Color(0xFF101827),
+                ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: tone.withValues(alpha: isLight ? 0.24 : 0.36),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: tone.withValues(alpha: isLight ? 0.12 : 0.20),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Icon(Icons.shield_rounded, color: tone),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'AI Safety Intelligence',
+                      style: TextStyle(
+                        color: isLight ? const Color(0xFF172235) : Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      safetyState.summary ?? safetyState.statusMessage,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: isLight
+                            ? const Color(0xFF627491)
+                            : Colors.white.withValues(alpha: 0.7),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '${safetyState.safetyScore}',
+                    style: TextStyle(
+                      color: tone,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  Text(
+                    '/ 100',
+                    style: TextStyle(
+                      color: isLight
+                          ? const Color(0xFF627491)
+                          : Colors.white60,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _routeChip(
+                context,
+                icon: Icons.flag_rounded,
+                label: safetyState.riskLabel,
+                color: tone,
+              ),
+              _routeChip(
+                context,
+                icon: Icons.verified_rounded,
+                label: safetyState.aiConfidenceVisible
+                    ? 'AI Confidence ${safetyState.aiConfidence}%'
+                    : 'Safety Assessment Limited',
+                color: const Color(0xFF3B82F6),
+              ),
+              if (safetyState.nearbyPoliceCount > 0)
+                _routeChip(
+                  context,
+                  icon: Icons.local_police_rounded,
+                  label: '${safetyState.nearbyPoliceCount} police nearby',
+                  color: const Color(0xFF2563EB),
+                ),
+              if (safetyState.nearbyHospitalCount > 0)
+                _routeChip(
+                  context,
+                  icon: Icons.local_hospital_rounded,
+                  label:
+                      '${safetyState.nearbyHospitalCount} hospitals nearby',
+                  color: const Color(0xFFE11D48),
+                ),
+            ],
+          ),
+          if (safetyState.upcomingRisk != null) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(
+                color: const Color(0xFF7F1D1D).withValues(
+                  alpha: isLight ? 0.08 : 0.20,
+                ),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                '${safetyState.upcomingRisk!.summary} ${safetyState.upcomingRisk!.recommendedAction}',
+                style: TextStyle(
+                  color: isLight ? const Color(0xFF6B1D1D) : Colors.white,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+          if (safetyState.contributingFactors.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Text(
+              safetyState.contributingFactors.take(4).join(' | '),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: isLight
+                    ? const Color(0xFF546784)
+                    : Colors.white.withValues(alpha: 0.68),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+          if (safetyState.recommendations.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            ...safetyState.recommendations.take(3).map(
+              (item) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  '• $item',
+                  style: TextStyle(
+                    color: isLight
+                        ? const Color(0xFF334158)
+                        : Colors.white70,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () => ref.read(safetyMonitorProvider.notifier).refresh(),
+              icon: const Icon(Icons.refresh_rounded, size: 17),
+              label: const Text('Refresh intelligence'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildActionCard(
     BuildContext context,
     IconData icon,
@@ -824,10 +1039,21 @@ class DashboardScreen extends ConsumerWidget {
   Widget _buildRecentAlerts(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final alertsState = ref.watch(communityAlertsProvider);
-    final shouldEmphasizeRefresh =
-        !alertsState.isLoading &&
-        (alertsState.error != null || alertsState.alerts.isEmpty);
+    final safetyState = ref.watch(safetyMonitorProvider);
+    final localAlertsState = ref.watch(communityAlertsProvider);
+    final alerts = _resolveCommunityAlerts(safetyState, localAlertsState);
+    final isRefreshing =
+        safetyState.isRefreshing || localAlertsState.isLoading;
+
+    ref.listen<SafetyMonitorState>(safetyMonitorProvider, (previous, next) {
+      if (next.communityAlerts.isEmpty &&
+          !next.isRefreshing &&
+          next.position != null &&
+          !ref.read(communityAlertsProvider).isLoading &&
+          ref.read(communityAlertsProvider).alerts.isEmpty) {
+        unawaited(ref.read(communityAlertsProvider.notifier).refresh());
+      }
+    });
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -835,121 +1061,454 @@ class DashboardScreen extends ConsumerWidget {
         Row(
           children: [
             Expanded(
-              child: Text(
-                l10n.t('communityAlerts'),
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: isLight ? const Color(0xFF172235) : Colors.white,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.t('communityAlerts'),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: isLight ? const Color(0xFF172235) : Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    l10n.t('checkingTrafficTransportNearbyActivity'),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: isLight ? const Color(0xFF627491) : Colors.white54,
+                    ),
+                  ),
+                ],
               ),
             ),
             Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                if (!alertsState.isLoading)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: alerts.isNotEmpty
+                          ? [
+                              const Color(0xFF3B82F6).withValues(alpha: 0.22),
+                              const Color(0xFF26BF96).withValues(alpha: 0.24),
+                            ]
+                          : [
+                              const Color(0xFF3B82F6).withValues(alpha: 0.10),
+                              const Color(0xFF26BF96).withValues(alpha: 0.12),
+                            ],
                     ),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          const Color(0xFF3B82F6).withValues(alpha: 0.16),
-                          const Color(0xFF26BF96).withValues(alpha: 0.18),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                        color: const Color(
-                          0xFF3B82F6,
-                        ).withValues(alpha: isLight ? 0.22 : 0.34),
-                      ),
-                    ),
-                    child: Text(
-                      l10n.t('tapForAlerts'),
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.3,
-                        color: Color(0xFF2E4E74),
-                      ),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: alerts.isNotEmpty
+                          ? const Color(0xFF3B82F6).withValues(alpha: isLight ? 0.40 : 0.55)
+                          : const Color(0xFF3B82F6).withValues(alpha: isLight ? 0.22 : 0.34),
                     ),
                   ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: alerts.isNotEmpty
+                              ? const Color(0xFF26BF96)
+                              : const Color(0xFF94A3B8),
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        '${alerts.length} live cards',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.3,
+                          color: alerts.isNotEmpty
+                              ? const Color(0xFF1E3A5F)
+                              : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 7),
                 _buildCommunityAlertsRefreshButton(
                   context,
                   isLight: isLight,
-                  alertsState: alertsState,
-                  shouldEmphasizeRefresh: shouldEmphasizeRefresh,
-                  onPressed: () =>
+                  canRefresh: true,
+                  isRefreshing: isRefreshing,
+                  shouldEmphasizeRefresh: alerts.isEmpty && !isRefreshing,
+                  onPressed: () async {
+                    await Future.wait([
+                      ref.read(safetyMonitorProvider.notifier).refresh(),
                       ref.read(communityAlertsProvider.notifier).refresh(),
+                    ]);
+                  },
                 ),
               ],
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        if (alertsState.error != null)
-          _buildAlertCard(
-            context,
-            alertsState.error!,
-            l10n.t('tapRefreshTryAgain'),
-            Icons.warning_amber_rounded,
-            const Color(0xFFF3B13E),
-            backgroundColor: const Color(0xFFF8E6E8),
+        const SizedBox(height: 14),
+        if (isRefreshing && alerts.isEmpty)
+          _PoppingAlertCard(
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: isLight
+                    ? const Color(0xFFEAF2FF)
+                    : const Color(0xFF10233D),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: const Color(0xFF3B82F6).withValues(alpha: 0.28),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(strokeWidth: 2.6),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(
+                      l10n.t('loadingLiveAreaAlerts'),
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: isLight
+                            ? const Color(0xFF172235)
+                            : Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           )
-        else if (alertsState.alerts.isEmpty && alertsState.isLoading)
-          _buildAlertCard(
-            context,
-            l10n.t('loadingLiveAreaAlerts'),
-            l10n.t('checkingTrafficTransportNearbyActivity'),
-            Icons.sync_rounded,
-            AppTheme.primaryColor,
-            backgroundColor: const Color(0xFFEAF3FF),
-          )
-        else if (alertsState.alerts.isEmpty)
-          _buildAlertCard(
-            context,
-            l10n.t('liveAlertsWillAppearHere'),
-            l10n.t('keepGpsOnForRealtimeCommunityUpdates'),
-            Icons.location_searching_rounded,
-            const Color(0xFF26BF96),
-            backgroundColor: const Color(0xFFE6F7EC),
+        else if (alerts.isEmpty)
+          _PoppingAlertCard(
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: isLight
+                    ? const Color(0xFFE6F7EC)
+                    : const Color(0xFF112B22),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: const Color(0xFF26BF96).withValues(alpha: 0.28),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF26BF96).withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.location_searching_rounded,
+                      color: Color(0xFF26BF96),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          localAlertsState.error ??
+                              l10n.t('liveAlertsWillAppearHere'),
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: isLight
+                                ? const Color(0xFF172235)
+                                : Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          localAlertsState.error != null
+                              ? l10n.t('tapRefreshTryAgain')
+                              : l10n.t('keepGpsOnForRealtimeCommunityUpdates'),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isLight
+                                ? const Color(0xFF546784)
+                                : Colors.white60,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           )
         else
-          ...alertsState.alerts.asMap().entries.map((entry) {
-            final index = entry.key;
+          ...alerts.asMap().entries.map((entry) {
             final alert = entry.value;
             return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _buildAlertCard(
-                context,
-                alert.title,
-                '${alert.detail} | ${alert.timeText(l10n.locale.languageCode)}',
-                _iconForCommunityAlert(alert.kind),
-                _colorForCommunityAlert(alert.kind),
-                backgroundColor: _backgroundColorForCommunityAlert(index),
-              ),
+              padding: const EdgeInsets.only(bottom: 14),
+              child: _buildCommunityAlertCard(context, alert),
             );
           }),
       ],
     );
   }
 
+  List<SafetyCommunityAlert> _resolveCommunityAlerts(
+    SafetyMonitorState safetyState,
+    CommunityAlertsState localAlertsState,
+  ) {
+    if (safetyState.communityAlerts.isNotEmpty) {
+      return safetyState.communityAlerts;
+    }
+    return localAlertsState.alerts
+        .map(_mapLocalCommunityAlert)
+        .toList(growable: false);
+  }
+
+  SafetyCommunityAlert _mapLocalCommunityAlert(CommunityAlertItem item) {
+    final priority = switch (item.kind) {
+      CommunityAlertKind.roadBlock => 'critical',
+      CommunityAlertKind.lonelyRoad => 'caution',
+      CommunityAlertKind.silentZone => 'caution',
+      CommunityAlertKind.traffic => 'information',
+      CommunityAlertKind.transport => 'information',
+      CommunityAlertKind.lighting => 'information',
+    };
+
+    return SafetyCommunityAlert(
+      category: item.title,
+      priority: priority,
+      distanceMeters: 0,
+      timestamp: item.updatedAt,
+      summary: item.detail,
+      recommendedAction:
+          'Review nearby conditions on the map and stay aware while moving.',
+    );
+  }
+
+  Widget _buildCommunityAlertCard(BuildContext context, SafetyCommunityAlert alert) {
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final color = _colorForCommunityAlert(alert.priority);
+    final icon = _iconForCommunityAlert(alert.priority, alert.category);
+    final priorityLabel = alert.priority == 'critical'
+        ? 'CRITICAL'
+        : alert.priority == 'caution'
+        ? 'CAUTION'
+        : 'INFO';
+    final priorityBgColor = alert.priority == 'critical'
+        ? const Color(0xFFB91C1C)
+        : alert.priority == 'caution'
+        ? const Color(0xFFB45309)
+        : const Color(0xFF1D4ED8);
+    final now = DateTime.now();
+    final diff = now.difference(alert.timestamp);
+    final timeAgo = diff.inMinutes < 1
+        ? 'Just now'
+        : diff.inMinutes < 60
+        ? '${diff.inMinutes}m ago'
+        : diff.inHours < 24
+        ? '${diff.inHours}h ago'
+        : '${diff.inDays}d ago';
+    final distanceLabel = alert.distanceMeters == 0
+        ? 'Current location'
+        : alert.distanceMeters >= 1000
+        ? '${(alert.distanceMeters / 1000).toStringAsFixed(1)} km away'
+        : '${alert.distanceMeters} m away';
+
+    return _PoppingAlertCard(
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: isLight ? Colors.white : const Color(0xFF111827),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: color.withValues(alpha: isLight ? 0.20 : 0.28),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: isLight ? 0.08 : 0.14),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header row: category, priority badge, distance
+            Container(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: isLight ? 0.06 : 0.10),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(17)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: isLight ? 0.14 : 0.20),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(icon, color: color, size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      alert.category,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                        color: isLight ? const Color(0xFF172235) : Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: priorityBgColor,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      priorityLabel,
+                      style: const TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Meta row: distance + timestamp
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.place_rounded,
+                    size: 13,
+                    color: color.withValues(alpha: 0.80),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    distanceLabel,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: color,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    Icons.access_time_rounded,
+                    size: 12,
+                    color: isLight ? const Color(0xFF94A3B8) : Colors.white38,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    timeAgo,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: isLight ? const Color(0xFF64748B) : Colors.white38,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Summary
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+              child: Text(
+                alert.summary,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  height: 1.45,
+                  color: isLight ? const Color(0xFF1E293B) : Colors.white.withValues(alpha: 0.88),
+                ),
+              ),
+            ),
+            // Recommended action
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: isLight ? 0.07 : 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: color.withValues(alpha: 0.15),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.tips_and_updates_rounded,
+                      size: 14,
+                      color: color,
+                    ),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        alert.recommendedAction,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          height: 1.4,
+                          color: isLight
+                              ? const Color(0xFF334158)
+                              : Colors.white.withValues(alpha: 0.78),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildCommunityAlertsRefreshButton(
     BuildContext context, {
     required bool isLight,
-    required CommunityAlertsState alertsState,
+    required bool canRefresh,
+    required bool isRefreshing,
     required bool shouldEmphasizeRefresh,
     required VoidCallback onPressed,
   }) {
     final button = Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: alertsState.isLoading ? null : onPressed,
+        onTap: canRefresh && !isRefreshing ? onPressed : null,
         customBorder: const CircleBorder(),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 220),
@@ -959,38 +1518,38 @@ class DashboardScreen extends ConsumerWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: LinearGradient(
-              colors: alertsState.isLoading
+              colors: canRefresh
                   ? [
-                      const Color(0xFFBFD1E8).withValues(alpha: 0.8),
-                      const Color(0xFF7FA0C8).withValues(alpha: 0.9),
-                    ]
-                  : [
                       const Color(0xFF3B82F6),
                       const Color(0xFF1D4ED8),
                       const Color(0xFF0F172A),
+                    ]
+                  : [
+                      const Color(0xFFBFD1E8).withValues(alpha: 0.8),
+                      const Color(0xFF7FA0C8).withValues(alpha: 0.9),
                     ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             border: Border.all(
-              color: shouldEmphasizeRefresh
+              color: shouldEmphasizeRefresh && !isRefreshing
                   ? const Color(
                       0xFFF3B13E,
                     ).withValues(alpha: isLight ? 0.64 : 0.5)
                   : Colors.white.withValues(alpha: 0.18),
-              width: shouldEmphasizeRefresh ? 2 : 1.2,
+              width: shouldEmphasizeRefresh && !isRefreshing ? 2 : 1.2,
             ),
             boxShadow: [
               BoxShadow(
-                color: shouldEmphasizeRefresh
+                color: shouldEmphasizeRefresh && !isRefreshing
                     ? const Color(
                         0xFFF3B13E,
                       ).withValues(alpha: isLight ? 0.42 : 0.28)
                     : const Color(
                         0xFF3B82F6,
                       ).withValues(alpha: isLight ? 0.30 : 0.22),
-                blurRadius: shouldEmphasizeRefresh ? 28 : 18,
-                spreadRadius: shouldEmphasizeRefresh ? 2 : 0,
+                blurRadius: shouldEmphasizeRefresh && !isRefreshing ? 28 : 18,
+                spreadRadius: shouldEmphasizeRefresh && !isRefreshing ? 2 : 0,
                 offset: const Offset(0, 10),
               ),
               BoxShadow(
@@ -1001,12 +1560,12 @@ class DashboardScreen extends ConsumerWidget {
             ],
           ),
           child: Center(
-            child: alertsState.isLoading
+            child: isRefreshing
                 ? const SizedBox(
-                    width: 18,
-                    height: 18,
+                    width: 26,
+                    height: 26,
                     child: CircularProgressIndicator(
-                      strokeWidth: 2,
+                      strokeWidth: 2.6,
                       color: Colors.white,
                     ),
                   )
@@ -1021,7 +1580,7 @@ class DashboardScreen extends ConsumerWidget {
                           color: Colors.white.withValues(alpha: 0.12),
                         ),
                       ),
-                      Icon(
+                      const Icon(
                         Icons.refresh_rounded,
                         size: 28,
                         color: Colors.white,
@@ -1033,51 +1592,36 @@ class DashboardScreen extends ConsumerWidget {
       ),
     );
 
-    // Show a simple refresh button; avoid distracting infinite animations.
     return button;
   }
 
-  // Removed unused _greetingPrefix to satisfy analyzer (unused element).
-
-  IconData _iconForCommunityAlert(CommunityAlertKind kind) {
-    switch (kind) {
-      case CommunityAlertKind.traffic:
-        return Icons.traffic_rounded;
-      case CommunityAlertKind.transport:
-        return Icons.directions_bus_rounded;
-      case CommunityAlertKind.lonelyRoad:
-        return Icons.route_rounded;
-      case CommunityAlertKind.silentZone:
-        return Icons.volume_off_rounded;
-      case CommunityAlertKind.roadBlock:
-        return Icons.construction_rounded;
-      case CommunityAlertKind.lighting:
-        return Icons.lightbulb_circle_rounded;
-    }
+  IconData _iconForCommunityAlert(String priority, String category) {
+    final c = category.toLowerCase();
+    if (c.contains('police activity') || c.contains('police station')) return Icons.local_police_rounded;
+    if (c.contains('hospital')) return Icons.local_hospital_rounded;
+    if (c.contains('safe route') || c.contains('safer corridor')) return Icons.alt_route_rounded;
+    if (c.contains('incident') || c.contains('theft')) return Icons.warning_amber_rounded;
+    if (c.contains('lighting') || c.contains('road light')) return Icons.lightbulb_rounded;
+    if (c.contains('pedestrian')) return Icons.directions_walk_rounded;
+    if (c.contains('construction')) return Icons.construction_rounded;
+    if (c.contains('emergency response')) return Icons.emergency_rounded;
+    if (c.contains('safety score')) return Icons.shield_rounded;
+    if (c.contains('upcoming risk')) return Icons.dangerous_rounded;
+    if (c.contains('support coverage') || c.contains('area incident')) return Icons.info_rounded;
+    return priority == 'critical'
+        ? Icons.warning_amber_rounded
+        : Icons.notifications_active_rounded;
   }
 
-  Color _colorForCommunityAlert(CommunityAlertKind kind) {
-    switch (kind) {
-      case CommunityAlertKind.traffic:
-        return const Color(0xFFC96A74);
-      case CommunityAlertKind.transport:
-        return const Color(0xFF5CA8F4);
-      case CommunityAlertKind.lonelyRoad:
-        return const Color(0xFF67B98A);
-      case CommunityAlertKind.silentZone:
-        return const Color(0xFF9A8AF2);
-      case CommunityAlertKind.roadBlock:
-        return const Color(0xFFE66E41);
-      case CommunityAlertKind.lighting:
-        return const Color(0xFFF4C542);
+  Color _colorForCommunityAlert(String priority) {
+    switch (priority) {
+      case 'critical':
+        return const Color(0xFFE53935);
+      case 'caution':
+        return const Color(0xFFF59E0B);
+      default:
+        return const Color(0xFF3B82F6);
     }
-  }
-
-  Color _backgroundColorForCommunityAlert(int index) {
-    if (index.isEven) {
-      return const Color(0xFF163A63);
-    }
-    return const Color(0xFF184D3B);
   }
 
   Future<void> _openDialPad(BuildContext context, String number) async {
@@ -1316,88 +1860,7 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildAlertCard(
-    BuildContext context,
-    String title,
-    String time,
-    IconData icon,
-    Color color, {
-    Color? backgroundColor,
-  }) {
-    final isLight = Theme.of(context).brightness == Brightness.light;
-    final cardColor = backgroundColor ?? color.withValues(alpha: 0.12);
-    final useLightText =
-        backgroundColor != null &&
-        ThemeData.estimateBrightnessForColor(backgroundColor) ==
-            Brightness.dark;
-    return _PoppingAlertCard(
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(17),
-        decoration: BoxDecoration(
-          color: isLight
-              ? cardColor
-              : AppTheme.cardColor.withValues(alpha: 0.92),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: isLight
-                ? color.withValues(alpha: 0.18)
-                : Colors.white.withValues(alpha: 0.1),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: isLight ? 0.10 : 0.16),
-              blurRadius: 14,
-              offset: const Offset(0, 7),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: useLightText
-                    ? Colors.white.withValues(alpha: 0.14)
-                    : color.withValues(alpha: isLight ? 0.18 : 0.22),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: useLightText ? Colors.white : color),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      color: useLightText
-                          ? Colors.white
-                          : isLight
-                          ? const Color(0xFF172235)
-                          : Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Text(
-                    time,
-                    style: TextStyle(
-                      color: useLightText
-                          ? Colors.white.withValues(alpha: 0.78)
-                          : AppTheme.textSecondary,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildNearbyServicesBlock(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);

@@ -12,6 +12,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:suraksha_women_safety_app/constants/api_constants.dart';
 import 'package:suraksha_women_safety_app/config/app_environment.dart';
 import 'package:suraksha_women_safety_app/core/network/dio_client.dart';
+import 'package:suraksha_women_safety_app/features/dashboard/safety_monitor_provider.dart';
 import 'package:suraksha_women_safety_app/features/maps/widgets/live_safety_controls_sheet.dart';
 import 'package:suraksha_women_safety_app/features/routes/route_safety_provider.dart';
 import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
@@ -840,6 +841,7 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
       }
 
       final parsedRoutes = <_DirectionRoute>[];
+      var routeCounter = 0;
       for (final routeItem in routes.whereType<Map<String, dynamic>>()) {
         final overview = routeItem['overview_polyline'];
         final points = overview is Map<String, dynamic>
@@ -881,6 +883,7 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
 
         parsedRoutes.add(
           _DirectionRoute(
+            routeId: 'route_${routeCounter++}',
             encodedPolyline: points,
             etaSeconds: durationInTrafficValue ?? durationValue ?? 1 << 30,
             distanceMeters: distanceValue,
@@ -895,14 +898,26 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
       if (parsedRoutes.isEmpty) {
         throw StateError('No valid route geometry');
       }
-      parsedRoutes.sort((a, b) {
-        final safetyCompare = b.safetyScore.compareTo(a.safetyScore);
-        if (safetyCompare != 0) return safetyCompare;
-        return a.etaSeconds.compareTo(b.etaSeconds);
-      });
-      final selectedRoute = parsedRoutes.first;
+      final routeAssessments = await _assessRouteCandidates(
+        origin: me,
+        destination: target,
+        parsedRoutes: parsedRoutes,
+      );
+      final selectedRoute =
+          routeAssessments.recommendedRouteId == null
+          ? ([...parsedRoutes]
+              ..sort((a, b) {
+                final safetyCompare = b.safetyScore.compareTo(a.safetyScore);
+                if (safetyCompare != 0) return safetyCompare;
+                return a.etaSeconds.compareTo(b.etaSeconds);
+              })).first
+          : parsedRoutes.firstWhere(
+              (route) => route.routeId == routeAssessments.recommendedRouteId,
+              orElse: () => parsedRoutes.first,
+            );
 
       final routePoints = _decodePolyline(selectedRoute.encodedPolyline);
+      final routeAssessment = routeAssessments.byRouteId[selectedRoute.routeId];
       if (!mounted || requestId != _routeRequestId) return;
       setState(() {
         _routeDistanceMeters =
@@ -931,13 +946,13 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
             ),
           );
         _statusText =
-            'Safest route selected: ${selectedRoute.distanceText} - ${selectedRoute.durationText} | score ${selectedRoute.safetyScore} | ${selectedRoute.safetyReason}';
+            '${routeAssessment?.label ?? 'Safer route'} selected: ${selectedRoute.distanceText} - ${selectedRoute.durationText} | score ${routeAssessment?.averageSafetyScore ?? selectedRoute.safetyScore} | ${routeAssessment?.summary ?? selectedRoute.safetyReason}';
       });
       _publishMapRouteToGuard(
         routePoints: routePoints,
         destinationName: _selectedDestinationName ?? 'selected destination',
-        safetyScore: selectedRoute.safetyScore,
-        safetyReason: selectedRoute.safetyReason,
+        safetyScore: routeAssessment?.averageSafetyScore ?? selectedRoute.safetyScore,
+        safetyReason: routeAssessment?.summary ?? selectedRoute.safetyReason,
       );
     } catch (_) {
       if (!mounted || requestId != _routeRequestId) return;
@@ -967,6 +982,83 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
         destinationName: _selectedDestinationName ?? 'selected destination',
         safetyScore: fallbackScore.score,
         safetyReason: fallbackScore.reason,
+      );
+    }
+  }
+
+  Future<_RouteAssessmentResult> _assessRouteCandidates({
+    required LatLng origin,
+    required LatLng destination,
+    required List<_DirectionRoute> parsedRoutes,
+  }) async {
+    if (parsedRoutes.isEmpty) {
+      return const _RouteAssessmentResult(
+        recommendedRouteId: null,
+        byRouteId: {},
+      );
+    }
+
+    final sortedByEta = [...parsedRoutes]
+      ..sort((a, b) => a.etaSeconds.compareTo(b.etaSeconds));
+    final profileIdsByRouteId = <String, String>{};
+    if (sortedByEta.isNotEmpty) {
+      profileIdsByRouteId[sortedByEta.first.routeId] = 'fastest';
+      profileIdsByRouteId[sortedByEta.last.routeId] = 'safest';
+      profileIdsByRouteId[sortedByEta[sortedByEta.length ~/ 2].routeId] =
+          'balanced';
+    }
+
+    try {
+      final response = await _dio.post(
+        ApiConstants.safetyIntelligenceRoutes,
+        data: {
+          'origin': {'lat': origin.latitude, 'lng': origin.longitude},
+          'destination': {
+            'lat': destination.latitude,
+            'lng': destination.longitude,
+            'name': _selectedDestinationName,
+          },
+          'candidates': parsedRoutes
+              .map(
+                (route) => {
+                  'id': route.routeId,
+                  'profileId': profileIdsByRouteId[route.routeId] ?? 'balanced',
+                  'durationSeconds': route.etaSeconds,
+                  'distanceMeters': route.distanceMeters,
+                  'path': _decodePolyline(route.encodedPolyline)
+                      .map(
+                        (point) => {
+                          'lat': point.latitude,
+                          'lng': point.longitude,
+                        },
+                      )
+                      .toList(growable: false),
+                },
+              )
+              .toList(growable: false),
+        },
+      );
+
+      final data = response.data;
+      if (data is! Map<String, dynamic>) {
+        throw const FormatException('Invalid route assessment response');
+      }
+
+      final routes =
+          (data['routes'] as List<dynamic>? ?? const [])
+              .whereType<Map<String, dynamic>>()
+              .map(_RouteAssessmentDisplay.fromJson)
+              .toList(growable: false);
+      return _RouteAssessmentResult(
+        recommendedRouteId: data['recommendedRouteId']?.toString(),
+        byRouteId: {
+          for (final route in routes) route.id: route,
+        },
+      );
+    } catch (_) {
+      return const _RouteAssessmentResult(
+        recommendedRouteId: null,
+        byRouteId: {},
       );
     }
   }
@@ -1128,6 +1220,8 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
   Widget build(BuildContext context) {
     final isLight = Theme.of(context).brightness == Brightness.light;
     final position = _position;
+    final safetyState = ref.watch(safetyMonitorProvider);
+    final mapCircles = {..._circles, ..._buildHeatmapCircles(safetyState)};
     final journeyPanelOffset = _selectedDestination == null
         ? 18.0
         : _journeyPanelCollapsed
@@ -1152,7 +1246,7 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
                 if (_followMe) setState(() => _followMe = false);
               },
               markers: _markers,
-              circles: _circles,
+              circles: mapCircles,
               polylines: _polylines,
               trafficEnabled: _trafficEnabled,
               compassEnabled: true,
@@ -2084,6 +2178,7 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
   }
 
   void _openLiveSafetySheet() {
+    final safetyState = ref.read(safetyMonitorProvider);
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -2092,6 +2187,14 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
       builder: (context) {
         return LiveSafetyControlsSheet(
           position: _position,
+          safetyScore: safetyState.safetyScore,
+          riskLevel: safetyState.riskLabel,
+          aiConfidence: safetyState.aiConfidenceVisible
+              ? safetyState.aiConfidence
+              : null,
+          contributingFactors: safetyState.contributingFactors,
+          recommendations: safetyState.recommendations,
+          upcomingRisk: safetyState.upcomingRisk,
           statusText: _statusText,
           onMyLocation: _goToMyLocation,
           onRefreshNearby: () async {
@@ -2120,6 +2223,27 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
       ),
     );
   }
+
+  Set<Circle> _buildHeatmapCircles(SafetyMonitorState safetyState) {
+    return safetyState.heatmapTiles
+        .map(
+          (tile) => Circle(
+            circleId: CircleId('heat_${tile.latitude}_${tile.longitude}'),
+            center: LatLng(tile.latitude, tile.longitude),
+            radius: 115,
+            fillColor: _colorFromHex(tile.colorHex).withValues(alpha: 0.22),
+            strokeColor: _colorFromHex(tile.colorHex).withValues(alpha: 0.58),
+            strokeWidth: 1,
+          ),
+        )
+        .toSet();
+  }
+
+  Color _colorFromHex(String value) {
+    final normalized = value.replaceAll('#', '');
+    final hex = normalized.length == 6 ? 'FF$normalized' : normalized;
+    return Color(int.tryParse(hex, radix: 16) ?? 0xFFEAB308);
+  }
 }
 
 class _PlaceSuggestion {
@@ -2146,6 +2270,7 @@ class _NearbyFetchResult {
 
 class _DirectionRoute {
   const _DirectionRoute({
+    required this.routeId,
     required this.encodedPolyline,
     required this.etaSeconds,
     required this.distanceMeters,
@@ -2155,6 +2280,7 @@ class _DirectionRoute {
     required this.safetyReason,
   });
 
+  final String routeId;
   final String encodedPolyline;
   final int etaSeconds;
   final double? distanceMeters;
@@ -2169,4 +2295,37 @@ class _RouteSafetyScore {
 
   final int score;
   final String reason;
+}
+
+class _RouteAssessmentResult {
+  const _RouteAssessmentResult({
+    required this.recommendedRouteId,
+    required this.byRouteId,
+  });
+
+  final String? recommendedRouteId;
+  final Map<String, _RouteAssessmentDisplay> byRouteId;
+}
+
+class _RouteAssessmentDisplay {
+  const _RouteAssessmentDisplay({
+    required this.id,
+    required this.label,
+    required this.averageSafetyScore,
+    required this.summary,
+  });
+
+  factory _RouteAssessmentDisplay.fromJson(Map<String, dynamic> json) {
+    return _RouteAssessmentDisplay(
+      id: json['id']?.toString() ?? '',
+      label: json['label']?.toString() ?? 'Safer Route',
+      averageSafetyScore: (json['averageSafetyScore'] as num?)?.round() ?? 50,
+      summary: json['summary']?.toString() ?? 'Balanced route guidance applied.',
+    );
+  }
+
+  final String id;
+  final String label;
+  final int averageSafetyScore;
+  final String summary;
 }
