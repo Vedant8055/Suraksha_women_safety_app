@@ -327,32 +327,20 @@ function buildCommunityAlerts({ analysis, context, lat, lng, at, upcomingRisk })
   const isNight = hour >= 20 || hour < 6;
   const isLateNight = hour >= 23 || hour < 5;
   const isDaytime = hour >= 6 && hour < 20;
-  const { signalSnapshot, nearbyResources } = analysis;
+  const { signalSnapshot } = analysis;
   const topIncident = context.incidents?.[0];
-  const policeResources = nearbyResources.filter((r) => r.type === 'police');
-  const hospitalResources = nearbyResources.filter((r) => r.type === 'hospital');
 
-  // 1. Verified Police Activity (always present if DB has police, else area-based)
-  if (policeResources.length > 0) {
-    const p = policeResources[0];
-    alerts.push({
-      category: 'Police Activity',
-      priority: 'information',
-      distanceMeters: p.distanceMeters,
-      timestamp: at.toISOString(),
-      summary: `Recent verified police presence detected within ${toDisplayDistance(p.distanceMeters)} of your location.`,
-      recommendedAction: 'You can reach this station quickly if immediate help is needed. Save the number.',
-    });
-  } else {
-    alerts.push({
-      category: 'Police Activity',
-      priority: 'caution',
-      distanceMeters: 1200,
-      timestamp: at.toISOString(),
-      summary: 'No verified police presence detected within 1.2 km of your current location.',
-      recommendedAction: 'Dial 100 in an emergency. Keep SOS enabled and share live location with trusted contacts.',
-    });
-  }
+  // 1. Public transport network (always available in active corridors)
+  alerts.push({
+    category: 'Public Transport Network',
+    priority: 'information',
+    distanceMeters: 400,
+    timestamp: at.toISOString(),
+    summary:
+      'Public transport options including auto rickshaws, buses, taxis, and shared cabs are available around your current area.',
+    recommendedAction:
+      'Use main roads and busy junctions for quicker access to autos, buses, or taxis.',
+  });
 
   // 2. Recent Theft / Incident reports
   if (topIncident) {
@@ -375,21 +363,20 @@ function buildCommunityAlerts({ analysis, context, lat, lng, at, upcomingRisk })
     });
   }
 
-  // 3. Lighting conditions (time-based)
-  alerts.push({
-    category: 'Road Lighting',
-    priority: isLateNight ? 'critical' : isNight ? 'caution' : 'information',
-    distanceMeters: 300,
-    timestamp: at.toISOString(),
-    summary: isLateNight
-      ? 'Streets are poorly lit after midnight. Visibility and pedestrian activity are very low.'
-      : isNight
-      ? 'Reduced visibility after sunset. Street lighting may be inconsistent in this corridor.'
-      : 'Adequate daytime visibility. Road lighting is not a concern during this hour.',
-    recommendedAction: isNight
-      ? 'Stay on well-lit main roads. Use torch if needed and avoid shadowed paths.'
-      : 'Continue on active roads. Switch on location sharing for longer routes.',
-  });
+  // 3. Lighting conditions (7 PM – 6 AM only)
+  if (hour >= 19 || hour < 6) {
+    alerts.push({
+      category: 'Road Lighting',
+      priority: isLateNight ? 'critical' : 'caution',
+      distanceMeters: 300,
+      timestamp: at.toISOString(),
+      summary: isLateNight
+        ? 'Streets are poorly lit after midnight. Visibility and pedestrian activity are very low.'
+        : 'Reduced visibility after 7 PM. Street lighting may be inconsistent in this corridor.',
+      recommendedAction:
+        'Stay on well-lit main roads. Use torch if needed and avoid shadowed paths.',
+    });
+  }
 
   // 4. Pedestrian activity
   alerts.push({
@@ -407,51 +394,7 @@ function buildCommunityAlerts({ analysis, context, lat, lng, at, upcomingRisk })
       : 'Area has active public presence. Ideal for movement with standard precautions.',
   });
 
-  // 5. Nearby Hospital
-  if (hospitalResources.length > 0) {
-    const h = hospitalResources[0];
-    alerts.push({
-      category: 'Nearby Hospital',
-      priority: 'information',
-      distanceMeters: h.distanceMeters,
-      timestamp: at.toISOString(),
-      summary: `${h.name} is within ${toDisplayDistance(h.distanceMeters)} and can provide emergency medical support.`,
-      recommendedAction: 'Note this location. Use the map view for directions if medical help is needed urgently.',
-    });
-  } else {
-    alerts.push({
-      category: 'Nearby Hospital',
-      priority: 'information',
-      distanceMeters: 1500,
-      timestamp: at.toISOString(),
-      summary: 'Nearest hospital is estimated beyond 1.5 km from your current position.',
-      recommendedAction: 'Check the Nearby Services section for the closest verified hospital.',
-    });
-  }
-
-  // 6. Police Station availability
-  if (policeResources.length > 1) {
-    const p2 = policeResources[1];
-    alerts.push({
-      category: 'Nearby Police Station',
-      priority: 'information',
-      distanceMeters: p2.distanceMeters,
-      timestamp: at.toISOString(),
-      summary: `A secondary police station is mapped within ${toDisplayDistance(p2.distanceMeters)} of your location.`,
-      recommendedAction: 'Having multiple police access points nearby improves emergency response speed.',
-    });
-  } else {
-    alerts.push({
-      category: 'Nearby Police Station',
-      priority: 'information',
-      distanceMeters: 900,
-      timestamp: at.toISOString(),
-      summary: 'Closest verified police station is mapped based on your current GPS coordinates.',
-      recommendedAction: 'Tap "Nearby Services → Police Stations" to see directions and contact details.',
-    });
-  }
-
-  // 7. Community verified safe route
+  // 5. Community verified safe route
   if (signalSnapshot.safeZoneCount > 0) {
     alerts.push({
       category: 'Community Safe Route',

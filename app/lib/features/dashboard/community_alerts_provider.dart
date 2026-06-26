@@ -350,8 +350,7 @@ class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
     final isLateNight = now.hour >= 22 || now.hour < 5;
     final transitCount = nearby.transitPointCount;
     final silentZoneCount = nearby.hospitals + nearby.schools + nearby.courts;
-    final transportSummary = _buildTransportSummary(nearby);
-    final lightingSummary = _buildLightingSummary(nearby, isLateNight);
+    final showRoadLighting = now.hour >= 19 || now.hour < 6;
 
     if (traffic.sampledRoutes == 0) {
       alerts.add(
@@ -435,61 +434,25 @@ class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
       );
     }
 
-    if (isLateNight && transitCount < 3 && nearby.taxiStands == 0) {
-      alerts.add(
-        CommunityAlertItem(
-          kind: CommunityAlertKind.transport,
-          title: _text(
-            en: 'Late-night transport scarcity',
-            hi: 'रात में परिवहन की कमी',
-            mr: 'रात्री वाहतुकीची कमतरता',
-          ),
-          detail: _text(
-            en:
-                '${transportSummary.summary}. Fewer transport options look active within about 1.2 km.',
-            hi:
-                '${transportSummary.summary}. लगभग 1.2 किमी के भीतर परिवहन विकल्प कम सक्रिय दिख रहे हैं।',
-            mr:
-                '${transportSummary.summary}. सुमारे 1.2 किमी मध्ये वाहतुकीचे पर्याय कमी सक्रिय दिसत आहेत.',
-          ),
-          updatedAt: now,
+    alerts.add(
+      CommunityAlertItem(
+        kind: CommunityAlertKind.transport,
+        title: _text(
+          en: 'Public transport network available',
+          hi: 'सार्वजनिक परिवहन नेटवर्क उपलब्ध',
+          mr: 'सार्वजनिक वाहतुक जाळे उपलब्ध',
         ),
-      );
-    } else if (transportSummary.hasStrongAvailability) {
-      alerts.add(
-        CommunityAlertItem(
-          kind: CommunityAlertKind.transport,
-          title: _text(
-            en: 'Public transport active nearby',
-            hi: 'नज़दीक सार्वजनिक परिवहन सक्रिय है',
-            mr: 'जवळ सार्वजनिक वाहतूक सक्रिय आहे',
-          ),
-          detail: _text(
-            en: '${transportSummary.summary}. Area access looks good for quick movement.',
-            hi: '${transportSummary.summary}. तेज़ मूवमेंट के लिए क्षेत्र का access अच्छा लग रहा है।',
-            mr: '${transportSummary.summary}. जलद हालचालीसाठी परिसर प्रवेश चांगला दिसतो.',
-          ),
-          updatedAt: now,
+        detail: _text(
+          en:
+              'Auto rickshaws, buses, taxis, and other local ride options are available around your current area.',
+          hi:
+              'ऑटो रिक्शा, बस, टैक्सी और अन्य स्थानीय सवारी विकल्प आपके वर्तमान क्षेत्र में उपलब्ध हैं।',
+          mr:
+              'ऑटो रिक्षा, बस, टॅक्सी आणि इतर स्थानिक प्रवास पर्याय तुमच्या सध्याच्या परिसरात उपलब्ध आहेत.',
         ),
-      );
-    } else {
-      alerts.add(
-        CommunityAlertItem(
-          kind: CommunityAlertKind.transport,
-          title: _text(
-            en: 'Public transport availability',
-            hi: 'सार्वजनिक परिवहन की उपलब्धता',
-            mr: 'सार्वजनिक वाहतुकीची उपलब्धता',
-          ),
-          detail: _text(
-            en: '${transportSummary.summary}. Availability looks moderate around your location.',
-            hi: '${transportSummary.summary}. आपके स्थान के आसपास उपलब्धता मध्यम लग रही है।',
-            mr: '${transportSummary.summary}. तुमच्या ठिकाणाभोवती उपलब्धता मध्यम दिसते.',
-          ),
-          updatedAt: now,
-        ),
-      );
-    }
+        updatedAt: now,
+      ),
+    );
 
     if (nearby.activePlaces < 4 && transitCount < 2) {
       alerts.add(
@@ -532,83 +495,19 @@ class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
       );
     }
 
-    alerts.add(
-      CommunityAlertItem(
-        kind: CommunityAlertKind.lighting,
-        title: lightingSummary.title,
-        detail: lightingSummary.detail,
-        updatedAt: now,
-      ),
-    );
+    if (showRoadLighting) {
+      final lightingSummary = _buildLightingSummary(nearby, isLateNight);
+      alerts.add(
+        CommunityAlertItem(
+          kind: CommunityAlertKind.lighting,
+          title: lightingSummary.title,
+          detail: lightingSummary.detail,
+          updatedAt: now,
+        ),
+      );
+    }
 
     return alerts.take(5).toList();
-  }
-
-  _TransportSummary _buildTransportSummary(_NearbySignals nearby) {
-    final busAccess = nearby.busStops + nearby.busStopKeywords;
-    final railAccess =
-        nearby.transitStations + nearby.trainStations + nearby.metroStations;
-    final taxiAccess =
-        nearby.taxiStands +
-        nearby.autoRickshawStands +
-        nearby.rickshawStandKeywords +
-        nearby.cabStands;
-
-    final parts = <String>[];
-    if (busAccess > 0) {
-      parts.add(
-        _quantityText(
-          value: busAccess,
-          enSingular: 'bus access point',
-          enPlural: 'bus access points',
-          hiSingular: 'बस एक्सेस प्वाइंट',
-          hiPlural: 'बस एक्सेस प्वाइंट',
-          mrSingular: 'बस प्रवेश बिंदू',
-          mrPlural: 'बस प्रवेश बिंदू',
-        ),
-      );
-    }
-    if (railAccess > 0) {
-      parts.add(
-        _quantityText(
-          value: railAccess,
-          enSingular: 'rail or metro point',
-          enPlural: 'rail or metro points',
-          hiSingular: 'रेल या मेट्रो पॉइंट',
-          hiPlural: 'रेल या मेट्रो पॉइंट',
-          mrSingular: 'रेल किंवा मेट्रो बिंदू',
-          mrPlural: 'रेल किंवा मेट्रो बिंदू',
-        ),
-      );
-    }
-    if (taxiAccess > 0) {
-      parts.add(
-        _quantityText(
-          value: taxiAccess,
-          enSingular: 'taxi or auto stand',
-          enPlural: 'taxi or auto stands',
-          hiSingular: 'टैक्सी या ऑटो स्टैंड',
-          hiPlural: 'टैक्सी या ऑटो स्टैंड',
-          mrSingular: 'टॅक्सी किंवा ऑटो स्टँड',
-          mrPlural: 'टॅक्सी किंवा ऑटो स्टँड',
-        ),
-      );
-    }
-    if (parts.isEmpty) {
-      parts.add(
-        _text(
-          en: 'No bus, rail, taxi, or auto stands were found nearby',
-          hi: 'पास में कोई बस, रेल, टैक्सी या ऑटो स्टैंड नहीं मिला',
-          mr: 'जवळ बस, रेल, टॅक्सी किंवा ऑटो स्टँड आढळले नाहीत',
-        ),
-      );
-    }
-
-    return _TransportSummary(
-      summary: parts.join(', '),
-      hasStrongAvailability:
-          busAccess >= 2 || railAccess >= 1 || taxiAccess >= 2,
-    );
   }
 
   _LightingSummary _buildLightingSummary(
@@ -710,24 +609,6 @@ class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
     };
   }
 
-  String _quantityText({
-    required int value,
-    required String enSingular,
-    required String enPlural,
-    required String hiSingular,
-    required String hiPlural,
-    required String mrSingular,
-    required String mrPlural,
-  }) {
-    final lang = _normalizeLanguageCode(_ref.read(appLocaleProvider).languageCode);
-    final word = switch (lang) {
-      'hi' => value == 1 ? hiSingular : hiPlural,
-      'mr' => value == 1 ? mrSingular : mrPlural,
-      _ => value == 1 ? enSingular : enPlural,
-    };
-    return '$value $word';
-  }
-
 }
 
 class _TrafficSignals {
@@ -808,16 +689,6 @@ class _NearbySignals {
       convenienceStores +
       gasStations +
       parkingAreas;
-}
-
-class _TransportSummary {
-  final String summary;
-  final bool hasStrongAvailability;
-
-  const _TransportSummary({
-    required this.summary,
-    required this.hasStrongAvailability,
-  });
 }
 
 class _LightingSummary {

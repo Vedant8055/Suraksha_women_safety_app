@@ -583,6 +583,7 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
     final hour = now.hour;
     final isNight = hour >= 20 || hour < 6;
     final isLateNight = hour >= 23 || hour < 5;
+    final showRoadLighting = hour >= 19 || hour < 6;
 
     return [
       SafetyCommunityAlert(
@@ -601,47 +602,27 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
             : 'Conditions look manageable. Continue monitoring nearby updates.',
       ),
       SafetyCommunityAlert(
-        category: 'Police Activity',
-        priority: policeCount == 0 ? 'caution' : 'information',
-        distanceMeters: policeCount == 0 ? 1200 : 400,
-        timestamp: now,
-        summary: policeCount == 0
-            ? 'No verified police stations were detected within 1.2 km of your current location.'
-            : '$policeCount verified police access point${policeCount == 1 ? '' : 's'} mapped near your current location.',
-        recommendedAction: policeCount == 0
-            ? 'Dial 100 in an emergency. Keep SOS enabled and share live location.'
-            : 'Open Nearby Services to view directions and contact details.',
-      ),
-      SafetyCommunityAlert(
-        category: 'Nearby Hospital',
+        category: 'Public Transport Network',
         priority: 'information',
-        distanceMeters: hospitalCount == 0 ? 1500 : 500,
+        distanceMeters: 400,
         timestamp: now,
-        summary: hospitalCount == 0
-            ? 'No verified hospitals were detected within 1.5 km of your current location.'
-            : '$hospitalCount verified hospital${hospitalCount == 1 ? '' : 's'} mapped near your current location.',
-        recommendedAction: hospitalCount == 0
-            ? 'Check Nearby Services for the closest medical support.'
-            : 'Note the nearest hospital from Nearby Services for quick access.',
+        summary:
+            'Auto rickshaws, buses, taxis, and other local transport options are available around your current location.',
+        recommendedAction:
+            'Head to a main road or busy junction for the quickest pickup.',
       ),
-      SafetyCommunityAlert(
-        category: 'Road Lighting',
-        priority: isLateNight
-            ? 'critical'
-            : isNight
-            ? 'caution'
-            : 'information',
-        distanceMeters: 300,
-        timestamp: now,
-        summary: isLateNight
-            ? 'Streets may be poorly lit after midnight around your current area.'
-            : isNight
-            ? 'Reduced visibility after sunset. Street lighting may be inconsistent nearby.'
-            : 'Adequate daytime visibility around your current location.',
-        recommendedAction: isNight
-            ? 'Stay on well-lit main roads and avoid isolated shortcuts.'
-            : 'Continue on active roads and keep location sharing enabled.',
-      ),
+      if (showRoadLighting)
+        SafetyCommunityAlert(
+          category: 'Road Lighting',
+          priority: isLateNight ? 'critical' : 'caution',
+          distanceMeters: 300,
+          timestamp: now,
+          summary: isLateNight
+              ? 'Streets may be poorly lit after midnight around your current area.'
+              : 'Reduced visibility after 7 PM. Street lighting may be inconsistent nearby.',
+          recommendedAction:
+              'Stay on well-lit main roads and avoid isolated shortcuts.',
+        ),
       SafetyCommunityAlert(
         category: 'Pedestrian Activity',
         priority: isLateNight ? 'caution' : 'information',

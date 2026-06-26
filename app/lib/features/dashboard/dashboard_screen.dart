@@ -27,6 +27,7 @@ import 'package:suraksha_women_safety_app/localization/locale_provider.dart';
 import 'package:suraksha_women_safety_app/widgets/premium_dialog.dart';
 
 final _manualSosLaunchingProvider = StateProvider<bool>((ref) => false);
+final communityAlertsExpandedProvider = StateProvider<bool>((ref) => false);
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -1041,11 +1042,15 @@ class DashboardScreen extends ConsumerWidget {
     final isLight = Theme.of(context).brightness == Brightness.light;
     final safetyState = ref.watch(safetyMonitorProvider);
     final localAlertsState = ref.watch(communityAlertsProvider);
+    final expanded = ref.watch(communityAlertsExpandedProvider);
     final alerts = _resolveCommunityAlerts(safetyState, localAlertsState);
     final isRefreshing =
         safetyState.isRefreshing || localAlertsState.isLoading;
+    const accent = Color(0xFF3B82F6);
+    const accentSecondary = Color(0xFF26BF96);
 
     ref.listen<SafetyMonitorState>(safetyMonitorProvider, (previous, next) {
+      if (!ref.read(communityAlertsExpandedProvider)) return;
       if (next.communityAlerts.isEmpty &&
           !next.isRefreshing &&
           next.position != null &&
@@ -1055,220 +1060,401 @@ class DashboardScreen extends ConsumerWidget {
       }
     });
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+    Future<void> refreshAlerts() async {
+      await Future.wait([
+        ref.read(safetyMonitorProvider.notifier).refresh(),
+        ref.read(communityAlertsProvider.notifier).refresh(),
+      ]);
+    }
+
+    void toggleCommunityAlerts() {
+      if (isRefreshing) return;
+      if (expanded) {
+        ref.read(communityAlertsExpandedProvider.notifier).state = false;
+        return;
+      }
+      ref.read(communityAlertsExpandedProvider.notifier).state = true;
+      if (alerts.isEmpty) {
+        unawaited(refreshAlerts());
+      }
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isLight
+              ? const [Color(0xFFFFFFFF), Color(0xFFF6FAFF), Color(0xFFEAF3FF)]
+              : const [Color(0xFF15233A), Color(0xFF0B172A), Color(0xFF101827)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isLight
+              ? const Color(0xFFCFE0F6)
+              : Colors.white.withValues(alpha: 0.14),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isLight
+                ? const Color(0xFF7892B8).withValues(alpha: 0.18)
+                : Colors.black.withValues(alpha: 0.32),
+            blurRadius: 22,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF26BF96), Color(0xFF3B82F6), Color(0xFF7C3AED)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.24),
+                      blurRadius: 14,
+                      offset: const Offset(0, 7),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.campaign_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ShaderMask(
+                      blendMode: BlendMode.srcIn,
+                      shaderCallback: (bounds) => const LinearGradient(
+                        colors: [
+                          Color(0xFF0F766E),
+                          Color(0xFF2563EB),
+                          Color(0xFF7C3AED),
+                        ],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ).createShader(bounds),
+                      child: Text(
+                        l10n.t('communityAlerts'),
+                        style: const TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      expanded
+                          ? (alerts.isNotEmpty
+                                ? '${alerts.length} live cards around you'
+                                : l10n.t('checkingTrafficTransportNearbyActivity'))
+                          : l10n.t('tapForAlerts'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isLight
+                            ? const Color(0xFF627491)
+                            : Colors.white.withValues(alpha: 0.68),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _buildCommunityAlertsRefreshButton(
+                context,
+                isLight: isLight,
+                canRefresh: true,
+                isRefreshing: isRefreshing,
+                shouldEmphasizeRefresh: alerts.isEmpty && !isRefreshing,
+                onPressed: refreshAlerts,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _communityAlertsToggleTile(
+            context: context,
+            isLight: isLight,
+            expanded: expanded,
+            loading: isRefreshing && expanded,
+            liveCount: alerts.length,
+            onPressed: toggleCommunityAlerts,
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: expanded
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 14),
+                      if (isRefreshing && alerts.isEmpty)
+                        _communityAlertsStatusPanel(
+                          context: context,
+                          isLight: isLight,
+                          icon: null,
+                          loading: true,
+                          title: l10n.t('loadingLiveAreaAlerts'),
+                          tone: accent,
+                        )
+                      else if (alerts.isEmpty)
+                        _communityAlertsStatusPanel(
+                          context: context,
+                          isLight: isLight,
+                          icon: Icons.location_searching_rounded,
+                          loading: false,
+                          title: localAlertsState.error ??
+                              l10n.t('liveAlertsWillAppearHere'),
+                          subtitle: localAlertsState.error != null
+                              ? l10n.t('tapRefreshTryAgain')
+                              : l10n.t('keepGpsOnForRealtimeCommunityUpdates'),
+                          tone: accentSecondary,
+                        )
+                      else
+                        ...alerts.asMap().entries.map((entry) {
+                          final alert = entry.value;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 14),
+                            child: _buildCommunityAlertCard(context, alert),
+                          );
+                        }),
+                    ],
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _communityAlertsToggleTile({
+    required BuildContext context,
+    required bool isLight,
+    required bool expanded,
+    required bool loading,
+    required int liveCount,
+    required VoidCallback onPressed,
+  }) {
+    const color = Color(0xFF3B82F6);
+    final textColor = expanded
+        ? Colors.white
+        : (isLight ? const Color(0xFF172235) : Colors.white);
+    final inactiveBase = color.withValues(alpha: isLight ? 0.12 : 0.18);
+    final inactiveEdge = color.withValues(alpha: isLight ? 0.2 : 0.28);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: loading ? null : onPressed,
+        borderRadius: BorderRadius.circular(18),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          width: double.infinity,
+          constraints: const BoxConstraints(minHeight: 94),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            gradient: expanded
+                ? const LinearGradient(
+                    colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : LinearGradient(
+                    colors: [
+                      inactiveBase,
+                      color.withValues(alpha: isLight ? 0.06 : 0.12),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: expanded
+                  ? Colors.white.withValues(alpha: 0.32)
+                  : inactiveEdge,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: expanded
+                    ? color.withValues(alpha: 0.32)
+                    : isLight
+                    ? color.withValues(alpha: 0.10)
+                    : Colors.black.withValues(alpha: 0.18),
+                blurRadius: expanded ? 18 : 10,
+                offset: const Offset(0, 7),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: expanded
+                      ? Colors.white.withValues(alpha: 0.22)
+                      : color.withValues(alpha: isLight ? 0.14 : 0.22),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: loading
+                    ? const Padding(
+                        padding: EdgeInsets.all(10),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Icon(
+                        Icons.notifications_active_rounded,
+                        color: expanded ? Colors.white : color,
+                      ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      AppLocalizations.of(context).t('communityAlerts'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      expanded
+                          ? (liveCount > 0
+                                ? '$liveCount live cards visible'
+                                : AppLocalizations.of(context).t('tapForAlerts'))
+                          : AppLocalizations.of(context).t('tapForAlerts'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: expanded
+                            ? Colors.white.withValues(alpha: 0.82)
+                            : (isLight
+                                  ? const Color(0xFF627491)
+                                  : Colors.white.withValues(alpha: 0.68)),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              AnimatedRotation(
+                turns: expanded ? 0.25 : 0,
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                child: Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: 24,
+                  color: expanded
+                      ? Colors.white.withValues(alpha: 0.9)
+                      : color.withValues(alpha: 0.82),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _communityAlertsStatusPanel({
+    required BuildContext context,
+    required bool isLight,
+    required IconData? icon,
+    required bool loading,
+    required String title,
+    String? subtitle,
+    required Color tone,
+  }) {
+    return _PoppingAlertCard(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: isLight
+              ? tone.withValues(alpha: 0.08)
+              : tone.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: tone.withValues(alpha: 0.28)),
+        ),
+        child: Row(
           children: [
+            if (loading)
+              SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(strokeWidth: 2.6, color: tone),
+              )
+            else
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: tone.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: tone),
+              ),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    l10n.t('communityAlerts'),
+                    title,
                     style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
                       color: isLight ? const Color(0xFF172235) : Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    l10n.t('checkingTrafficTransportNearbyActivity'),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: isLight ? const Color(0xFF627491) : Colors.white54,
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isLight
+                            ? const Color(0xFF546784)
+                            : Colors.white60,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
-            ),
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: alerts.isNotEmpty
-                          ? [
-                              const Color(0xFF3B82F6).withValues(alpha: 0.22),
-                              const Color(0xFF26BF96).withValues(alpha: 0.24),
-                            ]
-                          : [
-                              const Color(0xFF3B82F6).withValues(alpha: 0.10),
-                              const Color(0xFF26BF96).withValues(alpha: 0.12),
-                            ],
-                    ),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: alerts.isNotEmpty
-                          ? const Color(0xFF3B82F6).withValues(alpha: isLight ? 0.40 : 0.55)
-                          : const Color(0xFF3B82F6).withValues(alpha: isLight ? 0.22 : 0.34),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: alerts.isNotEmpty
-                              ? const Color(0xFF26BF96)
-                              : const Color(0xFF94A3B8),
-                        ),
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        '${alerts.length} live cards',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.3,
-                          color: alerts.isNotEmpty
-                              ? const Color(0xFF1E3A5F)
-                              : const Color(0xFF64748B),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 7),
-                _buildCommunityAlertsRefreshButton(
-                  context,
-                  isLight: isLight,
-                  canRefresh: true,
-                  isRefreshing: isRefreshing,
-                  shouldEmphasizeRefresh: alerts.isEmpty && !isRefreshing,
-                  onPressed: () async {
-                    await Future.wait([
-                      ref.read(safetyMonitorProvider.notifier).refresh(),
-                      ref.read(communityAlertsProvider.notifier).refresh(),
-                    ]);
-                  },
-                ),
-              ],
             ),
           ],
         ),
-        const SizedBox(height: 14),
-        if (isRefreshing && alerts.isEmpty)
-          _PoppingAlertCard(
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: isLight
-                    ? const Color(0xFFEAF2FF)
-                    : const Color(0xFF10233D),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: const Color(0xFF3B82F6).withValues(alpha: 0.28),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const SizedBox(
-                    width: 28,
-                    height: 28,
-                    child: CircularProgressIndicator(strokeWidth: 2.6),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Text(
-                      l10n.t('loadingLiveAreaAlerts'),
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
-                        color: isLight
-                            ? const Color(0xFF172235)
-                            : Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          )
-        else if (alerts.isEmpty)
-          _PoppingAlertCard(
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: isLight
-                    ? const Color(0xFFE6F7EC)
-                    : const Color(0xFF112B22),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: const Color(0xFF26BF96).withValues(alpha: 0.28),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF26BF96).withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.location_searching_rounded,
-                      color: Color(0xFF26BF96),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          localAlertsState.error ??
-                              l10n.t('liveAlertsWillAppearHere'),
-                          style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w700,
-                            color: isLight
-                                ? const Color(0xFF172235)
-                                : Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          localAlertsState.error != null
-                              ? l10n.t('tapRefreshTryAgain')
-                              : l10n.t('keepGpsOnForRealtimeCommunityUpdates'),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isLight
-                                ? const Color(0xFF546784)
-                                : Colors.white60,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          )
-        else
-          ...alerts.asMap().entries.map((entry) {
-            final alert = entry.value;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: _buildCommunityAlertCard(context, alert),
-            );
-          }),
-      ],
+      ),
     );
   }
 
@@ -1599,6 +1785,9 @@ class DashboardScreen extends ConsumerWidget {
     final c = category.toLowerCase();
     if (c.contains('police activity') || c.contains('police station')) return Icons.local_police_rounded;
     if (c.contains('hospital')) return Icons.local_hospital_rounded;
+    if (c.contains('public transport') || c.contains('transport network')) {
+      return Icons.directions_bus_filled_rounded;
+    }
     if (c.contains('safe route') || c.contains('safer corridor')) return Icons.alt_route_rounded;
     if (c.contains('incident') || c.contains('theft')) return Icons.warning_amber_rounded;
     if (c.contains('lighting') || c.contains('road light')) return Icons.lightbulb_rounded;
