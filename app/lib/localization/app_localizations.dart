@@ -555,6 +555,68 @@ class AppLocalizations {
           'Use the portal to create records, file structured complaints, and prepare for IC or police processes. In danger, call emergency services first.',
       'safeRouteChanged': 'Safe route changed',
       'dailyRouteGuard': 'Daily Route Guard',
+      'routeGuardDialogTitle': 'Daily route changed',
+      'routeGuardDialogMessage':
+          'You moved away from your usual route. Confirm you are safe.',
+      'routeGuardConfirmWithin': 'Confirm within {seconds}s.',
+      'routeGuardDeviationMeters':
+          'About {meters} m from your usual path.',
+      'routeGuardLearningRoute': 'Learning route',
+      'routeGuardRoutinesLearned': '{count} routine(s) learned',
+      'routeGuardIntelligenceLimited': 'Area data limited',
+      'routeGuardMapRouteActive': 'Map route active',
+      'safetyVerdictSafe': 'Generally safe',
+      'safetyVerdictSafeSummary':
+          'This area feels generally safe right now based on your live location.',
+      'safetyVerdictCaution': 'Use caution',
+      'safetyVerdictCautionSummary':
+          'Use extra caution here—some risk signals were detected nearby.',
+      'safetyVerdictHighRisk': 'Higher concern',
+      'safetyVerdictHighRiskSummary':
+          'This area may not feel safe right now, especially for women and elderly users.',
+      'safetyVerdictMonitoring': 'Still learning',
+      'safetyVerdictMonitoringSummary':
+          'Live area intelligence is still building. Stay aware while we learn your surroundings.',
+      'safetyWhyNotSafeTitle': 'Why this area may not feel safe',
+      'safetyReasonDrugActivity':
+          'Recent drug-related activity reported in this area.',
+      'safetyReasonChainSnatching':
+          'Chain-snatching cases have been reported nearby.',
+      'safetyReasonTheftProne':
+          'This stretch is known for theft-related incidents.',
+      'safetyReasonHarassmentReports':
+          'Harassment or assault reports have been recorded nearby.',
+      'safetyReasonPoorLighting':
+          'Poor street lighting may reduce visibility here.',
+      'safetyReasonLowFootfall':
+          'Low pedestrian activity makes this area feel isolated.',
+      'safetyReasonCrimeActivity':
+          'Incident activity remains elevated in the surrounding area.',
+      'safetyReasonLimitedSupport':
+          'Limited nearby emergency support points may slow rapid assistance.',
+      'safetyReasonNightRisk':
+          'Night-time conditions reduce visibility and public activity.',
+      'safetyReasonGpsLimited':
+          'Live location precision is limited; assessment may update as GPS improves.',
+      'safetyReasonUnsafeNightlife':
+          'Unsafe nightlife or red-light activity may increase risk here.',
+      'safetyReasonGeneralCaution':
+          'Additional caution is advised in this area.',
+      'routeVerdictChanged': 'Route changed',
+      'routeVerdictChangedSummary':
+          'You moved away from your usual route. Please confirm you are safe.',
+      'routeVerdictLearning': 'Learning route',
+      'routeVerdictLearningSummary':
+          'Daily Route Guard is learning your travel patterns from live GPS.',
+      'routeVerdictOnTrack': 'On usual route',
+      'routeVerdictOnTrackSummary':
+          'You appear to be following your learned safer daily route.',
+      'routeVerdictCaution': 'Route caution',
+      'routeVerdictCautionSummary':
+          'Some route conditions need extra attention right now.',
+      'routeVerdictAlert': 'Route alert',
+      'routeVerdictAlertSummary':
+          'Your current route may not match your usual safer pattern.',
       'refresh': 'Refresh',
       'openMap': 'Open map',
       'resetHomeWorkplaceRouteLearning': 'Reset home-workplace route learning',
@@ -1079,6 +1141,68 @@ class AppLocalizations {
           'रिकॉर्ड बनाने, संरचित शिकायत दाखिल करने और IC या पुलिस प्रक्रिया की तैयारी के लिए पोर्टल का उपयोग करें। खतरे में पहले आपातकालीन सहायता लें।',
       'safeRouteChanged': 'सुरक्षित मार्ग बदल गया',
       'dailyRouteGuard': 'दैनिक मार्ग सुरक्षा',
+      'routeGuardDialogTitle': 'दैनिक मार्ग बदल गया',
+      'routeGuardDialogMessage':
+          'आप अपने सामान्य मार्ग से हट गए हैं। कृपया पुष्टि करें कि आप सुरक्षित हैं।',
+      'routeGuardConfirmWithin': '{seconds} सेकंड के भीतर पुष्टि करें।',
+      'routeGuardDeviationMeters':
+          'आपके सामान्य मार्ग से लगभग {meters} मीटर दूर।',
+      'routeGuardLearningRoute': 'मार्ग सीख रहा है',
+      'routeGuardRoutinesLearned': '{count} दिनचर्या सीखी गई',
+      'routeGuardIntelligenceLimited': 'क्षेत्र डेटा सीमित',
+      'routeGuardMapRouteActive': 'मानचित्र मार्ग सक्रिय',
+      'safetyVerdictSafe': 'आम तौर पर सुरक्षित',
+      'safetyVerdictSafeSummary':
+          'आपके लाइव स्थान के आधार पर यह क्षेत्र अभी सामान्य रूप से सुरक्षित लगता है।',
+      'safetyVerdictCaution': 'सावधानी बरतें',
+      'safetyVerdictCautionSummary':
+          'यहां अतिरिक्त सावधानी बरतें—आसपास कुछ जोखिम संकेत मिले हैं।',
+      'safetyVerdictHighRisk': 'उच्च चिंता',
+      'safetyVerdictHighRiskSummary':
+          'यह क्षेत्र अभी सुरक्षित नहीं लग सकता, विशेषकर महिलाओं और बुजुर्ग उपयोगकर्ताओं के लिए।',
+      'safetyVerdictMonitoring': 'अभी सीख रहा है',
+      'safetyVerdictMonitoringSummary':
+          'लाइव क्षेत्र जानकारी अभी बन रही है। हम आपके आसपास सीखते समय सतर्क रहें।',
+      'safetyWhyNotSafeTitle': 'यह क्षेत्र सुरक्षित क्यों नहीं लग सकता',
+      'safetyReasonDrugActivity':
+          'इस क्षेत्र में हाल ही में नशीले पदार्थ से जुड़ी गतिविधि रिपोर्ट हुई है।',
+      'safetyReasonChainSnatching':
+          'आसपास चेन-snatching के मामले दर्ज हुए हैं।',
+      'safetyReasonTheftProne':
+          'यह हिस्सा चोरी से जुड़ी घटनाओं के लिए जाना जाता है।',
+      'safetyReasonHarassmentReports':
+          'आसपास उत्पीड़न या हमले की रिपोर्ट दर्ज हुई हैं।',
+      'safetyReasonPoorLighting':
+          'खराब सड़क रोशनी से यहां दृश्यता कम हो सकती है।',
+      'safetyReasonLowFootfall':
+          'कम पैदल यातायात से यह क्षेत्र अलग-थलग महसूस हो सकता है।',
+      'safetyReasonCrimeActivity':
+          'आसपास की घटनाएं अभी भी बढ़ी हुई हैं।',
+      'safetyReasonLimitedSupport':
+          'आसपास सीमित आपातकालीन सहायता बिंदु त्वरित मदद में देरी कर सकते हैं।',
+      'safetyReasonNightRisk':
+          'रात के समय दृश्यता और सार्वजनिक गतिविधि कम हो जाती है।',
+      'safetyReasonGpsLimited':
+          'लाइव स्थान सटीकता सीमित है; GPS सुधरने पर आकलन अपडेट हो सकता है।',
+      'safetyReasonUnsafeNightlife':
+          'असुरक्षित नाइटलाइफ या red-light गतिविधि यहां जोखिम बढ़ा सकती है।',
+      'safetyReasonGeneralCaution':
+          'इस क्षेत्र में अतिरिक्त सावधानी की सलाह है।',
+      'routeVerdictChanged': 'मार्ग बदला',
+      'routeVerdictChangedSummary':
+          'आप अपने सामान्य मार्ग से हट गए हैं। कृपया पुष्टि करें कि आप सुरक्षित हैं।',
+      'routeVerdictLearning': 'मार्ग सीख रहा है',
+      'routeVerdictLearningSummary':
+          'दैनिक मार्ग सुरक्षा आपके लाइव GPS से यात्रा पैटर्न सीख रही है।',
+      'routeVerdictOnTrack': 'सामान्य मार्ग पर',
+      'routeVerdictOnTrackSummary':
+          'आप अपने सीखे हुए सुरक्षित दैनिक मार्ग पर हैं।',
+      'routeVerdictCaution': 'मार्ग सावधानी',
+      'routeVerdictCautionSummary':
+          'कुछ मार्ग स्थितियों पर अभी अतिरिक्त ध्यान देना जरूरी है।',
+      'routeVerdictAlert': 'मार्ग चेतावनी',
+      'routeVerdictAlertSummary':
+          'आपका वर्तमान मार्ग आपके सामान्य सुरक्षित पैटर्न से मेल नहीं खाता।',
       'refresh': 'रीफ़्रेश',
       'openMap': 'मानचित्र खोलें',
       'resetHomeWorkplaceRouteLearning': 'घर-कार्यस्थल मार्ग सीखना रीसेट करें',
@@ -1589,6 +1713,68 @@ class AppLocalizations {
           'रेकॉर्ड तयार करण्यासाठी, संरचित तक्रार दाखल करण्यासाठी आणि IC किंवा पोलिस प्रक्रियेची तयारी करण्यासाठी पोर्टल वापरा. धोक्यात आधी आपत्कालीन मदत घ्या.',
       'safeRouteChanged': 'सुरक्षित मार्ग बदलला',
       'dailyRouteGuard': 'दैनंदिन मार्ग सुरक्षा',
+      'routeGuardDialogTitle': 'दैनंदिन मार्ग बदलला',
+      'routeGuardDialogMessage':
+          'तुम्ही नेहमीच्या मार्गापासून वळला आहात. तुम्ही सुरक्षित आहात याची खात्री करा.',
+      'routeGuardConfirmWithin': '{seconds} सेकंदात पुष्टी करा.',
+      'routeGuardDeviationMeters':
+          'नेहमीच्या मार्गापासून सुमारे {meters} मीटर दूर.',
+      'routeGuardLearningRoute': 'मार्ग शिकत आहे',
+      'routeGuardRoutinesLearned': '{count} दिनचर्या शिकल्या',
+      'routeGuardIntelligenceLimited': 'क्षेत्र डेटा मर्यादित',
+      'routeGuardMapRouteActive': 'नकाशा मार्ग सक्रिय',
+      'safetyVerdictSafe': 'सामान्यतः सुरक्षित',
+      'safetyVerdictSafeSummary':
+          'तुमच्या लाइव्ह स्थानावर आधारित हा परिसर सध्या सामान्यतः सुरक्षित वाटतो.',
+      'safetyVerdictCaution': 'सावधानी बाळगा',
+      'safetyVerdictCautionSummary':
+          'येथे अतिरिक्त सावधानी बाळगा—जवळपास काही धोका संकेत आढळले आहेत.',
+      'safetyVerdictHighRisk': 'जास्त चिंता',
+      'safetyVerdictHighRiskSummary':
+          'हा परिसर सध्या सुरक्षित वाटत नाही, विशेषतः महिला आणि ज्येष्ठ वापरकर्त्यांसाठी.',
+      'safetyVerdictMonitoring': 'अजून शिकत आहे',
+      'safetyVerdictMonitoringSummary':
+          'लाइव्ह परिसर माहिती अजून तयार होत आहे. आम्ही शिकत असताना सजग राहा.',
+      'safetyWhyNotSafeTitle': 'हा परिसर सुरक्षित का वाटत नाही',
+      'safetyReasonDrugActivity':
+          'या परिसरात अलीकडे अमली पदार्थ संबंधित कृती नोंदवल्या गेल्या आहेत.',
+      'safetyReasonChainSnatching':
+          'जवळपास chain-snatching प्रकरणे नोंदवली गेली आहेत.',
+      'safetyReasonTheftProne':
+          'हा भाग चोरी संबंधित घटनांसाठी ओळखला जातो.',
+      'safetyReasonHarassmentReports':
+          'जवळपास छळ किंवा हल्ल्याच्या तक्रारी नोंदवल्या गेल्या आहेत.',
+      'safetyReasonPoorLighting':
+          'खराब रस्ता प्रकाशामुळे येथे दृश्यता कमी होऊ शकते.',
+      'safetyReasonLowFootfall':
+          'कमी पादचारी वाहतुकीमुळे हा परिसर एकटा वाटू शकतो.',
+      'safetyReasonCrimeActivity':
+          'जवळपासच्या घटना अजूनही वाढलेल्या आहेत.',
+      'safetyReasonLimitedSupport':
+          'जवळपास मर्यादित आपत्कालीन मदत बिंदू त्वरित मदतीस विलंब करू शकतात.',
+      'safetyReasonNightRisk':
+          'रात्रीच्या वेळी दृश्यता आणि सार्वजनिक हालचाल कमी होते.',
+      'safetyReasonGpsLimited':
+          'लाइव्ह स्थान अचूकता मर्यादित आहे; GPS सुधारल्यावर मूल्यांकन अद्यतन होऊ शकते.',
+      'safetyReasonUnsafeNightlife':
+          'असुरक्षित नाइटलाइफ किंवा red-light कृती येथे धोका वाढवू शकते.',
+      'safetyReasonGeneralCaution':
+          'या परिसरात अतिरिक्त सावधानी घेण्याची शिफारस आहे.',
+      'routeVerdictChanged': 'मार्ग बदलला',
+      'routeVerdictChangedSummary':
+          'तुम्ही नेहमीच्या मार्गापासून वळला आहात. तुम्ही सुरक्षित आहात याची खात्री करा.',
+      'routeVerdictLearning': 'मार्ग शिकत आहे',
+      'routeVerdictLearningSummary':
+          'दैनंदिन मार्ग सुरक्षा तुमचे प्रवास पॅटर्न लाइव्ह GPS वरून शिकत आहे.',
+      'routeVerdictOnTrack': 'नेहमीच्या मार्गावर',
+      'routeVerdictOnTrackSummary':
+          'तुम्ही तुमच्या शिकलेल्या सुरक्षित दैनंदिन मार्गावर आहात.',
+      'routeVerdictCaution': 'मार्ग सावधानी',
+      'routeVerdictCautionSummary':
+          'काही मार्ग परिस्थितींवर आता अतिरिक्त लक्ष देणे आवश्यक आहे.',
+      'routeVerdictAlert': 'मार्ग सतर्कता',
+      'routeVerdictAlertSummary':
+          'तुमचा सध्याचा मार्ग तुमच्या नेहमीच्या सुरक्षित पॅटर्नशी जुळत नाही.',
       'refresh': 'रीफ्रेश',
       'openMap': 'नकाशा उघडा',
       'resetHomeWorkplaceRouteLearning': 'घर-कार्यस्थळ मार्ग शिकणे रीसेट करा',

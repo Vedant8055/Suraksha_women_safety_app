@@ -20,11 +20,13 @@ import 'package:suraksha_women_safety_app/features/profile/profile_screen.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/nearby_places_provider.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/community_alerts_provider.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/safety_monitor_provider.dart';
+import 'package:suraksha_women_safety_app/features/dashboard/safety_verdict_helper.dart';
 import 'package:suraksha_women_safety_app/features/profile/profile_display_provider.dart';
 import 'package:suraksha_women_safety_app/features/routes/route_safety_provider.dart';
 import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
 import 'package:suraksha_women_safety_app/localization/locale_provider.dart';
 import 'package:suraksha_women_safety_app/widgets/premium_dialog.dart';
+import 'package:suraksha_women_safety_app/widgets/safety_risk_reasons_expansion.dart';
 
 final _manualSosLaunchingProvider = StateProvider<bool>((ref) => false);
 final communityAlertsExpandedProvider = StateProvider<bool>((ref) => false);
@@ -513,17 +515,21 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   Widget _buildSafetyIntelligenceCard(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final safetyState = ref.watch(safetyMonitorProvider);
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final tone = safetyState.safetyScore >= 81
-        ? const Color(0xFF15803D)
-        : safetyState.safetyScore >= 61
-        ? const Color(0xFF16A34A)
-        : safetyState.safetyScore >= 41
-        ? const Color(0xFFEAB308)
-        : safetyState.safetyScore >= 21
-        ? const Color(0xFFF97316)
-        : const Color(0xFFB91C1C);
+    final verdict = SafetyVerdictHelper.fromScore(
+      l10n,
+      score: safetyState.safetyScore,
+      riskLabel: safetyState.riskLabel,
+      intelligenceLimited: safetyState.limitedAssessmentMessage != null,
+    );
+    final tone = verdict.tone;
+    final riskReasons = SafetyVerdictHelper.buildRiskReasons(
+      l10n,
+      contributingFactors: safetyState.contributingFactors,
+      dimensions: safetyState.dimensions,
+    );
 
     return Container(
       width: double.infinity,
@@ -576,7 +582,7 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      safetyState.summary ?? safetyState.statusMessage,
+                      safetyState.summary ?? verdict.summary,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -591,29 +597,7 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '${safetyState.safetyScore}',
-                    style: TextStyle(
-                      color: tone,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  Text(
-                    '/ 100',
-                    style: TextStyle(
-                      color: isLight
-                          ? const Color(0xFF627491)
-                          : Colors.white60,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
+              SafetyVerdictBadge(headline: verdict.headline, tone: tone),
             ],
           ),
           const SizedBox(height: 14),
@@ -621,20 +605,6 @@ class DashboardScreen extends ConsumerWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _routeChip(
-                context,
-                icon: Icons.flag_rounded,
-                label: safetyState.riskLabel,
-                color: tone,
-              ),
-              _routeChip(
-                context,
-                icon: Icons.verified_rounded,
-                label: safetyState.aiConfidenceVisible
-                    ? 'AI Confidence ${safetyState.aiConfidence}%'
-                    : 'Safety Assessment Limited',
-                color: const Color(0xFF3B82F6),
-              ),
               if (safetyState.nearbyPoliceCount > 0)
                 _routeChip(
                   context,
@@ -650,43 +620,30 @@ class DashboardScreen extends ConsumerWidget {
                       '${safetyState.nearbyHospitalCount} hospitals nearby',
                   color: const Color(0xFFE11D48),
                 ),
-              if (safetyState.fusionModelVersion != null)
+              if (safetyState.limitedAssessmentMessage != null)
                 _routeChip(
                   context,
-                  icon: Icons.hub_rounded,
-                  label: 'Fusion ${safetyState.fusionModelVersion}',
-                  color: const Color(0xFF6366F1),
+                  icon: Icons.info_outline_rounded,
+                  label: l10n.t('routeGuardIntelligenceLimited'),
+                  color: const Color(0xFF8E7CF4),
                 ),
               if (safetyState.aiSummarySource != null)
                 _routeChip(
                   context,
                   icon: Icons.auto_awesome_rounded,
                   label: safetyState.aiSummarySource == 'gemini'
-                      ? AppLocalizations.of(context).t('aiSummaryFromGemini')
-                      : AppLocalizations.of(context).t('aiSummaryFromTemplate'),
+                      ? l10n.t('aiSummaryFromGemini')
+                      : l10n.t('aiSummaryFromTemplate'),
                   color: const Color(0xFF8B5CF6),
                 ),
             ],
           ),
-          if (safetyState.dimensions.isNotEmpty) ...[
+          if (verdict.showRiskReasons && riskReasons.isNotEmpty) ...[
             const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: safetyState.dimensions.map((dimension) {
-                final dimTone = dimension.score >= 70
-                    ? const Color(0xFF16A34A)
-                    : dimension.score >= 50
-                    ? const Color(0xFFEAB308)
-                    : const Color(0xFFF97316);
-                return _routeChip(
-                  context,
-                  icon: _iconForDimension(dimension.key),
-                  label:
-                      '${_labelForDimension(context, dimension.key)} ${dimension.score}',
-                  color: dimTone,
-                );
-              }).toList(growable: false),
+            SafetyRiskReasonsExpansion(
+              reasons: riskReasons,
+              accentColor: tone,
+              isLight: isLight,
             ),
           ],
           if (safetyState.aiSummaryAction != null &&
@@ -822,14 +779,17 @@ class DashboardScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final routeState = ref.watch(routeSafetyProvider);
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final danger = routeState.pendingSafetyCheck || routeState.safetyScore < 60;
-    final tone = routeState.pendingSafetyCheck
-        ? const Color(0xFFE53935)
-        : routeState.safetyScore >= 80
-        ? const Color(0xFF2FB79E)
-        : routeState.safetyScore >= 60
-        ? const Color(0xFFF3B13E)
-        : const Color(0xFFE66E41);
+    final verdict = SafetyVerdictHelper.fromRouteState(
+      l10n,
+      pendingSafetyCheck: routeState.pendingSafetyCheck,
+      riskLabel: routeState.riskLabel,
+      hasLearnedRoute: routeState.hasLearnedRoute,
+      learningRoute: routeState.learningRoute,
+    );
+    final tone = verdict.tone;
+    final danger =
+        routeState.pendingSafetyCheck ||
+        verdict.level == SafetyVerdictLevel.highRisk;
     final countdownText = _formatRouteCountdown(routeState.countdownSeconds);
     final deviation = routeState.deviationMeters;
 
@@ -905,16 +865,29 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              Text(
-                '${routeState.safetyScore}',
-                style: TextStyle(
-                  color: tone,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                ),
+              SafetyVerdictBadge(
+                headline: verdict.headline,
+                tone: tone,
+                compact: true,
               ),
             ],
           ),
+          if (routeState.learningProgressLabel != null &&
+              !routeState.monitoringMapRoute) ...[
+            const SizedBox(height: 10),
+            Text(
+              routeState.learningProgressLabel!,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: isLight
+                    ? const Color(0xFF3B5A84)
+                    : Colors.white.withValues(alpha: 0.76),
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
           const SizedBox(height: 14),
           Wrap(
             spacing: 8,
@@ -933,16 +906,30 @@ class DashboardScreen extends ConsumerWidget {
                     : Icons.sync_rounded,
                 label: routeState.monitoringMapRoute
                     ? '${routeState.activeMapRoutePointCount} map points'
+                    : routeState.routineProfileCount > 0
+                    ? l10n
+                          .t('routeGuardRoutinesLearned')
+                          .replaceAll(
+                            '{count}',
+                            '${routeState.routineProfileCount}',
+                          )
                     : routeState.hasLearnedRoute
                     ? '${routeState.routeLogCount} route logs'
-                    : 'Learning route',
+                    : l10n.t('routeGuardLearningRoute'),
                 color: const Color(0xFF3B82F6),
               ),
-              if (routeState.activeMapRouteScore != null)
+              if (routeState.intelligenceLimited)
+                _routeChip(
+                  context,
+                  icon: Icons.info_outline_rounded,
+                  label: l10n.t('routeGuardIntelligenceLimited'),
+                  color: const Color(0xFF8E7CF4),
+                ),
+              if (routeState.monitoringMapRoute)
                 _routeChip(
                   context,
                   icon: Icons.map_rounded,
-                  label: 'Map score ${routeState.activeMapRouteScore}',
+                  label: l10n.t('routeGuardMapRouteActive'),
                   color: const Color(0xFF2FB79E),
                 ),
               if (deviation != null)
@@ -1333,7 +1320,11 @@ class DashboardScreen extends ConsumerWidget {
                           final alert = entry.value;
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 14),
-                            child: _buildCommunityAlertCard(context, alert),
+                            child: _buildCommunityAlertCard(
+                              context,
+                              alert,
+                              safetyState: safetyState,
+                            ),
                           );
                         }),
                     ],
@@ -1588,11 +1579,39 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildCommunityAlertCard(BuildContext context, SafetyCommunityAlert alert) {
+  Widget _buildCommunityAlertCard(
+    BuildContext context,
+    SafetyCommunityAlert alert, {
+    SafetyMonitorState? safetyState,
+  }) {
+    final l10n = AppLocalizations.of(context);
     final isLight = Theme.of(context).brightness == Brightness.light;
+    final isAreaSafety = SafetyVerdictHelper.isAreaSafetyAlert(alert.category);
+    SafetyVerdict? areaVerdict;
+    var summaryText = alert.summary;
+    var areaReasons = alert.riskReasons;
+
+    if (isAreaSafety && safetyState != null) {
+      areaVerdict = SafetyVerdictHelper.fromScore(
+        l10n,
+        score: safetyState.safetyScore,
+        riskLabel: safetyState.riskLabel,
+        intelligenceLimited: safetyState.limitedAssessmentMessage != null,
+      );
+      summaryText = areaVerdict.summary;
+      areaReasons = SafetyVerdictHelper.buildRiskReasons(
+        l10n,
+        contributingFactors: safetyState.contributingFactors,
+        dimensions: safetyState.dimensions,
+        riskReasonsFromAlert: alert.riskReasons,
+      );
+    }
+
     final color = _colorForCommunityAlert(alert.priority);
     final icon = _iconForCommunityAlert(alert.priority, alert.category);
-    final priorityLabel = alert.priority == 'critical'
+    final badgeLabel = isAreaSafety && areaVerdict != null
+        ? areaVerdict.headline.toUpperCase()
+        : alert.priority == 'critical'
         ? 'CRITICAL'
         : alert.priority == 'caution'
         ? 'CAUTION'
@@ -1674,7 +1693,7 @@ class DashboardScreen extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      priorityLabel,
+                      badgeLabel,
                       style: const TextStyle(
                         fontSize: 9,
                         fontWeight: FontWeight.w900,
@@ -1727,7 +1746,7 @@ class DashboardScreen extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
               child: Text(
-                alert.summary,
+                summaryText,
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -1736,7 +1755,42 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            if (alert.dataSource != null || alert.confidence != null)
+            if (isAreaSafety &&
+                areaVerdict != null &&
+                areaVerdict.showRiskReasons &&
+                areaReasons.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+                child: SafetyRiskReasonsExpansion(
+                  reasons: areaReasons,
+                  accentColor: areaVerdict.tone,
+                  isLight: isLight,
+                ),
+              ),
+            if (isAreaSafety && alert.dataSource != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isLight ? const Color(0xFFF1F5F9) : const Color(0xFF1F2937),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: isLight ? const Color(0xFFE2E8F0) : Colors.white12,
+                    ),
+                  ),
+                  child: Text(
+                    _labelForDataSource(context, alert.dataSource!),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: isLight ? const Color(0xFF475569) : Colors.white70,
+                    ),
+                  ),
+                ),
+              ),
+            if (!isAreaSafety &&
+                (alert.dataSource != null || alert.confidence != null))
               Padding(
                 padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
                 child: Wrap(
@@ -1942,29 +1996,6 @@ class DashboardScreen extends ConsumerWidget {
     if (diff.inSeconds < 60) return '${diff.inSeconds}s';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m';
     return '${diff.inHours}h';
-  }
-
-  IconData _iconForDimension(String key) {
-    return switch (key) {
-      'crime' => Icons.gpp_maybe_rounded,
-      'infrastructure' => Icons.lightbulb_outline_rounded,
-      'support' => Icons.local_hospital_rounded,
-      'visibility' => Icons.groups_rounded,
-      'temporal' => Icons.nightlight_round,
-      _ => Icons.analytics_outlined,
-    };
-  }
-
-  String _labelForDimension(BuildContext context, String key) {
-    final l10n = AppLocalizations.of(context);
-    return switch (key) {
-      'crime' => l10n.t('safetyDimCrime'),
-      'infrastructure' => l10n.t('safetyDimInfrastructure'),
-      'support' => l10n.t('safetyDimSupport'),
-      'visibility' => l10n.t('safetyDimVisibility'),
-      'temporal' => l10n.t('safetyDimTemporal'),
-      _ => key,
-    };
   }
 
   String _labelForDataSource(BuildContext context, String dataSource) {

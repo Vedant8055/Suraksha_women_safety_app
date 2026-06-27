@@ -10,6 +10,8 @@ function makeAlert({
   dataSource,
   confidence,
   disclaimer,
+  riskReasons,
+  verdictHeadline,
 }) {
   return {
     category,
@@ -19,8 +21,72 @@ function makeAlert({
     summary,
     recommendedAction,
     dataSource,
-    confidence: Math.round(confidence),
+    ...(confidence != null ? { confidence: Math.round(confidence) } : {}),
     ...(disclaimer ? { disclaimer } : {}),
+    ...(Array.isArray(riskReasons) && riskReasons.length
+      ? { riskReasons }
+      : {}),
+    ...(verdictHeadline ? { verdictHeadline } : {}),
+  };
+}
+
+function humanizeRiskReasons(analysis) {
+  const cautionFactors = analysis?.signalSnapshot?.cautionFactors || [];
+  const reasons = [];
+  const seen = new Set();
+
+  const add = (reason) => {
+    const trimmed = String(reason || '').trim();
+    if (!trimmed || seen.has(trimmed)) return;
+    seen.add(trimmed);
+    reasons.push(trimmed);
+  };
+
+  for (const factor of cautionFactors) {
+    const text = String(factor).toLowerCase();
+    if (/(drug|narcotic)/.test(text)) add('Recent drug-related activity reported in this area.');
+    else if (/(snatch|chain)/.test(text)) add('Chain-snatching cases have been reported nearby.');
+    else if (/(theft|robbery|steal)/.test(text)) add('This stretch is known for theft-related incidents.');
+    else if (/(harass|molest|assault)/.test(text)) add('Harassment or assault reports have been recorded nearby.');
+    else if (/(lighting|lit|dark|visibility after sunset)/.test(text)) add('Poor street lighting may reduce visibility here.');
+    else if (/(pedestrian|footfall|crowd|poi visibility)/.test(text)) add('Low pedestrian activity makes this area feel isolated.');
+    else if (/(incident|crime|grid model|elevated risk)/.test(text)) add('Incident activity remains elevated in the surrounding area.');
+    else if (/(emergency support|police|hospital)/.test(text)) add('Limited nearby emergency support points may slow rapid assistance.');
+    else if (/(late-night|night|after sunset)/.test(text)) add('Night-time conditions reduce visibility and public activity.');
+    else add(factor);
+  }
+
+  for (const dimension of analysis?.dimensions || []) {
+    if ((dimension.score ?? 100) >= 55) continue;
+    if (dimension.key === 'crime') add('Crime-related signals are elevated near this location.');
+    else if (dimension.key === 'infrastructure') add('Poor street lighting may reduce visibility here.');
+    else if (dimension.key === 'support') add('Limited nearby emergency support points may slow rapid assistance.');
+    else if (dimension.key === 'visibility') add('Low pedestrian activity makes this area feel isolated.');
+    else if (dimension.key === 'temporal') add('Night-time conditions reduce visibility and public activity.');
+  }
+
+  return reasons.slice(0, 6);
+}
+
+function areaVerdictCopy(score) {
+  if (score >= 75) {
+    return {
+      headline: 'Generally safe',
+      summary:
+        'This area feels generally safe right now based on your live location.',
+    };
+  }
+  if (score >= 55) {
+    return {
+      headline: 'Use caution',
+      summary:
+        'Use extra caution here—some risk signals were detected nearby.',
+    };
+  }
+  return {
+    headline: 'Higher concern',
+    summary:
+      'This area may not feel safe right now, especially for women and elderly users.',
   };
 }
 
@@ -243,9 +309,12 @@ function buildCommunityAlerts({ analysis, context, at, upcomingRisk, external })
     );
   }
 
+  const areaVerdict = areaVerdictCopy(analysis.safetyScore);
+  const areaRiskReasons = humanizeRiskReasons(analysis);
+
   alerts.push(
     makeAlert({
-      category: 'Safety Score',
+      category: 'Area Safety',
       priority:
         analysis.safetyScore >= 75
           ? 'information'
@@ -254,14 +323,15 @@ function buildCommunityAlerts({ analysis, context, at, upcomingRisk, external })
           : 'critical',
       distanceMeters: 0,
       timestamp: at,
-      summary: `Area safety score is ${analysis.safetyScore}/100 for ${nashikSafetyConfig.regionLabel}. ${analysis.safetyScore >= 75 ? 'Conditions are comparatively stable.' : analysis.safetyScore >= 50 ? 'Mixed conditions—stay situationally aware.' : 'Elevated risk detected in this zone.'}`,
+      summary: areaVerdict.summary,
       recommendedAction:
         analysis.safetyScore < 50
             ? 'Arm SOS, share live location with a trusted contact, and consider an alternate route.'
-            : 'Review contributing factors in the AI Intelligence card and follow recommended actions.',
+            : 'Review the reasons below and follow recommended actions.',
       dataSource: 'suraksha_engine',
-      confidence: analysis.aiConfidence,
       disclaimer: nashikSafetyConfig.dataDisclaimer,
+      verdictHeadline: areaVerdict.headline,
+      riskReasons: areaRiskReasons,
     }),
   );
 

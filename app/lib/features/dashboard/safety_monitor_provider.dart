@@ -77,6 +77,8 @@ class SafetyCommunityAlert {
   final String? dataSource;
   final int? confidence;
   final String? disclaimer;
+  final List<String> riskReasons;
+  final String? verdictHeadline;
 
   const SafetyCommunityAlert({
     required this.category,
@@ -88,6 +90,8 @@ class SafetyCommunityAlert {
     this.dataSource,
     this.confidence,
     this.disclaimer,
+    this.riskReasons = const [],
+    this.verdictHeadline,
   });
 
   factory SafetyCommunityAlert.fromJson(Map<String, dynamic> json) {
@@ -103,6 +107,11 @@ class SafetyCommunityAlert {
       dataSource: json['dataSource']?.toString(),
       confidence: (json['confidence'] as num?)?.round(),
       disclaimer: json['disclaimer']?.toString(),
+      riskReasons:
+          (json['riskReasons'] as List<dynamic>? ?? const [])
+              .map((item) => item.toString())
+              .toList(growable: false),
+      verdictHeadline: json['verdictHeadline']?.toString(),
     );
   }
 }
@@ -670,11 +679,22 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
         : null;
 
     if (communityAlerts.isEmpty) {
+      final parsedDimensions =
+          (currentMap['dimensions'] as List<dynamic>? ?? const [])
+              .whereType<Map<String, dynamic>>()
+              .map(SafetyDimensionScore.fromJson)
+              .toList(growable: false);
+      final parsedFactors =
+          (currentMap['contributingFactors'] as List<dynamic>? ?? const [])
+              .map((item) => item.toString())
+              .toList(growable: false);
       communityAlerts = _buildFallbackCommunityAlerts(
         policeCount: policeCount,
         hospitalCount: hospitalCount,
         safetyScore: safetyScore,
         riskLabel: riskLabel,
+        contributingFactors: parsedFactors,
+        dimensions: parsedDimensions,
       );
     }
 
@@ -892,16 +912,37 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
     required int hospitalCount,
     required int safetyScore,
     required String riskLabel,
+    List<String> contributingFactors = const [],
+    List<SafetyDimensionScore> dimensions = const [],
   }) {
     final now = DateTime.now();
     final hour = now.hour;
     final isNight = hour >= 20 || hour < 6;
     final isLateNight = hour >= 23 || hour < 5;
     final showRoadLighting = hour >= 19 || hour < 6;
+    final verdictSummary = safetyScore >= 75
+        ? 'This area feels generally safe right now based on your live location.'
+        : safetyScore >= 55
+        ? 'Use extra caution here—some risk signals were detected nearby.'
+        : 'This area may not feel safe right now, especially for women and elderly users.';
+    final verdictHeadline = safetyScore >= 75
+        ? 'Generally safe'
+        : safetyScore >= 55
+        ? 'Use caution'
+        : 'Higher concern';
+    final riskReasons = _buildFallbackRiskReasons(
+      safetyScore: safetyScore,
+      isNight: isNight,
+      isLateNight: isLateNight,
+      policeCount: policeCount,
+      hospitalCount: hospitalCount,
+      contributingFactors: contributingFactors,
+      dimensions: dimensions,
+    );
 
     return [
       SafetyCommunityAlert(
-        category: 'Area Safety Score',
+        category: 'Area Safety',
         priority: safetyScore < 45
             ? 'critical'
             : safetyScore < 60
@@ -909,13 +950,13 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
             : 'information',
         distanceMeters: 0,
         timestamp: now,
-        summary:
-            'Current area safety score is $safetyScore/100 ($riskLabel) based on your live GPS position.',
+        summary: verdictSummary,
         recommendedAction: safetyScore < 60
             ? 'Stay alert, share live location, and keep SOS ready.'
             : 'Conditions look manageable. Continue monitoring nearby updates.',
         dataSource: 'suraksha_engine',
-        confidence: 55,
+        verdictHeadline: verdictHeadline,
+        riskReasons: riskReasons,
       ),
       SafetyCommunityAlert(
         category: 'Public Transport Network',
@@ -966,5 +1007,60 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
     }
     if (score > 98) score = 98;
     return score;
+  }
+
+  List<String> _buildFallbackRiskReasons({
+    required int safetyScore,
+    required bool isNight,
+    required bool isLateNight,
+    required int policeCount,
+    required int hospitalCount,
+    required List<String> contributingFactors,
+    required List<SafetyDimensionScore> dimensions,
+  }) {
+    if (safetyScore >= 75) return const [];
+
+    final reasons = <String>[];
+    void add(String reason) {
+      if (reason.isNotEmpty && !reasons.contains(reason)) {
+        reasons.add(reason);
+      }
+    }
+
+    for (final factor in contributingFactors) {
+      add(factor);
+    }
+    for (final dimension in dimensions) {
+      if (dimension.score >= 55) continue;
+      add('${_dimensionLabel(dimension.key)} signals are weak nearby.');
+    }
+    if (isLateNight) {
+      add('Very low pedestrian activity is expected after midnight in this area.');
+    } else if (isNight) {
+      add('Reduced visibility after sunset can affect situational awareness.');
+    }
+    if (showRoadLightingFallback(isNight) && safetyScore < 60) {
+      add('Street lighting may be inconsistent nearby.');
+    }
+    if (policeCount == 0 && hospitalCount == 0) {
+      add('Limited nearby emergency support points may slow rapid assistance.');
+    }
+    if (reasons.isEmpty && safetyScore < 55) {
+      add('Incident activity remains elevated in the surrounding area.');
+    }
+    return reasons.take(6).toList(growable: false);
+  }
+
+  bool showRoadLightingFallback(bool isNight) => isNight;
+
+  String _dimensionLabel(String key) {
+    return switch (key) {
+      'crime' => 'Crime',
+      'infrastructure' => 'Street lighting',
+      'support' => 'Emergency support',
+      'visibility' => 'Pedestrian activity',
+      'temporal' => 'Night-time',
+      _ => 'Safety',
+    };
   }
 }

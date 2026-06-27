@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:suraksha_women_safety_app/core/notifications/local_alert_service.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/safety_monitor_provider.dart';
 
 final routeSafetyProvider =
@@ -131,6 +132,10 @@ class RouteSafetyState {
   final int activeMapRoutePointCount;
   final int? activeMapRouteScore;
   final String? activeMapRouteReason;
+  final int routineProfileCount;
+  final int currentTripPointCount;
+  final String? learningProgressLabel;
+  final bool intelligenceLimited;
 
   const RouteSafetyState({
     this.monitoringActive = false,
@@ -152,6 +157,10 @@ class RouteSafetyState {
     this.activeMapRoutePointCount = 0,
     this.activeMapRouteScore,
     this.activeMapRouteReason,
+    this.routineProfileCount = 0,
+    this.currentTripPointCount = 0,
+    this.learningProgressLabel,
+    this.intelligenceLimited = false,
   });
 
   RouteSafetyState copyWith({
@@ -179,6 +188,11 @@ class RouteSafetyState {
     bool clearActiveMapRouteScore = false,
     String? activeMapRouteReason,
     bool clearActiveMapRouteReason = false,
+    int? routineProfileCount,
+    int? currentTripPointCount,
+    String? learningProgressLabel,
+    bool clearLearningProgressLabel = false,
+    bool? intelligenceLimited,
   }) {
     return RouteSafetyState(
       monitoringActive: monitoringActive ?? this.monitoringActive,
@@ -211,6 +225,13 @@ class RouteSafetyState {
       activeMapRouteReason: clearActiveMapRouteReason
           ? null
           : (activeMapRouteReason ?? this.activeMapRouteReason),
+      routineProfileCount: routineProfileCount ?? this.routineProfileCount,
+      currentTripPointCount:
+          currentTripPointCount ?? this.currentTripPointCount,
+      learningProgressLabel: clearLearningProgressLabel
+          ? null
+          : (learningProgressLabel ?? this.learningProgressLabel),
+      intelligenceLimited: intelligenceLimited ?? this.intelligenceLimited,
     );
   }
 }
@@ -232,6 +253,7 @@ class RouteSafetyAnalyzer {
     bool? hasLearnedRouteOverride,
     double deviationThresholdMeters =
         RouteSafetyAnalyzer.deviationThresholdMeters,
+    bool applyEmergencyServicePenalty = true,
   }) {
     final currentTime = now ?? DateTime.now();
     final hasLearnedRoute =
@@ -248,7 +270,9 @@ class RouteSafetyAnalyzer {
       riskFactors.add('Night travel');
     }
 
-    if (nearbyPoliceCount == 0 && nearbyHospitalCount == 0) {
+    if (applyEmergencyServicePenalty &&
+        nearbyPoliceCount == 0 &&
+        nearbyHospitalCount == 0) {
       score -= 10;
       riskFactors.add('No nearby mapped emergency service');
     }
@@ -442,19 +466,22 @@ class _RoutineMatch {
 class RouteSafetyNotifier extends StateNotifier<RouteSafetyState> {
   RouteSafetyNotifier(this._ref) : super(const RouteSafetyState());
 
-  static const defaultSafetyCheckSeconds = 300;
+  static const defaultSafetyCheckSeconds = 60;
   static const _prefsKey = 'route_safety_learned_points_v2';
   static const _legacyPrefsKey = 'route_safety_learned_points_v1';
+  static const _currentTripPrefsKey = 'route_safety_current_trip_v1';
   static const _maxStoredTrips = 24;
   static const _maxPointsPerTrip = 180;
-  static const _minTripPoints = 8;
-  static const _minTripsForRoutine = 2;
+  static const _minTripPoints = 5;
+  static const _minTripsForRoutine = 1;
+  static const _minTripsForStrongRoutine = 2;
   static const _maxTripGap = Duration(minutes: 12);
-  static const _minTripDuration = Duration(minutes: 4);
+  static const _minTripDuration = Duration(minutes: 2);
   static const _tripBreakDistanceMeters = 1500.0;
-  static const _tripMatchStartRadiusMeters = 350.0;
+  static const _tripMatchStartRadiusMeters = 400.0;
   static const _profileGridMeters = 250.0;
-  static const _requiredDeviationSamples = 3;
+  static const _requiredDeviationSamples = 2;
+  static const _persistDraftEveryPoints = 6;
 
   final Ref _ref;
   final RouteSafetyAnalyzer _analyzer = const RouteSafetyAnalyzer();
@@ -470,17 +497,33 @@ class RouteSafetyNotifier extends StateNotifier<RouteSafetyState> {
   int _deviationStreak = 0;
 
   Future<void> start() async {
-    if (_started || _loading) return;
+    if (_started && _monitorSubscription != null) return;
+    if (_loading) return;
     _loading = true;
     await _loadLearnedRoute();
+    await _loadCurrentTripDraft();
     _loading = false;
     _started = true;
 
+    _monitorSubscription?.close();
     _monitorSubscription = _ref.listen<SafetyMonitorState>(
       safetyMonitorProvider,
       (_, next) => _handleMonitorUpdate(next),
       fireImmediately: true,
     );
+  }
+
+  Future<void> resumeIfEnabled() async {
+    if (!_started) {
+      await start();
+      return;
+    }
+    _monitorSubscription ??= _ref.listen<SafetyMonitorState>(
+      safetyMonitorProvider,
+      (_, next) => _handleMonitorUpdate(next),
+      fireImmediately: true,
+    );
+    await _handleMonitorUpdate(_ref.read(safetyMonitorProvider));
   }
 
   Future<void> refreshNow() async {
@@ -527,6 +570,7 @@ class RouteSafetyNotifier extends StateNotifier<RouteSafetyState> {
     _safetyCountdownTimer?.cancel();
     _safetyCountdownTimer = null;
     _deviationStreak = 0;
+    await LocalAlertService.instance.cancelRouteDeviationAlert();
     state = state.copyWith(
       pendingSafetyCheck: false,
       countdownSeconds: defaultSafetyCheckSeconds,
@@ -545,6 +589,7 @@ class RouteSafetyNotifier extends StateNotifier<RouteSafetyState> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_prefsKey);
     await prefs.remove(_legacyPrefsKey);
+    await _clearCurrentTripDraft();
     _safetyCountdownTimer?.cancel();
     state = const RouteSafetyState(
       statusMessage: 'Route history reset. Learning starts again now.',
@@ -582,14 +627,18 @@ class RouteSafetyNotifier extends StateNotifier<RouteSafetyState> {
         : matchedRoutine?.profile.corridorMeters ??
               RouteSafetyAnalyzer.deviationThresholdMeters;
 
+    final intelligenceLimited = _isIntelligenceLimited(monitor);
+    final areaScore = intelligenceLimited ? 75 : monitor.safetyScore;
+
     final assessment = _analyzer.assess(
       position: position,
       learnedRoute: comparisonRoute,
-      areaSafetyScore: monitor.safetyScore,
+      areaSafetyScore: areaScore,
       nearbyPoliceCount: monitor.nearbyPoliceCount,
       nearbyHospitalCount: monitor.nearbyHospitalCount,
       hasLearnedRouteOverride: hasLearnedRoute,
       deviationThresholdMeters: deviationThreshold,
+      applyEmergencyServicePenalty: !intelligenceLimited,
     );
 
     final baseRiskFactors = List<String>.from(assessment.riskFactors);
@@ -597,7 +646,7 @@ class RouteSafetyNotifier extends StateNotifier<RouteSafetyState> {
       baseRiskFactors.add('Selected safest map route');
     } else if (matchedRoutine != null) {
       baseRiskFactors.add(
-        matchedRoutine.profile.tripCount >= 4
+        matchedRoutine.profile.tripCount >= _minTripsForStrongRoutine
             ? 'Strong commute pattern'
             : 'Repeated daily pattern',
       );
@@ -626,6 +675,11 @@ class RouteSafetyNotifier extends StateNotifier<RouteSafetyState> {
       _deviationStreak = 0;
     }
 
+    final learningProgress = _buildLearningProgressLabel(
+      matchedRoutine: matchedRoutine,
+      monitoringMapRoute: monitoringMapRoute,
+    );
+
     state = state.copyWith(
       monitoringActive: monitor.trackingActive,
       permissionReady: permissionReady,
@@ -640,6 +694,10 @@ class RouteSafetyNotifier extends StateNotifier<RouteSafetyState> {
       lastPosition: position,
       monitoringMapRoute: monitoringMapRoute,
       activeMapRoutePointCount: _activeMapRoute.length,
+      routineProfileCount: _routineProfiles.length,
+      currentTripPointCount: _currentTripPoints.length,
+      learningProgressLabel: learningProgress,
+      intelligenceLimited: intelligenceLimited,
     );
 
     if (assessment.deviatedFromLearnedRoute &&
@@ -675,12 +733,15 @@ class RouteSafetyNotifier extends StateNotifier<RouteSafetyState> {
     if (_analyzer.shouldStoreSample(
       sample: sample,
       route: _currentTripPoints,
-      minimumMovementMeters: 18,
-      minimumElapsed: const Duration(seconds: 15),
+      minimumMovementMeters: 15,
+      minimumElapsed: const Duration(seconds: 12),
     )) {
       _currentTripPoints.add(sample);
       if (_currentTripPoints.length > _maxPointsPerTrip) {
         _currentTripPoints.removeAt(0);
+      }
+      if (_currentTripPoints.length % _persistDraftEveryPoints == 0) {
+        unawaited(_saveCurrentTripDraft());
       }
     }
   }
@@ -715,6 +776,7 @@ class RouteSafetyNotifier extends StateNotifier<RouteSafetyState> {
       unawaited(_saveLearnedRoute());
     }
     _currentTripPoints.clear();
+    unawaited(_clearCurrentTripDraft());
   }
 
   _RoutineMatch? _matchRoutine({
@@ -820,7 +882,8 @@ class RouteSafetyNotifier extends StateNotifier<RouteSafetyState> {
               )
               .reduce((a, b) => a + b) /
           groupTrips.length;
-      final corridorMeters = (avgRouteDistance + 30).clamp(60.0, 140.0);
+      final corridorMeters = (avgRouteDistance + (groupTrips.length >= _minTripsForStrongRoutine ? 30 : 45))
+          .clamp(70.0, 150.0);
       profiles[entry.key] = _RoutineProfile(
         id: entry.key,
         route: representative.points,
@@ -870,9 +933,12 @@ class RouteSafetyNotifier extends StateNotifier<RouteSafetyState> {
   String _routineKey(LearnedTrip trip) {
     final startKey = _gridKey(trip.startPoint);
     final endKey = _gridKey(trip.endPoint);
+    final corridor = startKey.compareTo(endKey) <= 0
+        ? '$startKey>$endKey'
+        : '$endKey>$startKey';
     final dayKey = _isWeekday(trip.startedAt) ? 'weekday' : 'weekend';
     final bucket = _timeBucket(trip.startedAt.hour);
-    return '$startKey>$endKey|$bucket|$dayKey';
+    return '$corridor|$bucket|$dayKey';
   }
 
   String _gridKey(RoutePoint point) {
@@ -907,8 +973,88 @@ class RouteSafetyNotifier extends StateNotifier<RouteSafetyState> {
     return count;
   }
 
+  bool _isIntelligenceLimited(SafetyMonitorState monitor) {
+    return monitor.safetyScore <= 52 &&
+        monitor.riskLabel == 'Monitoring' &&
+        monitor.nearbyPoliceCount == 0 &&
+        monitor.nearbyHospitalCount == 0;
+  }
+
+  String? _buildLearningProgressLabel({
+    required bool monitoringMapRoute,
+    required _RoutineMatch? matchedRoutine,
+  }) {
+    if (monitoringMapRoute) return null;
+    if (matchedRoutine != null) {
+      final trips = matchedRoutine.profile.tripCount;
+      return trips >= _minTripsForStrongRoutine
+          ? 'Strong commute pattern ($trips trips learned)'
+          : 'Provisional pattern ($trips/$_minTripsForStrongRoutine trips)';
+    }
+    if (_routineProfiles.isEmpty) {
+      final need = _minTripPoints - _currentTripPoints.length;
+      if (_currentTripPoints.isNotEmpty && need > 0) {
+        return 'Recording trip · $need more GPS points needed';
+      }
+      if (_learnedTrips.isEmpty) {
+        return 'Take your usual route twice to build a guard pattern';
+      }
+      return 'Saved ${_learnedTrips.length} trips · need matching time & corridor';
+    }
+    return '${_routineProfiles.length} routine(s) saved · waiting for match';
+  }
+
+  Future<void> _saveCurrentTripDraft() async {
+    if (_currentTripPoints.length < 2) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _currentTripPrefsKey,
+        jsonEncode(_currentTripPoints.map((p) => p.toJson()).toList()),
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _loadCurrentTripDraft() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_currentTripPrefsKey);
+      if (raw == null || raw.isEmpty) return;
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return;
+      final points = decoded
+          .whereType<Map<String, dynamic>>()
+          .map(RoutePoint.fromJson)
+          .toList(growable: false);
+      if (points.isEmpty) return;
+      final last = points.last;
+      final age = DateTime.now().difference(last.timestamp);
+      if (age > _maxTripGap) {
+        await _clearCurrentTripDraft();
+        return;
+      }
+      _currentTripPoints
+        ..clear()
+        ..addAll(points);
+    } catch (_) {}
+  }
+
+  Future<void> _clearCurrentTripDraft() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_currentTripPrefsKey);
+    } catch (_) {}
+  }
+
   void _beginSafetyCheck(Position position) {
     _safetyCountdownTimer?.cancel();
+    unawaited(
+      LocalAlertService.instance.showRouteDeviationAlert(
+        title: 'Route changed — are you safe?',
+        body:
+            'You left your usual route. Open Suraksha and tap I\'m safe within ${defaultSafetyCheckSeconds}s.',
+      ),
+    );
     state = state.copyWith(
       pendingSafetyCheck: true,
       countdownSeconds: defaultSafetyCheckSeconds,
@@ -928,8 +1074,9 @@ class RouteSafetyNotifier extends StateNotifier<RouteSafetyState> {
           countdownSeconds: 0,
           clearAlertStartedAt: true,
           statusMessage:
-              'Safety check expired. Monitoring continues without SOS.',
+              'Safety check ended. Route monitoring continues.',
         );
+        unawaited(LocalAlertService.instance.cancelRouteDeviationAlert());
         return;
       }
 

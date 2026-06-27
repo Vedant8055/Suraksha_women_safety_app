@@ -5,6 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:suraksha_women_safety_app/config/environment_loader.dart';
+import 'package:suraksha_women_safety_app/core/notifications/local_alert_service.dart';
 import 'package:suraksha_women_safety_app/core/notifications/push_notification_service.dart';
 import 'package:suraksha_women_safety_app/features/auth/auth_provider.dart';
 import 'package:suraksha_women_safety_app/features/profile/emergency_contact_guard.dart';
@@ -12,6 +13,7 @@ import 'package:suraksha_women_safety_app/features/profile/emergency_contacts_pr
 import 'package:suraksha_women_safety_app/theme/app_theme.dart';
 import 'package:suraksha_women_safety_app/theme/theme_mode_provider.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/dashboard_screen.dart';
+import 'package:suraksha_women_safety_app/features/routes/route_safety_provider.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/safety_monitor_provider.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:suraksha_women_safety_app/features/sos/scream_detection_service.dart';
@@ -28,6 +30,7 @@ Future<void> main() async {
     throw StateError('App environment failed to load.');
   }
   await PushNotificationService.instance.initialize();
+  await LocalAlertService.instance.ensureReady();
   runApp(const ProviderScope(child: MyApp()));
 }
 
@@ -45,6 +48,7 @@ class _MyAppState extends ConsumerState<MyApp> {
   final _navigatorKey = GlobalKey<NavigatorState>();
   bool _impactDialogVisible = false;
   bool _distressDialogVisible = false;
+  bool _routeGuardDialogVisible = false;
   bool _missingContactsDialogVisible = false;
 
   @override
@@ -69,6 +73,9 @@ class _MyAppState extends ConsumerState<MyApp> {
         if (!mounted) return;
         unawaited(
           ref.read(safetyMonitorProvider.notifier).start().catchError((_) {}),
+        );
+        unawaited(
+          ref.read(routeSafetyProvider.notifier).start().catchError((_) {}),
         );
       });
     }
@@ -128,6 +135,17 @@ class _MyAppState extends ConsumerState<MyApp> {
           });
         } else if (wasActive && !next.countdownActive && _distressDialogVisible) {
           _dismissDistressCountdownDialog();
+        }
+      });
+
+      ref.listen<RouteSafetyState>(routeSafetyProvider, (previous, next) {
+        final wasPending = previous?.pendingSafetyCheck ?? false;
+        if (next.pendingSafetyCheck && !wasPending && !_routeGuardDialogVisible) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _showRouteGuardCheckDialog();
+          });
+        } else if (wasPending && !next.pendingSafetyCheck && _routeGuardDialogVisible) {
+          _dismissRouteGuardCheckDialog();
         }
       });
     }
@@ -405,6 +423,94 @@ class _MyAppState extends ConsumerState<MyApp> {
     navigator.pop();
     _distressDialogVisible = false;
   }
+
+  Future<void> _showRouteGuardCheckDialog() async {
+    final dialogContext = _navigatorKey.currentContext;
+    if (dialogContext == null || _routeGuardDialogVisible) return;
+
+    _routeGuardDialogVisible = true;
+    await showDialog<void>(
+      context: dialogContext,
+      barrierDismissible: false,
+        builder: (context) => Consumer(
+        builder: (context, ref, _) {
+          final state = ref.watch(routeSafetyProvider);
+          final l10n = AppLocalizations.of(context);
+          return PremiumDialogSurface(
+            title: l10n.t('routeGuardDialogTitle'),
+            message: l10n.t('routeGuardDialogMessage'),
+            icon: Icons.alt_route_rounded,
+            accentColor: const Color(0xFFE53935),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  ref.read(routeSafetyProvider.notifier).markUserSafe();
+                },
+                style: TextButton.styleFrom(
+                  foregroundColor:
+                      Theme.of(context).brightness == Brightness.light
+                      ? const Color(0xFF172235)
+                      : Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                ),
+                child: Text(l10n.t('imSafe')),
+              ),
+            ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n
+                      .t('routeGuardConfirmWithin')
+                      .replaceAll('{seconds}', '${state.countdownSeconds}'),
+                  style: TextStyle(
+                    color: Theme.of(context).brightness == Brightness.light
+                        ? const Color(0xFF23324A)
+                        : Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                if (state.deviationMeters != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    l10n
+                        .t('routeGuardDeviationMeters')
+                        .replaceAll(
+                          '{meters}',
+                          '${state.deviationMeters!.round()}',
+                        ),
+                    style: TextStyle(
+                      color: Theme.of(context).brightness == Brightness.light
+                          ? const Color(0xFF516078)
+                          : Colors.white.withValues(alpha: 0.78),
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
+      ),
+    );
+    _routeGuardDialogVisible = false;
+  }
+
+  void _dismissRouteGuardCheckDialog() {
+    final navigator = _navigatorKey.currentState;
+    if (navigator == null || !navigator.canPop()) {
+      _routeGuardDialogVisible = false;
+      return;
+    }
+
+    navigator.pop();
+    _routeGuardDialogVisible = false;
+  }
 }
 
 class _AppLifecycleHandler extends WidgetsBindingObserver {
@@ -428,6 +534,9 @@ class _AppLifecycleHandler extends WidgetsBindingObserver {
       unawaited(onResumed());
       unawaited(
         ref.read(screamDetectionProvider.notifier).resumeIfEnabled().catchError((_) {}),
+      );
+      unawaited(
+        ref.read(routeSafetyProvider.notifier).resumeIfEnabled().catchError((_) {}),
       );
     }
   }
