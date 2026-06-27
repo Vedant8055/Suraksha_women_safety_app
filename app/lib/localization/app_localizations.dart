@@ -87,6 +87,16 @@ class AppLocalizations {
       'screamDetectionEnabled': 'Scream detection enabled.',
       'screamDetectionDisabled': 'Scream detection disabled.',
       'screamDetectionEnableFailed': 'Could not enable scream detection.',
+      'distressSensitivity': 'Detection sensitivity',
+      'distressSensitivitySubtitle':
+          'High catches quieter screams; low reduces false alarms.',
+      'distressSensitivity_low': 'Low',
+      'distressSensitivity_medium': 'Medium',
+      'distressSensitivity_high': 'High',
+      'distressTestMode': 'Test mode (no SOS)',
+      'distressTestModeSubtitle':
+          'Detect screams and phrases but never send SOS. Use to verify accuracy.',
+      'distressLastHeard': 'Last heard',
       'microphoneSafetyMonitorActive': 'Microphone safety monitor is active.',
       'microphoneSafetyMonitorInactive':
           'Microphone stays off while this is disabled.',
@@ -644,6 +654,16 @@ class AppLocalizations {
       'screamDetectionEnabled': 'चीख पहचान चालू की गई।',
       'screamDetectionDisabled': 'चीख पहचान बंद की गई।',
       'screamDetectionEnableFailed': 'चीख पहचान चालू नहीं की जा सकी।',
+      'distressSensitivity': 'पहचान संवेदनशीलता',
+      'distressSensitivitySubtitle':
+          'उच्च = धीमी चीख भी; निम्न = कम गलत अलर्ट।',
+      'distressSensitivity_low': 'निम्न',
+      'distressSensitivity_medium': 'मध्यम',
+      'distressSensitivity_high': 'उच्च',
+      'distressTestMode': 'टेस्ट मोड (कोई SOS नहीं)',
+      'distressTestModeSubtitle':
+          'चीख/शब्द पहचानें लेकिन SOS न भेजें। सटीकता जाँच के लिए।',
+      'distressLastHeard': 'अंतिम सुना',
       'microphoneSafetyMonitorActive': 'माइक्रोफोन सुरक्षा मॉनिटर चालू है।',
       'microphoneSafetyMonitorInactive':
           'यह बंद रहने पर माइक्रोफोन बंद रहता है।',
@@ -1146,6 +1166,16 @@ class AppLocalizations {
       'screamDetectionEnabled': 'चिघाड ओळख सुरू केली.',
       'screamDetectionDisabled': 'चिघाड ओळख बंद केली.',
       'screamDetectionEnableFailed': 'चिघाड ओळख सुरू करता आली नाही.',
+      'distressSensitivity': 'ओळख संवेदनशीलता',
+      'distressSensitivitySubtitle':
+          'उच्च = हळuva चिघाड; निम्न = कमी चुकीचे अलर्ट.',
+      'distressSensitivity_low': 'निम्न',
+      'distressSensitivity_medium': 'मध्यम',
+      'distressSensitivity_high': 'उच्च',
+      'distressTestMode': 'चाचणी मोड (SOS नाही)',
+      'distressTestModeSubtitle':
+          'चिघाड/शब्द ओळखा पण SOS पाठवू नका. अचूकता तपासण्यासाठी.',
+      'distressLastHeard': 'शेवटी ऐकले',
       'microphoneSafetyMonitorActive': 'मायक्रोफोन सुरक्षा मॉनिटर सुरू आहे.',
       'microphoneSafetyMonitorInactive': 'हे बंद असताना मायक्रोफोन बंद राहतो.',
       'impactDetection': 'आघात ओळख',

@@ -15,6 +15,7 @@ import 'package:suraksha_women_safety_app/features/profile/emergency_contacts_pr
 import 'package:suraksha_women_safety_app/features/profile/profile_display_provider.dart';
 import 'package:suraksha_women_safety_app/features/sos/sensor_service.dart';
 import 'package:suraksha_women_safety_app/features/sos/scream_detection_service.dart';
+import 'package:suraksha_women_safety_app/features/sos/distress/scream_audio_classifier.dart';
 import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
 import 'package:suraksha_women_safety_app/localization/locale_provider.dart';
 import 'package:suraksha_women_safety_app/models/user_model.dart';
@@ -349,6 +350,73 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ? null
                           : (enabled) => _setScreamDetectionEnabled(enabled),
                     ),
+                    if (screamDetectionState.enabled) ...[
+                      ListTile(
+                        leading: const Icon(
+                          Icons.tune_rounded,
+                          color: AppTheme.primaryColor,
+                        ),
+                        title: Text(
+                          l10n.t('distressSensitivity'),
+                          style: TextStyle(
+                            color: profileText,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        subtitle: Text(
+                          l10n.t('distressSensitivitySubtitle'),
+                          style: TextStyle(color: profileMuted),
+                        ),
+                        trailing: DropdownButton<DistressSensitivity>(
+                          value: screamDetectionState.sensitivity,
+                          underline: const SizedBox.shrink(),
+                          items: DistressSensitivity.values
+                              .map(
+                                (level) => DropdownMenuItem(
+                                  value: level,
+                                  child: Text(
+                                    l10n.t('distressSensitivity_${level.name}'),
+                                  ),
+                                ),
+                              )
+                              .toList(growable: false),
+                          onChanged: _isSaving
+                              ? null
+                              : (value) {
+                                  if (value == null) return;
+                                  ref
+                                      .read(screamDetectionProvider.notifier)
+                                      .setSensitivity(value);
+                                },
+                        ),
+                      ),
+                      SwitchListTile(
+                        secondary: const Icon(
+                          Icons.science_outlined,
+                          color: AppTheme.primaryColor,
+                        ),
+                        title: Text(
+                          l10n.t('distressTestMode'),
+                          style: TextStyle(
+                            color: profileText,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        subtitle: Text(
+                          screamDetectionState.lastSpeechSnippet != null
+                              ? '${l10n.t('distressLastHeard')}: ${screamDetectionState.lastSpeechSnippet}'
+                              : l10n.t('distressTestModeSubtitle'),
+                          style: TextStyle(color: profileMuted),
+                        ),
+                        value: screamDetectionState.testMode,
+                        activeThumbColor: AppTheme.primaryColor,
+                        onChanged: _isSaving
+                            ? null
+                            : (enabled) => ref
+                                .read(screamDetectionProvider.notifier)
+                                .setTestMode(enabled),
+                      ),
+                    ],
                     const Divider(height: 1),
                     Consumer(
                       builder: (context, ref, _) {

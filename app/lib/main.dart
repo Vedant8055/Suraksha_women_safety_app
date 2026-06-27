@@ -13,6 +13,8 @@ import 'package:suraksha_women_safety_app/theme/app_theme.dart';
 import 'package:suraksha_women_safety_app/theme/theme_mode_provider.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/dashboard_screen.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/safety_monitor_provider.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:suraksha_women_safety_app/features/sos/scream_detection_service.dart';
 import 'package:suraksha_women_safety_app/features/sos/sensor_service.dart';
 import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
 import 'package:suraksha_women_safety_app/localization/locale_provider.dart';
@@ -20,6 +22,7 @@ import 'package:suraksha_women_safety_app/widgets/premium_dialog.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  FlutterForegroundTask.initCommunicationPort();
   await EnvironmentLoader.load();
   if (!dotenv.isInitialized) {
     throw StateError('App environment failed to load.');
@@ -41,6 +44,7 @@ class _MyAppState extends ConsumerState<MyApp> {
   late final _AppLifecycleHandler _lifecycleHandler;
   final _navigatorKey = GlobalKey<NavigatorState>();
   bool _impactDialogVisible = false;
+  bool _distressDialogVisible = false;
   bool _missingContactsDialogVisible = false;
 
   @override
@@ -110,6 +114,20 @@ class _MyAppState extends ConsumerState<MyApp> {
           });
         } else if (wasActive && !next.countdownActive && _impactDialogVisible) {
           _dismissImpactCountdownDialog();
+        }
+      });
+
+      ref.listen<ScreamDetectionState>(screamDetectionProvider, (
+        previous,
+        next,
+      ) {
+        final wasActive = previous?.countdownActive ?? false;
+        if (next.countdownActive && !_distressDialogVisible) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _showDistressCountdownDialog();
+          });
+        } else if (wasActive && !next.countdownActive && _distressDialogVisible) {
+          _dismissDistressCountdownDialog();
         }
       });
     }
@@ -266,6 +284,127 @@ class _MyAppState extends ConsumerState<MyApp> {
     navigator.pop();
     _impactDialogVisible = false;
   }
+
+  Future<void> _showDistressCountdownDialog() async {
+    final dialogContext = _navigatorKey.currentContext;
+    if (dialogContext == null || _distressDialogVisible) return;
+
+    _distressDialogVisible = true;
+    await showDialog<void>(
+      context: dialogContext,
+      barrierDismissible: false,
+      builder: (context) => Consumer(
+        builder: (context, ref, _) {
+          final state = ref.watch(screamDetectionProvider);
+          final triggerLabel = state.lastTriggerType == DistressTriggerType.phrase
+              ? 'Distress phrase detected'
+              : 'Scream or loud distress sound detected';
+          return PremiumDialogSurface(
+            title: triggerLabel,
+            message:
+                'SOS countdown is active. Cancel now if this was accidental.',
+            icon: Icons.record_voice_over_rounded,
+            accentColor: const Color(0xFFE53935),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  ref
+                      .read(screamDetectionProvider.notifier)
+                      .cancelPendingDistress();
+                },
+                style: TextButton.styleFrom(
+                  foregroundColor:
+                      Theme.of(context).brightness == Brightness.light
+                      ? const Color(0xFF172235)
+                      : Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                ),
+                child: const Text('Cancel SOS'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  unawaited(
+                    ref
+                        .read(screamDetectionProvider.notifier)
+                        .confirmPendingDistress(),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color.fromARGB(255, 239, 179, 178),
+                  foregroundColor: const Color.fromARGB(255, 232, 49, 49),
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 14,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: const Text('Send SOS now'),
+              ),
+            ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'SOS will be sent in ${state.countdownSeconds} seconds.',
+                  style: TextStyle(
+                    color: Theme.of(context).brightness == Brightness.light
+                        ? const Color(0xFF23324A)
+                        : Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                if (state.lastDetectedPhrase != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Matched: ${state.lastDetectedPhrase}',
+                    style: TextStyle(
+                      color: Theme.of(context).brightness == Brightness.light
+                          ? const Color(0xFF516078)
+                          : Colors.white.withValues(alpha: 0.78),
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+                if (state.lastScreamScore != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Scream confidence: ${(state.lastScreamScore! * 100).round()}%',
+                    style: TextStyle(
+                      color: Theme.of(context).brightness == Brightness.light
+                          ? const Color(0xFF516078)
+                          : Colors.white.withValues(alpha: 0.78),
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
+      ),
+    );
+    _distressDialogVisible = false;
+  }
+
+  void _dismissDistressCountdownDialog() {
+    final navigator = _navigatorKey.currentState;
+    if (navigator == null || !navigator.canPop()) {
+      _distressDialogVisible = false;
+      return;
+    }
+
+    navigator.pop();
+    _distressDialogVisible = false;
+  }
 }
 
 class _AppLifecycleHandler extends WidgetsBindingObserver {
@@ -287,6 +426,9 @@ class _AppLifecycleHandler extends WidgetsBindingObserver {
             .catchError((_) {}),
       );
       unawaited(onResumed());
+      unawaited(
+        ref.read(screamDetectionProvider.notifier).resumeIfEnabled().catchError((_) {}),
+      );
     }
   }
 }

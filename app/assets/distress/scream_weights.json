@@ -1,0 +1,16 @@
+{
+  "bias": -0.35,
+  "weights": {
+    "rms": 2.4,
+    "peakRatio": 1.8,
+    "highBandEnergy": 2.1,
+    "zcr": 0.6,
+    "sustainedMs": 0.0012,
+    "pitchScore": 1.4
+  },
+  "thresholds": {
+    "low": 0.62,
+    "medium": 0.54,
+    "high": 0.46
+  }
+}
