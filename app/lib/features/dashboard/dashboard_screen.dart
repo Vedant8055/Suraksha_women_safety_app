@@ -650,8 +650,89 @@ class DashboardScreen extends ConsumerWidget {
                       '${safetyState.nearbyHospitalCount} hospitals nearby',
                   color: const Color(0xFFE11D48),
                 ),
+              if (safetyState.fusionModelVersion != null)
+                _routeChip(
+                  context,
+                  icon: Icons.hub_rounded,
+                  label: 'Fusion ${safetyState.fusionModelVersion}',
+                  color: const Color(0xFF6366F1),
+                ),
+              if (safetyState.aiSummarySource != null)
+                _routeChip(
+                  context,
+                  icon: Icons.auto_awesome_rounded,
+                  label: safetyState.aiSummarySource == 'gemini'
+                      ? AppLocalizations.of(context).t('aiSummaryFromGemini')
+                      : AppLocalizations.of(context).t('aiSummaryFromTemplate'),
+                  color: const Color(0xFF8B5CF6),
+                ),
             ],
           ),
+          if (safetyState.dimensions.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: safetyState.dimensions.map((dimension) {
+                final dimTone = dimension.score >= 70
+                    ? const Color(0xFF16A34A)
+                    : dimension.score >= 50
+                    ? const Color(0xFFEAB308)
+                    : const Color(0xFFF97316);
+                return _routeChip(
+                  context,
+                  icon: _iconForDimension(dimension.key),
+                  label:
+                      '${_labelForDimension(context, dimension.key)} ${dimension.score}',
+                  color: dimTone,
+                );
+              }).toList(growable: false),
+            ),
+          ],
+          if (safetyState.aiSummaryAction != null &&
+              safetyState.aiSummaryAction!.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              safetyState.aiSummaryAction!,
+              style: TextStyle(
+                color: isLight ? const Color(0xFF334155) : Colors.white70,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+          if (safetyState.lastUpdatedAt != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              '${AppLocalizations.of(context).t('safetyUpdatedAgo')} ${_formatUpdatedAgo(safetyState.lastUpdatedAt!)}',
+              style: TextStyle(
+                color: isLight ? const Color(0xFF94A3B8) : Colors.white38,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          if (safetyState.journeyInAppAlert != null) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(
+                color: const Color(0xFF7F1D1D).withValues(
+                  alpha: isLight ? 0.08 : 0.20,
+                ),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                '${safetyState.journeyInAppAlert!.title}: ${safetyState.journeyInAppAlert!.body}',
+                style: TextStyle(
+                  color: isLight ? const Color(0xFF6B1D1D) : Colors.white,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
           if (safetyState.upcomingRisk != null) ...[
             const SizedBox(height: 14),
             Container(
@@ -1209,6 +1290,22 @@ class DashboardScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 14),
+                      if (safetyState.dataDisclaimer != null &&
+                          safetyState.dataDisclaimer!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _communityAlertsStatusPanel(
+                            context: context,
+                            isLight: isLight,
+                            icon: Icons.info_outline_rounded,
+                            loading: false,
+                            title: safetyState.regionLabel != null
+                                ? '${l10n.t('safetyRegionLabel')}: ${safetyState.regionLabel}'
+                                : l10n.t('safetyDataDisclaimerTitle'),
+                            subtitle: safetyState.dataDisclaimer,
+                            tone: accentSecondary,
+                          ),
+                        ),
                       if (isRefreshing && alerts.isEmpty)
                         _communityAlertsStatusPanel(
                           context: context,
@@ -1639,6 +1736,65 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ),
             ),
+            if (alert.dataSource != null || alert.confidence != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    if (alert.dataSource != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isLight ? const Color(0xFFF1F5F9) : const Color(0xFF1F2937),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isLight ? const Color(0xFFE2E8F0) : Colors.white12,
+                          ),
+                        ),
+                        child: Text(
+                          _labelForDataSource(context, alert.dataSource!),
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: isLight ? const Color(0xFF475569) : Colors.white70,
+                          ),
+                        ),
+                      ),
+                    if (alert.confidence != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: isLight ? 0.08 : 0.14),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${alert.confidence}% ${AppLocalizations.of(context).t('safetyConfidenceSuffix')}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: color,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            if (alert.disclaimer != null && alert.disclaimer!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+                child: Text(
+                  alert.disclaimer!,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    height: 1.35,
+                    fontStyle: FontStyle.italic,
+                    color: isLight ? const Color(0xFF64748B) : Colors.white54,
+                  ),
+                ),
+              ),
             // Recommended action
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
@@ -1779,6 +1935,52 @@ class DashboardScreen extends ConsumerWidget {
     );
 
     return button;
+  }
+
+  String _formatUpdatedAgo(DateTime updatedAt) {
+    final diff = DateTime.now().difference(updatedAt);
+    if (diff.inSeconds < 60) return '${diff.inSeconds}s';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+    return '${diff.inHours}h';
+  }
+
+  IconData _iconForDimension(String key) {
+    return switch (key) {
+      'crime' => Icons.gpp_maybe_rounded,
+      'infrastructure' => Icons.lightbulb_outline_rounded,
+      'support' => Icons.local_hospital_rounded,
+      'visibility' => Icons.groups_rounded,
+      'temporal' => Icons.nightlight_round,
+      _ => Icons.analytics_outlined,
+    };
+  }
+
+  String _labelForDimension(BuildContext context, String key) {
+    final l10n = AppLocalizations.of(context);
+    return switch (key) {
+      'crime' => l10n.t('safetyDimCrime'),
+      'infrastructure' => l10n.t('safetyDimInfrastructure'),
+      'support' => l10n.t('safetyDimSupport'),
+      'visibility' => l10n.t('safetyDimVisibility'),
+      'temporal' => l10n.t('safetyDimTemporal'),
+      _ => key,
+    };
+  }
+
+  String _labelForDataSource(BuildContext context, String dataSource) {
+    final l10n = AppLocalizations.of(context);
+    return switch (dataSource) {
+      'openstreetmap' => l10n.t('safetySourceOpenStreetMap'),
+      'sunset_api' => l10n.t('safetySourceSunset'),
+      'crowd_aggregate' => l10n.t('safetySourceCrowd'),
+      'suraksha_reports' => l10n.t('safetySourceSurakshaReports'),
+      'suraksha_engine' => l10n.t('safetySourceSurakshaEngine'),
+      'suraksha_community' => l10n.t('safetySourceSurakshaCommunity'),
+      'regional_guidance' => l10n.t('safetySourceRegionalGuidance'),
+      'grid_model' => l10n.t('safetySourceGridModel'),
+      'open_data_district' => l10n.t('safetySourceOpenDataDistrict'),
+      _ => dataSource.replaceAll('_', ' '),
+    };
   }
 
   IconData _iconForCommunityAlert(String priority, String category) {

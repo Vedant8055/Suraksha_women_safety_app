@@ -33,4 +33,22 @@ describe('Cyber Crime Protection API', () => {
       throw new Error(`Expected 401, received ${res.status}: ${JSON.stringify(res.body)}`);
     }
   });
+
+  it('protects report detail behind authentication', async () => {
+    const res = await request(app).get('/api/cybercrime/my-reports/507f1f77bcf86cd799439011');
+
+    if (res.status !== 401) {
+      throw new Error(`Expected 401, received ${res.status}: ${JSON.stringify(res.body)}`);
+    }
+  });
+
+  it('protects evidence link endpoint behind authentication', async () => {
+    const res = await request(app)
+      .patch('/api/cybercrime/evidence/507f1f77bcf86cd799439011/link')
+      .send({ reportId: '507f1f77bcf86cd799439012' });
+
+    if (res.status !== 401) {
+      throw new Error(`Expected 401, received ${res.status}: ${JSON.stringify(res.body)}`);
+    }
+  });
 });

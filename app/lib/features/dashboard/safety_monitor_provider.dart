@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:suraksha_women_safety_app/constants/api_constants.dart';
 import 'package:suraksha_women_safety_app/core/network/dio_client.dart';
+import 'package:suraksha_women_safety_app/core/network/backend_url_resolver.dart';
+import 'package:suraksha_women_safety_app/core/network/network_manager.dart';
 
 class SafetyResource {
   final String id;
@@ -36,6 +38,35 @@ class SafetyResource {
   }
 }
 
+class SafetyDimensionScore {
+  final String key;
+  final int score;
+  final String label;
+  final int confidence;
+  final List<String> sources;
+
+  const SafetyDimensionScore({
+    required this.key,
+    required this.score,
+    required this.label,
+    required this.confidence,
+    this.sources = const [],
+  });
+
+  factory SafetyDimensionScore.fromJson(Map<String, dynamic> json) {
+    return SafetyDimensionScore(
+      key: json['key']?.toString() ?? 'dimension',
+      score: (json['score'] as num?)?.round() ?? 50,
+      label: json['label']?.toString() ?? 'Moderate',
+      confidence: (json['confidence'] as num?)?.round() ?? 50,
+      sources:
+          (json['sources'] as List<dynamic>? ?? const [])
+              .map((item) => item.toString())
+              .toList(growable: false),
+    );
+  }
+}
+
 class SafetyCommunityAlert {
   final String category;
   final String priority;
@@ -43,6 +74,9 @@ class SafetyCommunityAlert {
   final DateTime timestamp;
   final String summary;
   final String recommendedAction;
+  final String? dataSource;
+  final int? confidence;
+  final String? disclaimer;
 
   const SafetyCommunityAlert({
     required this.category,
@@ -51,6 +85,9 @@ class SafetyCommunityAlert {
     required this.timestamp,
     required this.summary,
     required this.recommendedAction,
+    this.dataSource,
+    this.confidence,
+    this.disclaimer,
   });
 
   factory SafetyCommunityAlert.fromJson(Map<String, dynamic> json) {
@@ -62,6 +99,35 @@ class SafetyCommunityAlert {
           DateTime.tryParse(json['timestamp']?.toString() ?? '') ??
           DateTime.now(),
       summary: json['summary']?.toString() ?? '',
+      recommendedAction: json['recommendedAction']?.toString() ?? '',
+      dataSource: json['dataSource']?.toString(),
+      confidence: (json['confidence'] as num?)?.round(),
+      disclaimer: json['disclaimer']?.toString(),
+    );
+  }
+}
+
+class SafetyJourneyAlert {
+  final String type;
+  final String priority;
+  final String title;
+  final String body;
+  final String recommendedAction;
+
+  const SafetyJourneyAlert({
+    required this.type,
+    required this.priority,
+    required this.title,
+    required this.body,
+    required this.recommendedAction,
+  });
+
+  factory SafetyJourneyAlert.fromJson(Map<String, dynamic> json) {
+    return SafetyJourneyAlert(
+      type: json['type']?.toString() ?? 'alert',
+      priority: json['priority']?.toString() ?? 'information',
+      title: json['title']?.toString() ?? 'Safety alert',
+      body: json['body']?.toString() ?? '',
       recommendedAction: json['recommendedAction']?.toString() ?? '',
     );
   }
@@ -152,6 +218,15 @@ class SafetyMonitorState {
   final List<SafetyHeatmapTile> heatmapTiles;
   final UpcomingRiskAlert? upcomingRisk;
   final String? summary;
+  final String? regionLabel;
+  final String? dataDisclaimer;
+  final List<SafetyDimensionScore> dimensions;
+  final String? fusionModelVersion;
+  final bool journeyMode;
+  final String? aiSummarySource;
+  final String? aiSummaryAction;
+  final SafetyJourneyAlert? journeyInAppAlert;
+  final String? rerouteHint;
 
   const SafetyMonitorState({
     this.gpsEnabled = false,
@@ -175,6 +250,15 @@ class SafetyMonitorState {
     this.heatmapTiles = const [],
     this.upcomingRisk,
     this.summary,
+    this.regionLabel,
+    this.dataDisclaimer,
+    this.dimensions = const [],
+    this.fusionModelVersion,
+    this.journeyMode = false,
+    this.aiSummarySource,
+    this.aiSummaryAction,
+    this.journeyInAppAlert,
+    this.rerouteHint,
   });
 
   SafetyMonitorState copyWith({
@@ -201,6 +285,17 @@ class SafetyMonitorState {
     UpcomingRiskAlert? upcomingRisk,
     bool clearUpcomingRisk = false,
     String? summary,
+    String? regionLabel,
+    String? dataDisclaimer,
+    List<SafetyDimensionScore>? dimensions,
+    String? fusionModelVersion,
+    bool? journeyMode,
+    String? aiSummarySource,
+    String? aiSummaryAction,
+    SafetyJourneyAlert? journeyInAppAlert,
+    bool clearJourneyInAppAlert = false,
+    String? rerouteHint,
+    bool clearRerouteHint = false,
   }) {
     return SafetyMonitorState(
       gpsEnabled: gpsEnabled ?? this.gpsEnabled,
@@ -226,6 +321,17 @@ class SafetyMonitorState {
       heatmapTiles: heatmapTiles ?? this.heatmapTiles,
       upcomingRisk: clearUpcomingRisk ? null : (upcomingRisk ?? this.upcomingRisk),
       summary: summary ?? this.summary,
+      regionLabel: regionLabel ?? this.regionLabel,
+      dataDisclaimer: dataDisclaimer ?? this.dataDisclaimer,
+      dimensions: dimensions ?? this.dimensions,
+      fusionModelVersion: fusionModelVersion ?? this.fusionModelVersion,
+      journeyMode: journeyMode ?? this.journeyMode,
+      aiSummarySource: aiSummarySource ?? this.aiSummarySource,
+      aiSummaryAction: aiSummaryAction ?? this.aiSummaryAction,
+      journeyInAppAlert: clearJourneyInAppAlert
+          ? null
+          : (journeyInAppAlert ?? this.journeyInAppAlert),
+      rerouteHint: clearRerouteHint ? null : (rerouteHint ?? this.rerouteHint),
     );
   }
 }
@@ -243,7 +349,44 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
   Timer? _nearbyRefreshTimer;
   bool _started = false;
   DateTime? _lastNearbyRefreshAt;
+  DateTime? _lastPingAt;
   Position? _lastAssessmentPosition;
+  bool _journeyMode = false;
+  double? _journeyDestinationLat;
+  double? _journeyDestinationLng;
+  String _summaryLang = 'en';
+
+  Duration get _refreshInterval =>
+      _journeyMode ? const Duration(seconds: 45) : const Duration(minutes: 2);
+
+  int get _moveThresholdMeters => _journeyMode ? 40 : 75;
+
+  Duration get _staleAssessmentDuration =>
+      _journeyMode ? const Duration(seconds: 40) : const Duration(seconds: 45);
+
+  void setSummaryLanguage(String lang) {
+    _summaryLang = lang;
+  }
+
+  void setJourneyMode(
+    bool active, {
+    double? destinationLat,
+    double? destinationLng,
+  }) {
+    _journeyMode = active;
+    _journeyDestinationLat = active ? destinationLat : null;
+    _journeyDestinationLng = active ? destinationLng : null;
+    state = state.copyWith(
+      journeyMode: active,
+      clearJourneyInAppAlert: !active,
+      clearRerouteHint: !active,
+    );
+    _startNearbyRefreshLoop();
+    final pos = state.position;
+    if (pos != null) {
+      unawaited(_refreshSafetyIntelligence(pos, force: true));
+    }
+  }
 
   Future<void> start() async {
     if (_started && state.trackingActive) return;
@@ -388,10 +531,9 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
                         pos.latitude,
                         pos.longitude,
                       ) >=
-                      75;
+                      _moveThresholdMeters;
             final staleAssessment = _lastNearbyRefreshAt == null ||
-                now.difference(_lastNearbyRefreshAt!) >
-                    const Duration(seconds: 45);
+                now.difference(_lastNearbyRefreshAt!) > _staleAssessmentDuration;
             if (movedEnough || staleAssessment) {
               _lastNearbyRefreshAt = now;
               unawaited(_refreshSafetyIntelligence(pos));
@@ -408,7 +550,7 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
 
   void _startNearbyRefreshLoop() {
     _nearbyRefreshTimer?.cancel();
-    _nearbyRefreshTimer = Timer.periodic(const Duration(minutes: 2), (_) async {
+    _nearbyRefreshTimer = Timer.periodic(_refreshInterval, (_) async {
       final pos = state.position;
       if (pos == null) return;
       await _refreshSafetyIntelligence(pos, force: true);
@@ -421,96 +563,20 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
   }) async {
     state = state.copyWith(isRefreshing: true);
     try {
-      final response = await _dio.get(
-        ApiConstants.safetyIntelligenceLive,
-        queryParameters: {
-          'lat': position.latitude,
-          'lng': position.longitude,
-          'heading': position.heading.isFinite ? position.heading : 0,
-          'accuracy': position.accuracy,
-        },
-      );
-
-      final data = response.data;
-      if (data is! Map<String, dynamic>) {
-        throw const FormatException('Invalid safety intelligence response');
+      await NetworkManager.instance.ensureReachable();
+      final response = await _fetchLiveAssessment(position);
+      await _applyLiveAssessmentResponse(response, position, force: force);
+    } on DioException catch (error) {
+      if (BackendUrlResolver.isConnectionError(error)) {
+        final recovered = await NetworkManager.instance.recoverConnection();
+        if (recovered) {
+          try {
+            final response = await _fetchLiveAssessment(position);
+            await _applyLiveAssessmentResponse(response, position, force: force);
+            return;
+          } catch (_) {}
+        }
       }
-
-      final current = data['current'];
-      final meta = data['meta'];
-      var communityAlerts =
-          (data['communityAlerts'] as List<dynamic>? ?? const [])
-              .whereType<Map<String, dynamic>>()
-              .map(SafetyCommunityAlert.fromJson)
-              .toList(growable: false);
-      final nearbyResources =
-          (data['nearbyResources'] as List<dynamic>? ?? const [])
-              .whereType<Map<String, dynamic>>()
-              .map(SafetyResource.fromJson)
-              .toList(growable: false);
-      final heatmapTiles =
-          (data['heatmapTiles'] as List<dynamic>? ?? const [])
-              .whereType<Map<String, dynamic>>()
-              .map(SafetyHeatmapTile.fromJson)
-              .toList(growable: false);
-
-      final currentMap = current is Map<String, dynamic> ? current : const {};
-      final metaMap = meta is Map<String, dynamic> ? meta : const {};
-      final upcomingRiskMap = data['upcomingRisk'];
-      final policeCount =
-          (metaMap['nearbyPoliceCount'] as num?)?.round() ?? state.nearbyPoliceCount;
-      final hospitalCount =
-          (metaMap['nearbyHospitalCount'] as num?)?.round() ??
-          state.nearbyHospitalCount;
-      final safetyScore =
-          (currentMap['safetyScore'] as num?)?.round() ?? state.safetyScore;
-      final riskLabel =
-          currentMap['riskLevel']?.toString() ?? state.riskLabel;
-
-      if (communityAlerts.isEmpty) {
-        communityAlerts = _buildFallbackCommunityAlerts(
-          policeCount: policeCount,
-          hospitalCount: hospitalCount,
-          safetyScore: safetyScore,
-          riskLabel: riskLabel,
-        );
-      }
-
-      _lastAssessmentPosition = position;
-      state = state.copyWith(
-        isRefreshing: false,
-        nearbyPoliceCount: policeCount,
-        nearbyHospitalCount: hospitalCount,
-        safetyScore: safetyScore,
-        riskLabel: riskLabel,
-        aiConfidence: currentMap['aiConfidence'] as int?,
-        aiConfidenceVisible: currentMap['aiConfidenceVisible'] == true,
-        limitedAssessmentMessage:
-            currentMap['limitedAssessmentMessage']?.toString(),
-        clearLimitedAssessmentMessage:
-            currentMap['limitedAssessmentMessage'] == null,
-        contributingFactors:
-            (currentMap['contributingFactors'] as List<dynamic>? ?? const [])
-                .map((item) => item.toString())
-                .toList(growable: false),
-        recommendations:
-            (currentMap['recommendations'] as List<dynamic>? ?? const [])
-                .map((item) => item.toString())
-                .toList(growable: false),
-        communityAlerts: communityAlerts,
-        nearbyResources: nearbyResources,
-        heatmapTiles: heatmapTiles,
-        upcomingRisk:
-            upcomingRiskMap is Map<String, dynamic>
-            ? UpcomingRiskAlert.fromJson(upcomingRiskMap)
-            : null,
-        clearUpcomingRisk: upcomingRiskMap == null,
-        summary: currentMap['summary']?.toString(),
-        statusMessage: force
-            ? 'Safety intelligence updated from verified live context.'
-            : state.statusMessage,
-      );
-    } on DioException {
       await _fallbackRefreshNearbyCounts(position.latitude, position.longitude);
     } catch (_) {
       await _fallbackRefreshNearbyCounts(position.latitude, position.longitude);
@@ -521,8 +587,215 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
     }
   }
 
+  Future<Response<dynamic>> _fetchLiveAssessment(Position position) {
+    return _dio.get(
+      ApiConstants.safetyIntelligenceLive,
+      queryParameters: {
+        'lat': position.latitude,
+        'lng': position.longitude,
+        'heading': position.heading.isFinite ? position.heading : 0,
+        'accuracy': position.accuracy,
+        'includeSummary': 'true',
+        'lang': _summaryLang,
+        'journeyMode': _journeyMode ? 'true' : 'false',
+        if (_journeyDestinationLat != null && _journeyDestinationLng != null)
+          'destinationLat': _journeyDestinationLat,
+        if (_journeyDestinationLat != null && _journeyDestinationLng != null)
+          'destinationLng': _journeyDestinationLng,
+      },
+      options: Options(
+        receiveTimeout: const Duration(seconds: 25),
+        sendTimeout: const Duration(seconds: 20),
+      ),
+    );
+  }
+
+  Future<void> _applyLiveAssessmentResponse(
+    Response<dynamic> response,
+    Position position, {
+    required bool force,
+  }) async {
+    final data = response.data;
+    if (data is! Map<String, dynamic>) {
+      throw const FormatException('Invalid safety intelligence response');
+    }
+
+    final current = data['current'];
+    final meta = data['meta'];
+    var communityAlerts =
+        (data['communityAlerts'] as List<dynamic>? ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .map(SafetyCommunityAlert.fromJson)
+            .toList(growable: false);
+    final nearbyResources =
+        (data['nearbyResources'] as List<dynamic>? ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .map(SafetyResource.fromJson)
+            .toList(growable: false);
+    final heatmapTiles =
+        (data['heatmapTiles'] as List<dynamic>? ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .map(SafetyHeatmapTile.fromJson)
+            .toList(growable: false);
+
+    final currentMap = current is Map<String, dynamic> ? current : const {};
+    final metaMap = meta is Map<String, dynamic> ? meta : const {};
+    final fusionMap = metaMap['fusion'] is Map<String, dynamic>
+        ? metaMap['fusion'] as Map<String, dynamic>
+        : const {};
+    final upcomingRiskMap = data['upcomingRisk'];
+    final policeFromResources =
+        nearbyResources.where((item) => item.type == 'police').length;
+    final hospitalFromResources =
+        nearbyResources.where((item) => item.type == 'hospital').length;
+    final policeCount = policeFromResources > 0
+        ? policeFromResources
+        : (metaMap['nearbyPoliceCount'] as num?)?.round() ?? state.nearbyPoliceCount;
+    final hospitalCount = hospitalFromResources > 0
+        ? hospitalFromResources
+        : (metaMap['nearbyHospitalCount'] as num?)?.round() ??
+            state.nearbyHospitalCount;
+    final safetyScore =
+        (currentMap['safetyScore'] as num?)?.round() ?? state.safetyScore;
+    final riskLabel = currentMap['riskLevel']?.toString() ?? state.riskLabel;
+    final aiSummaryMap = currentMap['aiSummary'];
+    final aiSummaryText = aiSummaryMap is Map<String, dynamic>
+        ? aiSummaryMap['summary']?.toString()
+        : null;
+    final aiSummaryAction = aiSummaryMap is Map<String, dynamic>
+        ? aiSummaryMap['actionLine']?.toString()
+        : null;
+    final aiSummarySource = aiSummaryMap is Map<String, dynamic>
+        ? aiSummaryMap['source']?.toString()
+        : null;
+
+    if (communityAlerts.isEmpty) {
+      communityAlerts = _buildFallbackCommunityAlerts(
+        policeCount: policeCount,
+        hospitalCount: hospitalCount,
+        safetyScore: safetyScore,
+        riskLabel: riskLabel,
+      );
+    }
+
+    _lastAssessmentPosition = position;
+    state = state.copyWith(
+      isRefreshing: false,
+      nearbyPoliceCount: policeCount,
+      nearbyHospitalCount: hospitalCount,
+      safetyScore: safetyScore,
+      riskLabel: riskLabel,
+      aiConfidence: currentMap['aiConfidence'] as int?,
+      aiConfidenceVisible: currentMap['aiConfidenceVisible'] == true,
+      limitedAssessmentMessage:
+          currentMap['limitedAssessmentMessage']?.toString(),
+      clearLimitedAssessmentMessage:
+          currentMap['limitedAssessmentMessage'] == null,
+      contributingFactors:
+          (currentMap['contributingFactors'] as List<dynamic>? ?? const [])
+              .map((item) => item.toString())
+              .toList(growable: false),
+      recommendations:
+          (currentMap['recommendations'] as List<dynamic>? ?? const [])
+              .map((item) => item.toString())
+              .toList(growable: false),
+      communityAlerts: communityAlerts,
+      nearbyResources: nearbyResources,
+      heatmapTiles: heatmapTiles,
+      upcomingRisk:
+          upcomingRiskMap is Map<String, dynamic>
+          ? UpcomingRiskAlert.fromJson(upcomingRiskMap)
+          : null,
+      clearUpcomingRisk: upcomingRiskMap == null,
+      summary: aiSummaryText ?? currentMap['summary']?.toString(),
+      regionLabel: metaMap['region']?.toString(),
+      dataDisclaimer: metaMap['dataDisclaimer']?.toString(),
+      dimensions:
+          (currentMap['dimensions'] as List<dynamic>? ?? const [])
+              .whereType<Map<String, dynamic>>()
+              .map(SafetyDimensionScore.fromJson)
+              .toList(growable: false),
+      fusionModelVersion: fusionMap['modelVersion']?.toString(),
+      aiSummaryAction: aiSummaryAction,
+      aiSummarySource: aiSummarySource,
+      lastUpdatedAt: DateTime.now(),
+      statusMessage: force
+          ? 'Safety intelligence updated from verified live context.'
+          : 'Live safety intelligence active for your area.',
+    );
+    if (_journeyMode) {
+      await _postJourneyUpdate(position);
+    }
+    unawaited(_sendAnonymousPing(position));
+  }
+
+  Future<void> _postJourneyUpdate(Position position) async {
+    try {
+      final response = await _dio.post(
+        ApiConstants.safetyIntelligenceJourneyUpdate,
+        data: {
+          'lat': position.latitude,
+          'lng': position.longitude,
+          'heading': position.heading.isFinite ? position.heading : 0,
+          'accuracy': position.accuracy,
+          'lang': _summaryLang,
+          if (_journeyDestinationLat != null && _journeyDestinationLng != null)
+            'destinationLat': _journeyDestinationLat,
+          if (_journeyDestinationLat != null && _journeyDestinationLng != null)
+            'destinationLng': _journeyDestinationLng,
+        },
+      );
+      final data = response.data;
+      if (data is! Map<String, dynamic>) return;
+      final alertMap = data['inAppAlert'];
+      final summaryMap = data['aiSummary'];
+      state = state.copyWith(
+        journeyInAppAlert: alertMap is Map<String, dynamic>
+            ? SafetyJourneyAlert.fromJson(alertMap)
+            : null,
+        clearJourneyInAppAlert: alertMap == null,
+        rerouteHint: data['rerouteHint']?.toString(),
+        clearRerouteHint: data['rerouteHint'] == null,
+        summary: summaryMap is Map<String, dynamic>
+            ? summaryMap['summary']?.toString() ?? state.summary
+            : state.summary,
+        aiSummaryAction: summaryMap is Map<String, dynamic>
+            ? summaryMap['actionLine']?.toString()
+            : state.aiSummaryAction,
+        aiSummarySource: summaryMap is Map<String, dynamic>
+            ? summaryMap['source']?.toString()
+            : state.aiSummarySource,
+        upcomingRisk: data['upcomingRisk'] is Map<String, dynamic>
+            ? UpcomingRiskAlert.fromJson(
+                data['upcomingRisk'] as Map<String, dynamic>,
+              )
+            : state.upcomingRisk,
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) return;
+    } catch (_) {}
+  }
+
+  Future<void> _sendAnonymousPing(Position position) async {
+    final now = DateTime.now();
+    if (_lastPingAt != null && now.difference(_lastPingAt!) < const Duration(minutes: 3)) {
+      return;
+    }
+    _lastPingAt = now;
+    try {
+      await _dio.post(
+        ApiConstants.safetyIntelligencePings,
+        data: {
+          'lat': position.latitude,
+          'lng': position.longitude,
+        },
+      );
+    } catch (_) {}
+  }
+
   Future<void> _fallbackRefreshNearbyCounts(double lat, double lng) async {
     try {
+      await NetworkManager.instance.ensureReachable(force: true);
       final policeRes = await _dio.get(
         ApiConstants.nearbyPolice,
         queryParameters: {'lat': lat, 'lng': lng},
@@ -536,6 +809,35 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
       final hospitalData = hospitalRes.data;
       final policeCount = policeData is List ? policeData.length : 0;
       final hospitalCount = hospitalData is List ? hospitalData.length : 0;
+      final resources = <SafetyResource>[];
+      if (policeData is List) {
+        for (final item in policeData.whereType<Map<String, dynamic>>()) {
+          resources.add(
+            SafetyResource(
+              id: item['_id']?.toString() ?? '',
+              type: 'police',
+              name: item['name']?.toString() ?? 'Police Station',
+              address: item['address']?.toString() ?? '',
+              phone: item['phone']?.toString() ?? '',
+              distanceMeters: (item['distanceMeters'] as num?)?.round() ?? 0,
+            ),
+          );
+        }
+      }
+      if (hospitalData is List) {
+        for (final item in hospitalData.whereType<Map<String, dynamic>>()) {
+          resources.add(
+            SafetyResource(
+              id: item['_id']?.toString() ?? '',
+              type: 'hospital',
+              name: item['name']?.toString() ?? 'Hospital',
+              address: item['address']?.toString() ?? '',
+              phone: item['phone']?.toString() ?? '',
+              distanceMeters: (item['distanceMeters'] as num?)?.round() ?? 0,
+            ),
+          );
+        }
+      }
       final fallbackScore = _calculateFallbackScore(policeCount, hospitalCount);
       final risk = fallbackScore >= 80
           ? 'Safe'
@@ -547,18 +849,30 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
         isRefreshing: false,
         nearbyPoliceCount: policeCount,
         nearbyHospitalCount: hospitalCount,
+        nearbyResources: resources,
         safetyScore: fallbackScore,
         riskLabel: risk,
+        summary: policeCount + hospitalCount > 0
+            ? '$policeCount police and $hospitalCount hospitals mapped near you.'
+            : state.summary,
         communityAlerts: _buildFallbackCommunityAlerts(
           policeCount: policeCount,
           hospitalCount: hospitalCount,
           safetyScore: fallbackScore,
           riskLabel: risk,
         ),
-        statusMessage:
-            'Live location active. Safety intelligence is temporarily limited.',
+        statusMessage: policeCount + hospitalCount > 0
+            ? 'Nearby emergency services loaded from live map data.'
+            : 'Live location active. Safety intelligence is temporarily limited.',
       );
-    } on DioException {
+    } on DioException catch (error) {
+      if (BackendUrlResolver.isConnectionError(error)) {
+        final recovered = await NetworkManager.instance.recoverConnection();
+        if (recovered) {
+          await _fallbackRefreshNearbyCounts(lat, lng);
+          return;
+        }
+      }
       state = state.copyWith(
         isRefreshing: false,
         communityAlerts: _buildFallbackCommunityAlerts(
@@ -568,7 +882,7 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
           riskLabel: state.riskLabel,
         ),
         statusMessage:
-            'Live location active. Nearby service data unavailable.',
+            'Cannot reach Suraksha server. Set LAN_BASE_URL in .env to your PC IP.',
       );
     }
   }
@@ -600,6 +914,8 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
         recommendedAction: safetyScore < 60
             ? 'Stay alert, share live location, and keep SOS ready.'
             : 'Conditions look manageable. Continue monitoring nearby updates.',
+        dataSource: 'suraksha_engine',
+        confidence: 55,
       ),
       SafetyCommunityAlert(
         category: 'Public Transport Network',

@@ -5,6 +5,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:suraksha_women_safety_app/config/environment_loader.dart';
+import 'package:suraksha_women_safety_app/core/notifications/push_notification_service.dart';
+import 'package:suraksha_women_safety_app/features/auth/auth_provider.dart';
 import 'package:suraksha_women_safety_app/features/profile/emergency_contact_guard.dart';
 import 'package:suraksha_women_safety_app/features/profile/emergency_contacts_provider.dart';
 import 'package:suraksha_women_safety_app/theme/app_theme.dart';
@@ -22,6 +24,7 @@ Future<void> main() async {
   if (!dotenv.isInitialized) {
     throw StateError('App environment failed to load.');
   }
+  await PushNotificationService.instance.initialize();
   runApp(const ProviderScope(child: MyApp()));
 }
 
@@ -50,6 +53,11 @@ class _MyAppState extends ConsumerState<MyApp> {
     WidgetsBinding.instance.addObserver(_lifecycleHandler);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      _syncSafetySummaryLanguage(ref.read(appLocaleProvider));
+      final auth = ref.read(authProvider);
+      if (auth.token != null && auth.token!.isNotEmpty) {
+        unawaited(PushNotificationService.instance.registerTokenIfAuthenticated());
+      }
       unawaited(_checkMissingEmergencyContactsReminder());
     });
     if (widget.startBackgroundServices) {
@@ -70,6 +78,16 @@ class _MyAppState extends ConsumerState<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<Locale>(appLocaleProvider, (previous, next) {
+      _syncSafetySummaryLanguage(next);
+    });
+
+    ref.listen<AuthState>(authProvider, (previous, next) {
+      if (next.token != null && next.token!.isNotEmpty) {
+        unawaited(PushNotificationService.instance.registerTokenIfAuthenticated());
+      }
+    });
+
     ref.listen<List<EmergencyContact>>(emergencyContactsProvider, (
       previous,
       next,
@@ -115,6 +133,12 @@ class _MyAppState extends ConsumerState<MyApp> {
       ],
       home: const DashboardScreen(),
     );
+  }
+
+  void _syncSafetySummaryLanguage(Locale locale) {
+    ref
+        .read(safetyMonitorProvider.notifier)
+        .setSummaryLanguage(locale.languageCode);
   }
 
   Future<void> _checkMissingEmergencyContactsReminder() async {

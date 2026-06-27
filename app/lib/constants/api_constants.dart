@@ -21,8 +21,11 @@ class ApiConstants {
   static const String notifications = '/notifications';
   static const String contacts = '/profile/contacts';
   static const String cyberAnalyze = '/cybercrime/assistant/analyze';
+  static const String cyberAnalyzeImage = '/cybercrime/assistant/analyze-image';
   static const String cyberReport = '/cybercrime/report';
   static const String cyberReports = '/cybercrime/my-reports';
+  static String cyberReportDetail(String id) => '/cybercrime/my-reports/$id';
+  static String cyberEvidenceLink(String id) => '/cybercrime/evidence/$id/link';
   static const String cyberEvidence = '/cybercrime/evidence';
   static const String cyberEvidenceUpload = '/cybercrime/evidence/upload';
   static const String cyberEvidenceExport = '/cybercrime/evidence/export';
@@ -31,4 +34,12 @@ class ApiConstants {
   static const String cyberDeepfakeResources = '/cybercrime/deepfake/resources';
   static const String safetyIntelligenceLive = '/safety-intelligence/live';
   static const String safetyIntelligenceRoutes = '/safety-intelligence/routes';
+  static const String safetyIntelligenceHealth = '/safety-intelligence/health';
+  static const String safetyIntelligencePings = '/safety-intelligence/pings';
+  static const String safetyIntelligenceSummary = '/safety-intelligence/summary';
+  static const String safetyIntelligenceJourneyUpdate =
+      '/safety-intelligence/journey/update';
+  static const String safetyIntelligencePreferences =
+      '/safety-intelligence/preferences';
+  static const String profileFcmToken = '/profile/fcm-token';
 }

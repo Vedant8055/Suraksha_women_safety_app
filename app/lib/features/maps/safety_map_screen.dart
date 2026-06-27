@@ -297,6 +297,11 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
     });
 
     unawaited(ref.read(routeSafetyProvider.notifier).refreshNow());
+    ref.read(safetyMonitorProvider.notifier).setJourneyMode(
+      true,
+      destinationLat: destination.latitude,
+      destinationLng: destination.longitude,
+    );
     _goToMyLocation();
   }
 
@@ -311,6 +316,7 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
       _statusText = AppLocalizations.of(context).t('journeyStopped');
     });
     unawaited(ref.read(routeSafetyProvider.notifier).clearActiveMapRoute());
+    ref.read(safetyMonitorProvider.notifier).setJourneyMode(false);
   }
 
   void _resetJourneyMetrics() {
@@ -1216,6 +1222,56 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
     _selectDestination(point, AppLocalizations.of(context).t('customPin'));
   }
 
+  Widget _buildJourneyAlertBanner(
+    BuildContext context,
+    SafetyMonitorState safetyState,
+    bool isLight,
+  ) {
+    final alert = safetyState.journeyInAppAlert;
+    final isCritical = alert?.priority == 'critical';
+    final color = isCritical ? const Color(0xFFB91C1C) : const Color(0xFFB45309);
+    final title = alert?.title ??
+        AppLocalizations.of(context).t('journeyRerouteHint');
+    final body = alert?.body ?? safetyState.rerouteHint ?? '';
+
+    return Material(
+      elevation: 4,
+      borderRadius: BorderRadius.circular(14),
+      color: color.withValues(alpha: isLight ? 0.12 : 0.22),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withValues(alpha: 0.35)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                color: isLight ? const Color(0xFF172235) : Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+              ),
+            ),
+            if (body.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                body,
+                style: TextStyle(
+                  color: isLight ? const Color(0xFF475569) : Colors.white70,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isLight = Theme.of(context).brightness == Brightness.light;
@@ -1259,6 +1315,15 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
             _buildTopSearchBar(),
             _buildQuickControls(),
           ],
+          if (_journeyActive &&
+              (safetyState.journeyInAppAlert != null ||
+                  (safetyState.rerouteHint?.isNotEmpty ?? false)))
+            Positioned(
+              top: 78,
+              left: 16,
+              right: 16,
+              child: _buildJourneyAlertBanner(context, safetyState, isLight),
+            ),
           Positioned(
             left: 16,
             right: 16,

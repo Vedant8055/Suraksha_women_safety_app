@@ -1,6 +1,7 @@
 const { z } = require('zod');
 const User = require('../models/User');
 const EmergencyContact = require('../models/EmergencyContact');
+const DeviceSession = require('../models/DeviceSession');
 const { asyncHandler } = require('../utils/asyncHandler');
 const { uploadToCloudinary } = require('../services/mediaService');
 const multer = require('multer');
@@ -31,6 +32,13 @@ const updateContactSchema = z.object({
 });
 const deleteContactSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
+});
+const fcmTokenSchema = z.object({
+  body: z.object({
+    fcmToken: z.string().min(8),
+    platform: z.string().optional(),
+    deviceId: z.string().optional(),
+  }),
 });
 
 const getProfile = asyncHandler(async (req, res) => {
@@ -125,6 +133,22 @@ const uploadProfilePhoto = asyncHandler(async (req, res) => {
   });
 });
 
+const registerFcmToken = asyncHandler(async (req, res) => {
+  const { fcmToken, platform, deviceId } = req.validated.body;
+  const updated = await DeviceSession.findOneAndUpdate(
+    deviceId
+      ? { userId: req.user._id, deviceId }
+      : { userId: req.user._id, isActive: true },
+    { fcmToken, platform, ...(deviceId ? { deviceId } : {}) },
+    { sort: { updatedAt: -1 }, new: true },
+  );
+  if (!updated) {
+    res.json({ ok: false, message: 'No active device session found. Sign in again.' });
+    return;
+  }
+  res.json({ ok: true });
+});
+
 module.exports = {
   upload,
   getProfile,
@@ -134,8 +158,10 @@ module.exports = {
   updateContact,
   deleteContact,
   uploadProfilePhoto,
+  registerFcmToken,
   updateProfileSchema,
   contactSchema,
   updateContactSchema,
   deleteContactSchema,
+  fcmTokenSchema,
 };

@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:suraksha_women_safety_app/theme/app_theme.dart';
 import 'package:suraksha_women_safety_app/features/auth/auth_provider.dart';
+import 'package:suraksha_women_safety_app/features/cybercrime/cybercrime_screen.dart';
+import 'package:suraksha_women_safety_app/features/dashboard/dashboard_screen.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.redirectToCyber = false});
+
+  final bool redirectToCyber;
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -23,8 +27,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
+  void _navigateAfterLogin() {
+    if (!mounted) return;
+    if (widget.redirectToCyber) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        (_) => false,
+      );
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const CyberCrimeScreen()),
+      );
+      return;
+    }
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const DashboardScreen()),
+      (_) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    ref.listen<AuthState>(authProvider, (previous, next) {
+      final wasLoggedIn = previous?.token != null && previous?.user != null;
+      final isLoggedIn = next.token != null && next.user != null;
+      if (!wasLoggedIn && isLoggedIn && !next.isLoading) {
+        _navigateAfterLogin();
+      }
+    });
+
     final authState = ref.watch(authProvider);
 
     return Scaffold(

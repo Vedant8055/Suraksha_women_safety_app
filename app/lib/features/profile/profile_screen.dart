@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:suraksha_women_safety_app/constants/api_constants.dart';
 import 'package:suraksha_women_safety_app/core/network/dio_client.dart';
 import 'package:suraksha_women_safety_app/features/auth/auth_provider.dart';
+import 'package:suraksha_women_safety_app/features/dashboard/safety_preferences_provider.dart';
 import 'package:suraksha_women_safety_app/features/profile/emergency_contacts_provider.dart';
 import 'package:suraksha_women_safety_app/features/profile/profile_display_provider.dart';
 import 'package:suraksha_women_safety_app/features/sos/sensor_service.dart';
@@ -347,6 +348,36 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       onChanged: _isSaving
                           ? null
                           : (enabled) => _setScreamDetectionEnabled(enabled),
+                    ),
+                    const Divider(height: 1),
+                    Consumer(
+                      builder: (context, ref, _) {
+                        final prefs = ref.watch(safetyPreferencesProvider);
+                        return SwitchListTile(
+                          secondary: const Icon(
+                            Icons.notifications_active_outlined,
+                            color: AppTheme.primaryColor,
+                          ),
+                          title: Text(
+                            l10n.t('journeySafetyAlerts'),
+                            style: TextStyle(
+                              color: profileText,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          subtitle: Text(
+                            l10n.t('journeySafetyAlertsSubtitle'),
+                            style: TextStyle(color: profileMuted),
+                          ),
+                          value: prefs.journeyAlertsEnabled,
+                          activeThumbColor: AppTheme.primaryColor,
+                          onChanged: prefs.loading
+                              ? null
+                              : (enabled) => ref
+                                  .read(safetyPreferencesProvider.notifier)
+                                  .setJourneyAlertsEnabled(enabled),
+                        );
+                      },
                     ),
                     const Divider(height: 1),
                     SwitchListTile(

@@ -4,6 +4,7 @@ const { app } = require('./app');
 const env = require('./config/env');
 const { connectDb } = require('./config/db');
 const { setupSockets } = require('./sockets');
+const { startSafetyDataSyncJob } = require('./jobs/safetyDataSyncJob');
 
 const start = async () => {
   await connectDb(env.mongoUri, {
@@ -15,6 +16,7 @@ const start = async () => {
   server.requestTimeout = env.requestTimeoutMs;
   server.headersTimeout = env.requestTimeoutMs + 5000;
   setupSockets(server);
+  startSafetyDataSyncJob();
   server.listen(env.port, () => {
     console.log(`Backend running on ${env.port}`);
   });

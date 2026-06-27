@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:suraksha_women_safety_app/config/api_config.dart';
 import 'package:suraksha_women_safety_app/core/network/auth_interceptor.dart';
+import 'package:suraksha_women_safety_app/core/network/backend_url_resolver.dart';
 
 class NetworkManager {
   NetworkManager._internal() {
@@ -23,13 +24,25 @@ class NetworkManager {
   static final NetworkManager instance = NetworkManager._internal();
 
   late final Dio _dio;
+  bool? _lastReachable;
 
-  Dio get dio {
-    if (_dio.options.baseUrl != ApiConfig.baseUrl) {
-      _dio.options.baseUrl = ApiConfig.baseUrl;
-    }
-    return _dio;
+  Future<bool> ensureReachable({bool force = false}) async {
+    if (!force && _lastReachable != null) return _lastReachable!;
+    final ok = await BackendUrlResolver.applyToDio(_dio);
+    _lastReachable = ok;
+    return ok;
   }
+
+  Future<bool> recoverConnection() async {
+    _lastReachable = null;
+    final ok = await BackendUrlResolver.recoverConnection(_dio);
+    _lastReachable = ok;
+    return ok;
+  }
+
+  String get currentBaseUrl => _dio.options.baseUrl;
+
+  Dio get dio => _dio;
 
   DioException _normalizeError(DioException error) {
     if (error.type == DioExceptionType.connectionTimeout ||

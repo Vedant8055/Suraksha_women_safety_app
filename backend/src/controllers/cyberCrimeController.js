@@ -7,8 +7,9 @@ const { asyncHandler } = require('../utils/asyncHandler');
 const CyberCrimeReport = require('../models/CyberCrimeReport');
 const CyberEvidence = require('../models/CyberEvidence');
 const CyberLearningProgress = require('../models/CyberLearningProgress');
-const env = require('../config/env');
 const { cyberVaultRoot } = require('../config/paths');
+const { extractImageInsights, refineThreatAssessment } = require('../services/cyberAiService');
+const { encryptBuffer, decryptFile } = require('../services/cyberVaultCrypto');
 
 const reportCategories = [
   'Financial Fraud',
@@ -228,7 +229,48 @@ function buildSimplePdfBase64(text) {
 }
 
 const analyzeScam = asyncHandler(async (req, res) => {
-  res.json(analyzeCyberThreat(req.validated.body));
+  const heuristic = analyzeCyberThreat(req.validated.body);
+  const refined = await refineThreatAssessment({
+    ...req.validated.body,
+    heuristic,
+  });
+  res.json(refined);
+});
+
+const analyzeScamWithImage = asyncHandler(async (req, res) => {
+  const text = req.body.text?.toString() || '';
+  const question = req.body.question?.toString() || '';
+  const links = (req.body.links?.toString() || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  let extractedText = req.body.extractedText?.toString() || '';
+
+  if (req.file?.path) {
+    try {
+      const input = fs.readFileSync(req.file.path);
+      const imageInsights = await extractImageInsights(input, req.file.mimetype);
+      if (imageInsights) {
+        extractedText = [extractedText, imageInsights].filter(Boolean).join('\n\n');
+      }
+    } finally {
+      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    }
+  }
+
+  const heuristic = analyzeCyberThreat({ text, question, links, extractedText });
+  const refined = await refineThreatAssessment({
+    text,
+    question,
+    links,
+    extractedText,
+    heuristic,
+  });
+  res.json({
+    ...refined,
+    extractedText: extractedText || undefined,
+    imageAnalysisUsed: Boolean(extractedText),
+  });
 });
 
 const reportCyberCrime = asyncHandler(async (req, res) => {
@@ -250,17 +292,49 @@ const listMyCyberCrimeReports = asyncHandler(async (req, res) => {
   res.json(reports);
 });
 
+const getCyberCrimeReportDetail = asyncHandler(async (req, res) => {
+  const report = await CyberCrimeReport.findOne({
+    _id: req.params.id,
+    userId: req.user._id,
+  });
+  if (!report) return res.status(404).json({ message: 'Report not found' });
+
+  const evidence = await CyberEvidence.find({
+    userId: req.user._id,
+    reportId: report._id,
+  }).sort({ createdAt: -1 });
+
+  res.json({ report, evidence, evidenceCount: evidence.length });
+});
+
+const linkEvidenceToReport = asyncHandler(async (req, res) => {
+  const reportId = req.body.reportId?.toString();
+  if (!reportId) return res.status(400).json({ message: 'reportId is required' });
+
+  const report = await CyberCrimeReport.findOne({
+    _id: reportId,
+    userId: req.user._id,
+  });
+  if (!report) return res.status(404).json({ message: 'Report not found' });
+
+  const evidence = await CyberEvidence.findOne({
+    _id: req.params.id,
+    userId: req.user._id,
+  });
+  if (!evidence) return res.status(404).json({ message: 'Evidence not found' });
+
+  evidence.reportId = report._id;
+  await evidence.save();
+  res.json(evidence);
+});
+
 const uploadVaultEvidence = asyncHandler(async (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'No valid file uploaded' });
 
   const input = fs.readFileSync(req.file.path);
-  const key = crypto.createHash('sha256').update(env.jwtSecret).digest();
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-  const encrypted = Buffer.concat([cipher.update(input), cipher.final()]);
-  const authTag = cipher.getAuthTag();
+  const encryptedPayload = encryptBuffer(input);
   const encryptedPath = `${req.file.path}.enc`;
-  fs.writeFileSync(encryptedPath, Buffer.concat([iv, authTag, encrypted]));
+  fs.writeFileSync(encryptedPath, encryptedPayload);
   fs.unlinkSync(req.file.path);
 
   const evidence = await CyberEvidence.create({
@@ -292,7 +366,13 @@ const createVaultEvidenceMetadata = asyncHandler(async (req, res) => {
 
 const listVaultEvidence = asyncHandler(async (req, res) => {
   const query = { userId: req.user._id };
-  if (req.query.category) query.category = req.query.category;
+  if (req.query.category && req.query.category !== 'All') query.category = req.query.category;
+  if (req.query.reportId) query.reportId = req.query.reportId;
+  if (req.query.linked === 'true') {
+    query.reportId = { $exists: true, $ne: null };
+  } else if (req.query.linked === 'false') {
+    query.$or = [{ reportId: null }, { reportId: { $exists: false } }];
+  }
   if (req.query.search) query.title = { $regex: req.query.search, $options: 'i' };
   const evidence = await CyberEvidence.find(query).sort({ createdAt: -1 }).limit(100);
   res.json(evidence);
@@ -306,6 +386,36 @@ const exportVaultPackage = asyncHandler(async (req, res) => {
     encrypted: true,
     evidence,
   });
+});
+
+const downloadVaultEvidence = asyncHandler(async (req, res) => {
+  const evidence = await CyberEvidence.findOne({
+    _id: req.params.id,
+    userId: req.user._id,
+  });
+  if (!evidence?.filePath || !fs.existsSync(evidence.filePath)) {
+    return res.status(404).json({ message: 'Evidence file not found' });
+  }
+
+  const decrypted = decryptFile(evidence.filePath);
+  const safeTitle = (evidence.title || 'evidence').replace(/[^\w.-]+/g, '_');
+  res.setHeader('Content-Type', evidence.fileType || 'application/octet-stream');
+  res.setHeader('Content-Disposition', `attachment; filename="${safeTitle}"`);
+  res.send(decrypted);
+});
+
+const deleteVaultEvidence = asyncHandler(async (req, res) => {
+  const evidence = await CyberEvidence.findOne({
+    _id: req.params.id,
+    userId: req.user._id,
+  });
+  if (!evidence) return res.status(404).json({ message: 'Evidence not found' });
+
+  if (evidence.filePath && fs.existsSync(evidence.filePath)) {
+    fs.unlinkSync(evidence.filePath);
+  }
+  await evidence.deleteOne();
+  res.json({ message: 'Evidence deleted' });
 });
 
 const getLearningContent = asyncHandler(async (_req, res) => {
@@ -340,12 +450,17 @@ const getDeepfakeResources = asyncHandler(async (_req, res) => {
 
 module.exports = {
   analyzeScam,
+  analyzeScamWithImage,
   reportCyberCrime,
   listMyCyberCrimeReports,
+  getCyberCrimeReportDetail,
+  linkEvidenceToReport,
   uploadVaultEvidence,
   createVaultEvidenceMetadata,
   listVaultEvidence,
   exportVaultPackage,
+  downloadVaultEvidence,
+  deleteVaultEvidence,
   getLearningContent,
   getLearningProgress,
   saveLearningProgress,
