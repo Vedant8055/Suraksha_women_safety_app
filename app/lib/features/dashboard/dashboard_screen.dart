@@ -522,13 +522,20 @@ class DashboardScreen extends ConsumerWidget {
       l10n,
       score: safetyState.safetyScore,
       riskLabel: safetyState.riskLabel,
-      intelligenceLimited: safetyState.limitedAssessmentMessage != null,
+      summary: safetyState.summary,
     );
     final tone = verdict.tone;
     final riskReasons = SafetyVerdictHelper.buildRiskReasons(
       l10n,
       contributingFactors: safetyState.contributingFactors,
       dimensions: safetyState.dimensions,
+      recommendations: safetyState.recommendations,
+      relatedAlerts: safetyState.communityAlerts,
+      nearbyPoliceCount: safetyState.nearbyPoliceCount,
+      nearbyHospitalCount: safetyState.nearbyHospitalCount,
+      limitedAssessmentNote: safetyState.limitedAssessmentMessage,
+      verdictLevel: verdict.level,
+      ensureForRiskyArea: verdict.showRiskReasons,
     );
 
     return Container(
@@ -582,8 +589,8 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      safetyState.summary ?? verdict.summary,
-                      maxLines: 2,
+                      verdict.summary,
+                      maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: isLight
@@ -1596,7 +1603,7 @@ class DashboardScreen extends ConsumerWidget {
         l10n,
         score: safetyState.safetyScore,
         riskLabel: safetyState.riskLabel,
-        intelligenceLimited: safetyState.limitedAssessmentMessage != null,
+        summary: safetyState.summary,
       );
       summaryText = areaVerdict.summary;
       areaReasons = SafetyVerdictHelper.buildRiskReasons(
@@ -1604,6 +1611,33 @@ class DashboardScreen extends ConsumerWidget {
         contributingFactors: safetyState.contributingFactors,
         dimensions: safetyState.dimensions,
         riskReasonsFromAlert: alert.riskReasons,
+        recommendations: safetyState.recommendations,
+        relatedAlerts: safetyState.communityAlerts,
+        nearbyPoliceCount: safetyState.nearbyPoliceCount,
+        nearbyHospitalCount: safetyState.nearbyHospitalCount,
+        limitedAssessmentNote: safetyState.limitedAssessmentMessage,
+        verdictLevel: areaVerdict.level,
+        ensureForRiskyArea: areaVerdict.showRiskReasons,
+      );
+    } else if (isAreaSafety) {
+      areaVerdict = SafetyVerdictHelper.fromScore(
+        l10n,
+        score: alert.priority == 'critical'
+            ? 40
+            : alert.priority == 'caution'
+            ? 58
+            : 78,
+        riskLabel: alert.verdictHeadline,
+        summary: alert.summary,
+      );
+      summaryText = areaVerdict.summary;
+      areaReasons = SafetyVerdictHelper.buildRiskReasons(
+        l10n,
+        contributingFactors: const [],
+        dimensions: const [],
+        riskReasonsFromAlert: alert.riskReasons,
+        verdictLevel: areaVerdict.level,
+        ensureForRiskyArea: areaVerdict.showRiskReasons,
       );
     }
 

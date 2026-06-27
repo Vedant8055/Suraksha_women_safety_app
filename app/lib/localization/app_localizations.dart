@@ -602,6 +602,8 @@ class AppLocalizations {
           'Unsafe nightlife or red-light activity may increase risk here.',
       'safetyReasonGeneralCaution':
           'Additional caution is advised in this area.',
+      'safetyReasonLimitedData':
+          'Verified live area data is limited — stay extra alert here.',
       'routeVerdictChanged': 'Route changed',
       'routeVerdictChangedSummary':
           'You moved away from your usual route. Please confirm you are safe.',
@@ -1188,6 +1190,8 @@ class AppLocalizations {
           'असुरक्षित नाइटलाइफ या red-light गतिविधि यहां जोखिम बढ़ा सकती है।',
       'safetyReasonGeneralCaution':
           'इस क्षेत्र में अतिरिक्त सावधानी की सलाह है।',
+      'safetyReasonLimitedData':
+          'सत्यापित लाइव क्षेत्र डेटा सीमित है — यहां अतिरिक्त सतर्क रहें।',
       'routeVerdictChanged': 'मार्ग बदला',
       'routeVerdictChangedSummary':
           'आप अपने सामान्य मार्ग से हट गए हैं। कृपया पुष्टि करें कि आप सुरक्षित हैं।',
@@ -1760,6 +1764,8 @@ class AppLocalizations {
           'असुरक्षित नाइटलाइफ किंवा red-light कृती येथे धोका वाढवू शकते.',
       'safetyReasonGeneralCaution':
           'या परिसरात अतिरिक्त सावधानी घेण्याची शिफारस आहे.',
+      'safetyReasonLimitedData':
+          'सत्यापित लाइव्ह परिसर डेटा मर्यादित आहे — येथे अतिरिक्त सजग राहा.',
       'routeVerdictChanged': 'मार्ग बदलला',
       'routeVerdictChangedSummary':
           'तुम्ही नेहमीच्या मार्गापासून वळला आहात. तुम्ही सुरक्षित आहात याची खात्री करा.',

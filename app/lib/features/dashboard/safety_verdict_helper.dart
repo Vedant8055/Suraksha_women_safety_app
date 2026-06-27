@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/safety_monitor_provider.dart';
 import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
 
-enum SafetyVerdictLevel { safe, caution, highRisk, monitoring }
+enum SafetyVerdictLevel { safe, caution, highRisk }
 
 class SafetyVerdict {
   final SafetyVerdictLevel level;
@@ -29,40 +29,68 @@ class SafetyVerdictHelper {
     AppLocalizations l10n, {
     required int score,
     String? riskLabel,
-    bool intelligenceLimited = false,
+    String? summary,
   }) {
-    if (intelligenceLimited ||
-        riskLabel?.toLowerCase() == 'monitoring' ||
-        score <= 52) {
-      return SafetyVerdict(
-        level: SafetyVerdictLevel.monitoring,
-        headline: l10n.t('safetyVerdictMonitoring'),
-        summary: l10n.t('safetyVerdictMonitoringSummary'),
-        tone: const Color(0xFF64748B),
-      );
-    }
-    if (score >= 75) {
-      return SafetyVerdict(
-        level: SafetyVerdictLevel.safe,
-        headline: l10n.t('safetyVerdictSafe'),
-        summary: l10n.t('safetyVerdictSafeSummary'),
-        tone: const Color(0xFF15803D),
-      );
-    }
-    if (score >= 55) {
-      return SafetyVerdict(
-        level: SafetyVerdictLevel.caution,
-        headline: l10n.t('safetyVerdictCaution'),
-        summary: l10n.t('safetyVerdictCautionSummary'),
-        tone: const Color(0xFFEAB308),
-      );
-    }
+    final level = _levelFromInputs(score: score, riskLabel: riskLabel);
+    final headline = switch (level) {
+      SafetyVerdictLevel.safe => l10n.t('safetyVerdictSafe'),
+      SafetyVerdictLevel.caution => l10n.t('safetyVerdictCaution'),
+      SafetyVerdictLevel.highRisk => l10n.t('safetyVerdictHighRisk'),
+    };
+    final defaultSummary = switch (level) {
+      SafetyVerdictLevel.safe => l10n.t('safetyVerdictSafeSummary'),
+      SafetyVerdictLevel.caution => l10n.t('safetyVerdictCautionSummary'),
+      SafetyVerdictLevel.highRisk => l10n.t('safetyVerdictHighRiskSummary'),
+    };
+    final tone = switch (level) {
+      SafetyVerdictLevel.safe => const Color(0xFF15803D),
+      SafetyVerdictLevel.caution => const Color(0xFFEAB308),
+      SafetyVerdictLevel.highRisk => const Color(0xFFB91C1C),
+    };
+
     return SafetyVerdict(
-      level: SafetyVerdictLevel.highRisk,
-      headline: l10n.t('safetyVerdictHighRisk'),
-      summary: l10n.t('safetyVerdictHighRiskSummary'),
-      tone: const Color(0xFFB91C1C),
+      level: level,
+      headline: headline,
+      summary: _cleanSummary(summary) ?? defaultSummary,
+      tone: tone,
     );
+  }
+
+  static SafetyVerdictLevel _levelFromInputs({
+    required int score,
+    String? riskLabel,
+  }) {
+    final label = riskLabel?.trim().toLowerCase() ?? '';
+    if (label.contains('critical') ||
+        label.contains('high risk') ||
+        label.contains('high alert')) {
+      return SafetyVerdictLevel.highRisk;
+    }
+    if (label.contains('moderate') ||
+        label.contains('caution') ||
+        label.contains('mixed')) {
+      return SafetyVerdictLevel.caution;
+    }
+    if (label.contains('very safe') ||
+        (label.contains('safe') && !label.contains('unsafe'))) {
+      return SafetyVerdictLevel.safe;
+    }
+
+    if (score >= 75) return SafetyVerdictLevel.safe;
+    if (score >= 55) return SafetyVerdictLevel.caution;
+    return SafetyVerdictLevel.highRisk;
+  }
+
+  static String? _cleanSummary(String? summary) {
+    final text = summary?.trim();
+    if (text == null || text.isEmpty) return null;
+    final lower = text.toLowerCase();
+    if (lower.contains('still building') ||
+        lower.contains('still learning') ||
+        lower.contains('initializing safety monitor')) {
+      return null;
+    }
+    return text;
   }
 
   static SafetyVerdict fromRouteState(
@@ -82,7 +110,7 @@ class SafetyVerdictHelper {
     }
     if (learningRoute || !hasLearnedRoute) {
       return SafetyVerdict(
-        level: SafetyVerdictLevel.monitoring,
+        level: SafetyVerdictLevel.caution,
         headline: l10n.t('routeVerdictLearning'),
         summary: l10n.t('routeVerdictLearningSummary'),
         tone: const Color(0xFF3B82F6),
@@ -124,6 +152,13 @@ class SafetyVerdictHelper {
     required List<String> contributingFactors,
     required List<SafetyDimensionScore> dimensions,
     List<String> riskReasonsFromAlert = const [],
+    List<String> recommendations = const [],
+    List<SafetyCommunityAlert> relatedAlerts = const [],
+    int nearbyPoliceCount = 0,
+    int nearbyHospitalCount = 0,
+    String? limitedAssessmentNote,
+    bool ensureForRiskyArea = false,
+    SafetyVerdictLevel? verdictLevel,
   }) {
     final reasons = <String>[];
     final seen = <String>{};
@@ -139,7 +174,6 @@ class SafetyVerdictHelper {
       for (final reason in riskReasonsFromAlert) {
         addReason(_humanizeFactor(l10n, reason));
       }
-      return reasons.take(6).toList(growable: false);
     }
 
     for (final factor in contributingFactors) {
@@ -152,7 +186,74 @@ class SafetyVerdictHelper {
       addReason(_reasonForWeakDimension(l10n, dimension.key));
     }
 
+    for (final recommendation in recommendations.take(3)) {
+      if (_isActionRecommendation(recommendation)) {
+        addReason(_humanizeFactor(l10n, recommendation));
+      }
+    }
+
+    for (final alert in relatedAlerts) {
+      if (isAreaSafetyAlert(alert.category)) continue;
+      if (alert.priority != 'critical' && alert.priority != 'caution') continue;
+      addReason(_humanizeFactor(l10n, alert.summary));
+    }
+
+    final hour = DateTime.now().hour;
+    final isNight = hour >= 20 || hour < 6;
+    final isLateNight = hour >= 23 || hour < 5;
+
+    if (isLateNight) {
+      addReason(l10n.t('safetyReasonLowFootfall'));
+    } else if (isNight) {
+      addReason(l10n.t('safetyReasonNightRisk'));
+    }
+
+    if (nearbyPoliceCount == 0 && nearbyHospitalCount == 0) {
+      addReason(l10n.t('safetyReasonLimitedSupport'));
+    }
+
+    if (limitedAssessmentNote != null && limitedAssessmentNote.trim().isNotEmpty) {
+      addReason(l10n.t('safetyReasonLimitedData'));
+    }
+
+    final needsFallback = ensureForRiskyArea ||
+        verdictLevel == SafetyVerdictLevel.caution ||
+        verdictLevel == SafetyVerdictLevel.highRisk;
+
+    if (needsFallback && reasons.isEmpty) {
+      addReason(l10n.t('safetyReasonGeneralCaution'));
+      if (isNight) addReason(l10n.t('safetyReasonNightRisk'));
+      if (nearbyPoliceCount == 0 && nearbyHospitalCount == 0) {
+        addReason(l10n.t('safetyReasonLimitedSupport'));
+      }
+    }
+
     return reasons.take(6).toList(growable: false);
+  }
+
+  static bool _isActionRecommendation(String text) {
+    final lower = text.toLowerCase();
+    return lower.contains('light') ||
+        lower.contains('alert') ||
+        lower.contains('isolated') ||
+        lower.contains('night') ||
+        lower.contains('sos') ||
+        lower.contains('location') ||
+        lower.contains('police') ||
+        lower.contains('hospital') ||
+        lower.contains('crowd') ||
+        lower.contains('shortcut');
+  }
+
+  static String _reasonForWeakDimension(AppLocalizations l10n, String key) {
+    return switch (key) {
+      'crime' => l10n.t('safetyReasonCrimeActivity'),
+      'infrastructure' => l10n.t('safetyReasonPoorLighting'),
+      'support' => l10n.t('safetyReasonLimitedSupport'),
+      'visibility' => l10n.t('safetyReasonLowFootfall'),
+      'temporal' => l10n.t('safetyReasonNightRisk'),
+      _ => l10n.t('safetyReasonGeneralCaution'),
+    };
   }
 
   static String _humanizeFactor(AppLocalizations l10n, String factor) {
@@ -169,39 +270,34 @@ class SafetyVerdictHelper {
     if (_containsAny(text, ['harass', 'molest', 'assault'])) {
       return l10n.t('safetyReasonHarassmentReports');
     }
-    if (_containsAny(text, ['lighting', 'lit', 'visibility after sunset', 'dark'])) {
+    if (_containsAny(text, ['light', 'lighting', 'lit', 'visibility after sunset', 'dark'])) {
       return l10n.t('safetyReasonPoorLighting');
     }
-    if (_containsAny(text, ['pedestrian', 'footfall', 'crowd', 'poi visibility'])) {
+    if (_containsAny(text, ['pedestrian', 'footfall', 'crowd', 'poi visibility', 'activity'])) {
       return l10n.t('safetyReasonLowFootfall');
     }
     if (_containsAny(text, ['incident', 'crime', 'grid model', 'elevated risk'])) {
       return l10n.t('safetyReasonCrimeActivity');
     }
-    if (_containsAny(text, ['emergency support', 'police', 'hospital'])) {
+    if (_containsAny(text, ['emergency support', 'police', 'hospital', 'support points'])) {
       return l10n.t('safetyReasonLimitedSupport');
     }
-    if (_containsAny(text, ['late-night', 'night', 'after sunset'])) {
+    if (_containsAny(text, ['late-night', 'night', 'after sunset', 'midnight'])) {
       return l10n.t('safetyReasonNightRisk');
     }
-    if (_containsAny(text, ['gps', 'precision', 'accuracy'])) {
-      return l10n.t('safetyReasonGpsLimited');
+    if (_containsAny(text, ['gps', 'precision', 'accuracy', 'limited verified'])) {
+      return l10n.t('safetyReasonLimitedData');
     }
     if (_containsAny(text, ['red light', 'unsafe nightlife', 'nightlife'])) {
       return l10n.t('safetyReasonUnsafeNightlife');
     }
+    if (_containsAny(text, ['well-lit', 'isolated shortcut', 'poorly lit'])) {
+      return l10n.t('safetyReasonPoorLighting');
+    }
+    if (_containsAny(text, ['share your live location', 'keep sos'])) {
+      return l10n.t('safetyReasonGeneralCaution');
+    }
     return factor;
-  }
-
-  static String _reasonForWeakDimension(AppLocalizations l10n, String key) {
-    return switch (key) {
-      'crime' => l10n.t('safetyReasonCrimeActivity'),
-      'infrastructure' => l10n.t('safetyReasonPoorLighting'),
-      'support' => l10n.t('safetyReasonLimitedSupport'),
-      'visibility' => l10n.t('safetyReasonLowFootfall'),
-      'temporal' => l10n.t('safetyReasonNightRisk'),
-      _ => l10n.t('safetyReasonGeneralCaution'),
-    };
   }
 
   static bool _containsAny(String text, List<String> needles) {
@@ -218,6 +314,9 @@ class SafetyVerdictHelper {
       'emergency support infrastructure is mapped',
       'community-identified safer',
       'daytime visibility and activity signals are favorable',
+      'conditions look manageable',
+      'comparatively stable',
+      'comparatively steadier',
     ]);
   }
 }
