@@ -461,11 +461,12 @@ class _CyberReportTabState extends State<CyberReportTab> {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: () async {
-                  await showBackendConfigDialog(context);
-                  await _loadMyReports();
-                },
-                icon: const Icon(Icons.settings_ethernet_rounded),
+                onPressed: _loadingMyReports
+                    ? null
+                    : () async {
+                        await _loadMyReports();
+                      },
+                icon: const Icon(Icons.refresh_rounded),
                 label: Text(l10n.t('fixConnection')),
               ),
             ),

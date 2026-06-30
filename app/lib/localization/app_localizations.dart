@@ -335,8 +335,8 @@ class AppLocalizations {
       'serverUrlHint': 'http://192.168.1.5:5000/api',
       'serverUrlSaved': 'Server URL saved. Retrying connection...',
       'cannotReachServer':
-          'Cannot reach server. Tap "Fix connection" and use your PC LAN IP (not 10.0.2.2 on a real phone).',
-      'fixConnection': 'Fix connection',
+          'Unable to connect to the server. Please check your internet connection and try again.',
+      'fixConnection': 'Retry connection',
       'deepfakeEmergencySupportTitle':
           'Deepfake & Morphed Image Emergency Support',
       'medicalHealthVault': 'Medical Health Vault',
@@ -965,8 +965,8 @@ class AppLocalizations {
       'serverUrlHint': 'http://192.168.1.5:5000/api',
       'serverUrlSaved': 'सर्वर URL सहेजा गया। कनेक्शन पुनः प्रयास...',
       'cannotReachServer':
-          'सर्वर तक नहीं पहुँच सकते। "कनेक्शन ठीक करें" टैप करें और PC LAN IP का उपयोग करें।',
-      'fixConnection': 'कनेक्शन ठीक करें',
+          'सर्वर से कनेक्ट नहीं हो पा रहा। कृपया अपना इंटरनेट कनेक्शन जाँचें और पुनः प्रयास करें।',
+      'fixConnection': 'पुनः प्रयास करें',
       'deepfakeEmergencySupportTitle':
           'डीपफेक और मॉर्फ़्ड इमेज इमरजेंसी सहायता',
       'medicalHealthVault': 'मेडिकल हेल्थ वॉल्ट',
@@ -1540,8 +1540,8 @@ class AppLocalizations {
       'serverUrlHint': 'http://192.168.1.5:5000/api',
       'serverUrlSaved': 'सर्व्हर URL जतन केला. कनेक्शन पुन्हा प्रयत्न...',
       'cannotReachServer':
-          'सर्व्हरपर्यंत पोहोचू शकत नाही. "कनेक्शन दुरुस्त करा" टॅप करा आणि PC LAN IP वापरा.',
-      'fixConnection': 'कनेक्शन दुरुस्त करा',
+          'सर्व्हरशी कनेक्ट होता आले नाही. कृपया इंटरनेट तपासा आणि पुन्हा प्रयत्न करा.',
+      'fixConnection': 'पुन्हा प्रयत्न करा',
       'deepfakeEmergencySupportTitle': 'डीपफेक व मोर्फ्ड इमेज तातडीची मदत',
       'medicalHealthVault': 'मेडिकल हेल्थ वॉल्ट',
       'keepEmergencyMedicalInformationOrganized':
