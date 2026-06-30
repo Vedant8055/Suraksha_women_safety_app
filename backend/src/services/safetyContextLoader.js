@@ -3,6 +3,8 @@ const { getCrowdActivityNear } = require('./crowdHeatmapService');
 const { fetchSunTimes } = require('./sunsetService');
 const { getAreaCrimeContext, queryExternalIncidentsNear } = require('./crimeDataIngestionService');
 const { getGridRiskForPoint } = require('./gridRiskModelService');
+const { syncSafetyNewsSignals, getSafetyNewsSyncStatus } = require('./safetyNewsIngestionService');
+const { findNearbySupportPlaces } = require('./googlePlacesService');
 const { nashikSafetyConfig, isWithinNashik } = require('../config/nashikSafetyConfig');
 
 function haversineMeters(lat1, lng1, lat2, lng2) {
@@ -18,6 +20,7 @@ function haversineMeters(lat1, lng1, lat2, lng2) {
 
 async function loadExternalSignals(lat, lng, at = new Date()) {
   const inRegion = isWithinNashik(lat, lng);
+  await syncSafetyNewsSignals().catch(() => {});
   const [sunset, crowd, osmFeatures] = await Promise.all([
     fetchSunTimes(lat, lng, at),
     getCrowdActivityNear(lat, lng),
@@ -30,6 +33,11 @@ async function loadExternalSignals(lat, lng, at = new Date()) {
   const hospitals = osmFeatures.filter(
     (item) => item.featureType === 'hospital' || item.featureType === 'clinic',
   );
+  const fuelStations = osmFeatures.filter((item) => item.featureType === 'fuel_station');
+  const googlePlaces = await findNearbySupportPlaces(lat, lng).catch(() => []);
+  const googlePolice = googlePlaces.filter((item) => item.type === 'police');
+  const googleHospitals = googlePlaces.filter((item) => item.type === 'hospital');
+  const googleFuelStations = googlePlaces.filter((item) => item.type === 'fuel_station');
   const unlitRoads = osmFeatures.filter((item) => item.featureType === 'unlit_road');
   const litRoads = osmFeatures.filter((item) => item.featureType === 'lit_road');
 
@@ -58,6 +66,10 @@ async function loadExternalSignals(lat, lng, at = new Date()) {
       source: 'openstreetmap',
       policeCount: police.length,
       hospitalCount: hospitals.length,
+      fuelStationCount: fuelStations.length,
+      googlePoliceCount: googlePolice.length,
+      googleHospitalCount: googleHospitals.length,
+      googleFuelStationCount: googleFuelStations.length,
       unlitRoadCount: unlitRoads.length,
       litRoadCount: litRoads.length,
       nearestUnlitDistanceMeters: nearestUnlit ? Math.round(nearestUnlit.distanceMeters) : null,
@@ -65,8 +77,16 @@ async function loadExternalSignals(lat, lng, at = new Date()) {
       features: osmFeatures,
       disclaimer: 'Infrastructure data from OpenStreetMap contributors. May be incomplete.',
     },
+    googlePlaces: {
+      features: googlePlaces,
+      policeCount: googlePolice.length,
+      hospitalCount: googleHospitals.length,
+      fuelStationCount: googleFuelStations.length,
+      source: 'google_places',
+    },
     gridRisk: await getGridRiskForPoint(lat, lng),
     areaCrime: await getAreaCrimeContext(),
+    newsSync: await getSafetyNewsSyncStatus(),
     externalIncidents: inRegion ? await queryExternalIncidentsNear(lat, lng) : [],
   };
 }

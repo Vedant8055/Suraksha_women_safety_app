@@ -5,6 +5,7 @@ const AreaCrimeStats = require('../models/AreaCrimeStats');
 const DataSourceSync = require('../models/DataSourceSync');
 const { nashikCrimeBaseline } = require('../data/nashikCrimeBaseline');
 const { nashikSafetyConfig } = require('../config/nashikSafetyConfig');
+const { safetyIntelligenceConfig } = require('../config/safetyIntelligenceConfig');
 
 const VERIFIED_STATUSES = ['reported', 'under_review', 'resolved'];
 
@@ -119,11 +120,15 @@ async function getAreaCrimeContext(regionId = nashikSafetyConfig.regionId) {
   return AreaCrimeStats.findOne({ region: regionId }).sort({ lastSyncAt: -1 }).lean();
 }
 
-async function queryExternalIncidentsNear(lat, lng, maxDistanceMeters = 2500) {
+async function queryExternalIncidentsNear(
+  lat,
+  lng,
+  maxDistanceMeters = safetyIntelligenceConfig.radii.externalIncidentMeters,
+) {
   if (mongoose.connection.readyState !== 1) return [];
   return ExternalIncident.find({
     region: nashikSafetyConfig.regionId,
-    spatialPrecision: 'point',
+    spatialPrecision: { $in: ['point', 'approximate', 'district'] },
     location: {
       $near: {
         $geometry: { type: 'Point', coordinates: [Number(lng), Number(lat)] },

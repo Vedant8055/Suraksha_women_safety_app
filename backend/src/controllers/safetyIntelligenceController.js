@@ -14,11 +14,13 @@ const {
 const { generateSafetySummary } = require('../services/safetySummaryService');
 const { runFusionAnalysis, loadContext } = require('../services/safetyIntelligenceService');
 const { loadExternalSignals } = require('../services/safetyContextLoader');
+const { parseGoogleMapsCoordinates } = require('../services/googlePlacesService');
 
 const liveAssessmentSchema = z.object({
   query: z.object({
-    lat: z.coerce.number(),
-    lng: z.coerce.number(),
+    lat: z.coerce.number().optional(),
+    lng: z.coerce.number().optional(),
+    mapsUrl: z.string().url().optional(),
     heading: z.coerce.number().optional(),
     accuracy: z.coerce.number().optional(),
     destinationLat: z.coerce.number().optional(),
@@ -33,6 +35,17 @@ const liveAssessmentSchema = z.object({
       .optional()
       .transform((value) => value === true || value === 'true'),
   }),
+}).superRefine((data, ctx) => {
+  const hasCoordinates =
+    typeof data.query.lat === 'number' && typeof data.query.lng === 'number';
+  const hasMapsUrl = Boolean(data.query.mapsUrl);
+  if (!hasCoordinates && !hasMapsUrl) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Either lat/lng or mapsUrl is required.',
+      path: ['query'],
+    });
+  }
 });
 
 const routeAssessmentSchema = z.object({
@@ -95,17 +108,41 @@ const preferencesPatchSchema = z.object({
 
 const summarySchema = z.object({
   body: z.object({
-    lat: z.number(),
-    lng: z.number(),
+    lat: z.number().optional(),
+    lng: z.number().optional(),
+    mapsUrl: z.string().url().optional(),
     lang: z.string().optional(),
     accuracy: z.number().optional(),
   }),
+}).superRefine((data, ctx) => {
+  const hasCoordinates =
+    typeof data.body.lat === 'number' && typeof data.body.lng === 'number';
+  const hasMapsUrl = Boolean(data.body.mapsUrl);
+  if (!hasCoordinates && !hasMapsUrl) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Either lat/lng or mapsUrl is required.',
+      path: ['body'],
+    });
+  }
 });
+
+function resolveSafetyCoordinates({ lat, lng, mapsUrl }) {
+  if (typeof lat === 'number' && typeof lng === 'number') {
+    return { lat, lng };
+  }
+  if (mapsUrl) {
+    const parsed = parseGoogleMapsCoordinates(mapsUrl);
+    if (parsed) return parsed;
+  }
+  return null;
+}
 
 const getLiveAssessment = asyncHandler(async (req, res) => {
   const {
     lat,
     lng,
+    mapsUrl,
     heading,
     accuracy,
     destinationLat,
@@ -114,9 +151,13 @@ const getLiveAssessment = asyncHandler(async (req, res) => {
     lang,
     journeyMode,
   } = req.validated.query;
+  const coordinates = resolveSafetyCoordinates({ lat, lng, mapsUrl });
+  if (!coordinates) {
+    return res.status(400).json({ message: 'Unable to resolve location from the provided input.' });
+  }
   const payload = await getLiveSafetyAssessment({
-    lat,
-    lng,
+    lat: coordinates.lat,
+    lng: coordinates.lng,
     heading,
     accuracy,
     includeSummary: includeSummary ?? false,
@@ -175,11 +216,22 @@ const patchPreferences = asyncHandler(async (req, res) => {
 });
 
 const postSummary = asyncHandler(async (req, res) => {
-  const { lat, lng, lang, accuracy } = req.validated.body;
+  const { lat, lng, mapsUrl, lang, accuracy } = req.validated.body;
+  const coordinates = resolveSafetyCoordinates({ lat, lng, mapsUrl });
+  if (!coordinates) {
+    return res.status(400).json({ message: 'Unable to resolve location from the provided input.' });
+  }
   const at = new Date();
-  const context = await loadContext(lat, lng);
-  const analysis = await runFusionAnalysis({ lat, lng, at, accuracy, context, useCache: true });
-  const external = analysis.external || (await loadExternalSignals(lat, lng, at));
+  const context = await loadContext(coordinates.lat, coordinates.lng);
+  const analysis = await runFusionAnalysis({
+    lat: coordinates.lat,
+    lng: coordinates.lng,
+    at,
+    accuracy,
+    context,
+    useCache: true,
+  });
+  const external = analysis.external || (await loadExternalSignals(coordinates.lat, coordinates.lng, at));
   const aiSummary = await generateSafetySummary({
     analysis,
     external,

@@ -6,7 +6,7 @@ const osmFeatureSchema = new mongoose.Schema(
     source: { type: String, default: 'openstreetmap', index: true },
     featureType: {
       type: String,
-      enum: ['police', 'hospital', 'unlit_road', 'lit_road', 'clinic'],
+      enum: ['police', 'hospital', 'unlit_road', 'lit_road', 'clinic', 'fuel_station'],
       required: true,
       index: true,
     },

@@ -32,6 +32,7 @@ function makeAlert({
 
 function humanizeRiskReasons(analysis) {
   const cautionFactors = analysis?.signalSnapshot?.cautionFactors || [];
+  const sparsePublicSupport = analysis?.signalSnapshot?.sparsePublicSupport === true;
   const reasons = [];
   const seen = new Set();
 
@@ -45,13 +46,18 @@ function humanizeRiskReasons(analysis) {
   for (const factor of cautionFactors) {
     const text = String(factor).toLowerCase();
     if (/(drug|narcotic)/.test(text)) add('Recent drug-related activity reported in this area.');
-    else if (/(snatch|chain)/.test(text)) add('Chain-snatching cases have been reported nearby.');
+    else if (/(murder|homicide|attempt to murder|attempt murder|half murder)/.test(text)) add('Serious violent crime has been reported nearby.');
+    else if (/(snatch|chain-snatch|chain snatch|chainsnatch)/.test(text)) add('Chain-snatching cases have been reported nearby.');
     else if (/(theft|robbery|steal)/.test(text)) add('This stretch is known for theft-related incidents.');
     else if (/(harass|molest|assault)/.test(text)) add('Harassment or assault reports have been recorded nearby.');
     else if (/(lighting|lit|dark|visibility after sunset)/.test(text)) add('Poor street lighting may reduce visibility here.');
     else if (/(pedestrian|footfall|crowd|poi visibility)/.test(text)) add('Low pedestrian activity makes this area feel isolated.');
     else if (/(incident|crime|grid model|elevated risk)/.test(text)) add('Incident activity remains elevated in the surrounding area.');
-    else if (/(emergency support|police|hospital)/.test(text)) add('Limited nearby emergency support points may slow rapid assistance.');
+    else if (/(emergency support|police|hospital|fuel|petrol)/.test(text)) {
+      if (sparsePublicSupport) {
+        add('Limited nearby emergency support points may slow rapid assistance.');
+      }
+    }
     else if (/(late-night|night|after sunset)/.test(text)) add('Night-time conditions reduce visibility and public activity.');
     else add(factor);
   }
@@ -60,7 +66,9 @@ function humanizeRiskReasons(analysis) {
     if ((dimension.score ?? 100) >= 55) continue;
     if (dimension.key === 'crime') add('Crime-related signals are elevated near this location.');
     else if (dimension.key === 'infrastructure') add('Poor street lighting may reduce visibility here.');
-    else if (dimension.key === 'support') add('Limited nearby emergency support points may slow rapid assistance.');
+    else if (dimension.key === 'support' && sparsePublicSupport) {
+      add('Limited nearby emergency support points may slow rapid assistance.');
+    }
     else if (dimension.key === 'visibility') add('Low pedestrian activity makes this area feel isolated.');
     else if (dimension.key === 'temporal') add('Night-time conditions reduce visibility and public activity.');
   }
@@ -258,22 +266,33 @@ function buildCommunityAlerts({ analysis, context, at, upcomingRisk, external })
     );
   }
 
-  const osmPolice = osm.policeCount ?? 0;
-  const osmHospitals = osm.hospitalCount ?? 0;
-  if (osmPolice > 0 || osmHospitals > 0) {
+  const supportResources = Array.isArray(analysis?.nearbyResources)
+    ? analysis.nearbyResources
+    : [];
+  const policeCount = supportResources.length
+    ? supportResources.filter((item) => item.type === 'police').length
+    : (osm.policeCount || 0) + (external?.googlePlaces?.policeCount || 0);
+  const hospitalCount = supportResources.length
+    ? supportResources.filter((item) => item.type === 'hospital').length
+    : (osm.hospitalCount || 0) + (external?.googlePlaces?.hospitalCount || 0);
+  const fuelCount = supportResources.length
+    ? supportResources.filter((item) => item.type === 'fuel_station').length
+    : (osm.fuelStationCount || 0) + (external?.googlePlaces?.fuelStationCount || 0);
+  if (policeCount > 0 || hospitalCount > 0 || fuelCount > 0) {
     alerts.push(
       makeAlert({
         category: 'Emergency Infrastructure',
         priority: signalSnapshot.sparsePublicSupport ? 'caution' : 'information',
         distanceMeters: 600,
         timestamp: at,
-        summary: `OpenStreetMap lists ${osmPolice} police and ${osmHospitals} hospital/clinic features within ${Math.round(nashikSafetyConfig.queryRadii.osmFeaturesMeters / 100) / 10} km of you.`,
+        summary: `Nearby support scan lists ${policeCount} police, ${hospitalCount} hospital/clinic, and ${fuelCount} fuel station features within ${Math.round(nashikSafetyConfig.queryRadii.resourceMeters / 100) / 10} km of you.`,
         recommendedAction: signalSnapshot.sparsePublicSupport
           ? 'Emergency support is sparse here. Keep SOS armed and share live location.'
           : 'Mapped emergency infrastructure is available nearby if needed.',
-        dataSource: 'openstreetmap',
+        dataSource: 'google_places',
         confidence: 75,
-        disclaimer: osm.disclaimer,
+        disclaimer:
+          'Combined from OSM, Google Places, and Suraksha authority mappings. Availability may vary.',
       }),
     );
   } else if (signalSnapshot.sparsePublicSupport) {

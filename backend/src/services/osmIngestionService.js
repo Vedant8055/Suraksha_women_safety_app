@@ -23,6 +23,8 @@ function buildOverpassQuery() {
   node["amenity"="hospital"](${south},${west},${north},${east});
   way["amenity"="hospital"](${south},${west},${north},${east});
   node["amenity"="clinic"](${south},${west},${north},${east});
+  node["amenity"="fuel"](${south},${west},${north},${east});
+  way["amenity"="fuel"](${south},${west},${north},${east});
   way["highway"]["lit"="no"](${south},${west},${north},${east});
   way["highway"]["lit"="yes"](${south},${west},${north},${east});
 );
@@ -69,6 +71,7 @@ async function syncNashikOsmData() {
       if (tags.amenity === 'police') featureType = 'police';
       else if (tags.amenity === 'hospital') featureType = 'hospital';
       else if (tags.amenity === 'clinic') featureType = 'clinic';
+      else if (tags.amenity === 'fuel') featureType = 'fuel_station';
       else if (tags.lit === 'no') featureType = 'unlit_road';
       else if (tags.lit === 'yes') featureType = 'lit_road';
       if (!featureType) continue;

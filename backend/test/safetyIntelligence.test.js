@@ -1,5 +1,6 @@
 const request = require('supertest');
 const { app } = require('../src/app');
+const { buildCommunityAlerts } = require('../src/services/safetyAlertBuilder');
 
 describe('Safety Intelligence API — Phase 1 Nashik', () => {
   const nashikLat = 19.9975;
@@ -113,6 +114,20 @@ describe('Safety Intelligence API — Phase 3 Live Experience', () => {
     }
   });
 
+  it('accepts a Google Maps URL for live assessment', async () => {
+    const res = await request(app).get('/api/safety-intelligence/live').query({
+      mapsUrl: 'https://www.google.com/maps/@19.9975,73.7898,15z',
+      includeSummary: false,
+    });
+
+    if (res.status !== 200) {
+      throw new Error(`Expected 200, received ${res.status}: ${JSON.stringify(res.body)}`);
+    }
+    if (!res.body.current || typeof res.body.current.safetyScore !== 'number') {
+      throw new Error('Expected live assessment from Google Maps URL');
+    }
+  });
+
   it('requires auth for journey update and preferences', async () => {
     const journeyRes = await request(app)
       .post('/api/safety-intelligence/journey/update')
@@ -125,6 +140,69 @@ describe('Safety Intelligence API — Phase 3 Live Experience', () => {
     const prefsRes = await request(app).get('/api/safety-intelligence/preferences');
     if (prefsRes.status !== 401) {
       throw new Error(`Expected 401 for preferences, got ${prefsRes.status}`);
+    }
+  });
+});
+
+describe('Safety alert reasoning', () => {
+  it('does not report limited support when fuel support is nearby', () => {
+    const alerts = buildCommunityAlerts({
+      analysis: {
+        safetyScore: 58,
+        aiConfidence: 68,
+        signalSnapshot: {
+          recentIncidentCount: 0,
+          recentViolentIncidentCount: 0,
+          supportCount: 1,
+          safeZoneCount: 0,
+          sparsePublicSupport: false,
+          positiveFactors: ['At least one emergency support point is mapped nearby.'],
+          cautionFactors: ['Emergency support infrastructure is mapped nearby.'],
+        },
+        dimensions: [
+          { key: 'support', score: 52, label: 'Moderate', confidence: 68, sources: [] },
+        ],
+        gridRisk: null,
+      },
+      context: { incidents: [] },
+      at: new Date('2026-06-30T12:00:00.000Z'),
+      upcomingRisk: null,
+      external: {
+        inRegion: true,
+        sunset: { isDark: false, source: 'sunset_api' },
+        crowd: {},
+        osm: {
+          policeCount: 0,
+          hospitalCount: 0,
+          fuelStationCount: 1,
+          unlitRoadCount: 0,
+          litRoadCount: 1,
+          nearestUnlitDistanceMeters: null,
+          disclaimer: 'OSM test data',
+        },
+        areaCrime: null,
+      },
+    });
+
+    const emergencyAlert = alerts.find((item) => item.category === 'Emergency Infrastructure');
+    if (!emergencyAlert) {
+      throw new Error('Expected emergency infrastructure alert');
+    }
+    if (!/fuel station/i.test(emergencyAlert.summary)) {
+      throw new Error(`Expected fuel station mention in summary: ${emergencyAlert.summary}`);
+    }
+
+    const areaAlert = alerts.find((item) => item.category === 'Area Safety');
+    if (!areaAlert) {
+      throw new Error('Expected area safety alert');
+    }
+    if (
+      Array.isArray(areaAlert.riskReasons) &&
+      areaAlert.riskReasons.some((reason) =>
+        reason.includes('Limited nearby emergency support points may slow rapid assistance.'),
+      )
+    ) {
+      throw new Error('Did not expect limited support reason when support is nearby');
     }
   });
 });

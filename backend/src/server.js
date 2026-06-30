@@ -7,11 +7,6 @@ const { setupSockets } = require('./sockets');
 const { startSafetyDataSyncJob } = require('./jobs/safetyDataSyncJob');
 
 const start = async () => {
-  await connectDb(env.mongoUri, {
-    maxRetries: env.mongoMaxRetries,
-    initialDelayMs: env.mongoInitialRetryDelayMs,
-    maxDelayMs: env.mongoMaxRetryDelayMs,
-  });
   const server = http.createServer(app);
   server.requestTimeout = env.requestTimeoutMs;
   server.headersTimeout = env.requestTimeoutMs + 5000;
@@ -21,11 +16,27 @@ const start = async () => {
     console.log(`Backend running on ${env.port}`);
   });
 
+  void connectDb(env.mongoUri, {
+    maxRetries: env.mongoMaxRetries,
+    initialDelayMs: env.mongoInitialRetryDelayMs,
+    maxDelayMs: env.mongoMaxRetryDelayMs,
+  })
+    .then(() => {
+      console.log('MongoDB connected');
+    })
+    .catch((error) => {
+      console.warn(
+        `MongoDB unavailable; continuing in degraded mode. ${error.message}`,
+      );
+    });
+
   const shutdown = async (signal) => {
     console.log(`${signal} received. Closing backend gracefully...`);
     server.close(async () => {
       try {
-        await mongoose.connection.close();
+        if (mongoose.connection.readyState !== 0) {
+          await mongoose.connection.close();
+        }
       } finally {
         process.exit(0);
       }

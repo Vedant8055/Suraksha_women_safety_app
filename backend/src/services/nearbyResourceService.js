@@ -157,7 +157,8 @@ function buildFusionNearbyResources(lat, lng, authorities, external) {
       (item) =>
         item.featureType === 'police' ||
         item.featureType === 'hospital' ||
-        item.featureType === 'clinic',
+        item.featureType === 'clinic' ||
+        item.featureType === 'fuel_station',
     )
     .map((item) => {
       const mapped = mapOsmFeature(item, numericLat, numericLng);
@@ -171,6 +172,17 @@ function buildFusionNearbyResources(lat, lng, authorities, external) {
         source: 'openstreetmap',
       };
     });
+
+  const googlePlaces = external?.googlePlaces?.features || [];
+  const fromGooglePlaces = googlePlaces.map((item) => ({
+    id: String(item.id),
+    type: item.type,
+    name: item.name,
+    address: item.address || '',
+    phone: item.phone || '',
+    distanceMeters: Math.round(item.distanceMeters || 0),
+    source: 'google_places',
+  }));
 
   const fromBaseline = isWithinNashik(numericLat, numericLng)
     ? nashikAuthorityBaseline.map((entry) => {
@@ -187,7 +199,7 @@ function buildFusionNearbyResources(lat, lng, authorities, external) {
       })
     : [];
 
-  const merged = dedupeResources([...fromAuthorities, ...fromOsm, ...fromBaseline]);
+  const merged = dedupeResources([...fromAuthorities, ...fromOsm, ...fromGooglePlaces, ...fromBaseline]);
 
   return merged
     .sort((left, right) => left.distanceMeters - right.distanceMeters)

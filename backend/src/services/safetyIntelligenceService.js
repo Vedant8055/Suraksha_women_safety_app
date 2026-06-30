@@ -297,6 +297,7 @@ async function getLiveSafetyAssessment({
       nearbyPoliceCount: analysis.nearbyResources.filter((item) => item.type === 'police').length,
       nearbyHospitalCount: analysis.nearbyResources.filter((item) => item.type === 'hospital')
         .length,
+      nearbySupportCount: analysis.signalSnapshot?.supportCount ?? 0,
       fusion: {
         modelVersion: fusionIntelligenceConfig.modelVersion,
         cacheHit: analysis.fusionMeta?.cacheHit ?? false,
@@ -321,6 +322,7 @@ async function getLiveSafetyAssessment({
           isDark: external.sunset?.isDark ?? null,
         },
         crime_open_data: crimeSync,
+        news_feeds: external.newsSync || { status: 'pending', enabled: false },
         fusion_cache: cacheStats(),
       },
     },
@@ -354,6 +356,7 @@ async function getSafetyIntelligenceHealth() {
       sunset_api: { status: 'ok', provider: 'sunrise-sunset.org' },
       suraksha_reports: { status: 'ok', message: 'Verified incident reports from app users' },
       crime_open_data: crimeSync,
+      news_feeds: { status: 'pending', enabled: false },
       gemini_summary: { status: process.env.GEMINI_API_KEY ? 'ok' : 'fallback_template' },
     },
     updatedAt: new Date().toISOString(),

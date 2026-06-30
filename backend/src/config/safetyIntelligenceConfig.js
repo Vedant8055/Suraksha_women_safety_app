@@ -15,6 +15,7 @@ const safetyIntelligenceConfig = {
   radii: {
     authorityMeters: 3000,
     incidentMeters: 2500,
+    externalIncidentMeters: 6000,
     safetyZoneMeters: 2200,
     resourceMeters: 5000,
   },

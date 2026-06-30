@@ -10,9 +10,15 @@ function ageHours(date) {
 
 function incidentSeverity(category = '', description = '') {
   const text = `${category} ${description}`.toLowerCase();
-  if (/(assault|kidnap|rape|weapon|stalk|abduct|violence)/.test(text)) return 1.0;
-  if (/(harass|molest|attack|robbery|snatch|threat)/.test(text)) return 0.82;
-  if (/(theft|fraud|scam|suspicious|break)/.test(text)) return 0.62;
+  if (
+    /(murder|homicide|attempt to murder|attempt murder|half murder|rape|kidnap|weapon|stalk|abduct|acid attack|violence)/.test(
+      text,
+    )
+  ) {
+    return 1.0;
+  }
+  if (/(harass|molest|attack|robbery|snatch|chain snatch|chainsnatch|threat)/.test(text)) return 0.82;
+  if (/(theft|burglary|fraud|scam|suspicious|break|drug)/.test(text)) return 0.62;
   return 0.48;
 }
 
@@ -61,9 +67,19 @@ function scoreCrimeDimension({ lat, lng, context, externalIncidents, gridRisk, a
   }, 0);
 
   const recentCount = merged.filter((item) => ageHours(item.occurredAt || item.createdAt) <= 72).length;
+  const recentViolentCount = merged.filter((item) => {
+    const text = `${item.category || ''} ${item.description || ''}`.toLowerCase();
+    return (
+      ageHours(item.occurredAt || item.createdAt) <= 72 &&
+      /(murder|homicide|attempt to murder|attempt murder|half murder|rape|kidnap|assault|weapon|abduct|chain snatch|chainsnatch)/.test(
+        text,
+      )
+    );
+  }).length;
   let score = 82;
   score -= clamp(proximityPressure * 22, 0, 45);
   score -= clamp(recentCount * 4, 0, 16);
+  score -= clamp(recentViolentCount * 5, 0, 15);
 
   if (gridRisk) {
     score = Math.round(score * 0.55 + gridRisk.score * 0.45);
@@ -98,6 +114,7 @@ function scoreCrimeDimension({ lat, lng, context, externalIncidents, gridRisk, a
         'Crime dimension combines nearby reports, grid history, and district-level open data context.',
     ),
     recentIncidentCount: recentCount,
+    recentViolentIncidentCount: recentViolentCount,
     proximityPressure,
   };
 }
@@ -131,11 +148,17 @@ function scoreInfrastructureDimension({ external, isNight }) {
 function scoreSupportDimension({ context, external }) {
   const authorities = context.authorities || [];
   const osm = external?.osm || {};
+  const googlePlaces = external?.googlePlaces || {};
   const police = authorities.filter((item) => item.authorityType === 'police').length + (osm.policeCount || 0);
   const hospitals =
     authorities.filter((item) => item.authorityType === 'hospital').length + (osm.hospitalCount || 0);
   const responders = authorities.filter((item) => item.authorityType === 'responder').length;
-  const supportCount = police + hospitals + responders;
+  const fuelStations = osm.fuelStationCount || 0;
+  const googlePolice = googlePlaces.policeCount || 0;
+  const googleHospitals = googlePlaces.hospitalCount || 0;
+  const googleFuelStations = googlePlaces.fuelStationCount || 0;
+  const supportCount =
+    police + hospitals + responders + fuelStations + googlePolice + googleHospitals + googleFuelStations;
 
   let score = 50;
   if (supportCount === 0) score = 35;
@@ -143,11 +166,13 @@ function scoreSupportDimension({ context, external }) {
 
   const sources = ['suraksha_engine'];
   if (osm.policeCount > 0 || osm.hospitalCount > 0) sources.push('openstreetmap');
+  if (fuelStations > 0) sources.push('fuel_infrastructure');
+  if (googlePolice > 0 || googleHospitals > 0 || googleFuelStations > 0) sources.push('google_places');
 
   return {
     dimension: buildDimension('support', score, supportCount > 0 ? 76 : 52, sources),
     supportCount,
-    sparsePublicSupport: supportCount < 2,
+    sparsePublicSupport: supportCount === 0,
   };
 }
 
@@ -248,6 +273,11 @@ function fuseSafetyIntelligence({
       `Recent verified incidents recorded within ${toDisplayDistance(1200)}.`,
     );
   }
+  if (crimeResult.recentViolentIncidentCount > 0) {
+    cautionFactors.push(
+      'Recent violent crime reports, including serious assault or murder-related cases, were recorded nearby.',
+    );
+  }
   if (crimeResult.proximityPressure >= 1.2) {
     cautionFactors.push('Incident activity remains elevated in the surrounding area.');
   }
@@ -276,7 +306,11 @@ function fuseSafetyIntelligence({
     cautionFactors.push('Live location precision is limited; assessment may update as GPS improves.');
   }
   if (supportResult.supportCount > 0) {
-    positiveFactors.push('Emergency support infrastructure is mapped nearby.');
+    positiveFactors.push(
+      supportResult.supportCount > 1
+        ? 'Emergency support infrastructure is mapped nearby.'
+        : 'At least one emergency support point is mapped nearby.',
+    );
   }
   if (safeZones.length > 0) {
     positiveFactors.push('Community-identified safer movement patterns are available nearby.');
@@ -313,6 +347,7 @@ function fuseSafetyIntelligence({
     nearbyResources,
     signalSnapshot: {
       recentIncidentCount: crimeResult.recentIncidentCount,
+      recentViolentIncidentCount: crimeResult.recentViolentIncidentCount,
       supportCount: supportResult.supportCount,
       safeZoneCount: safeZones.length,
       sparsePublicSupport: supportResult.sparsePublicSupport,
