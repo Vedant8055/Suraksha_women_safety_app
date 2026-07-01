@@ -18,6 +18,7 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const liveSosRoutes = require('./routes/liveSosRoutes');
 const safetyIntelligenceRoutes = require('./routes/safetyIntelligenceRoutes');
+const safetyRoutes = require('./routes/safetyRoutes');
 
 const app = express();
 app.use(helmet());
@@ -45,6 +46,7 @@ app.use('/api/media', mediaRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/safety-intelligence', safetyIntelligenceRoutes);
+app.use('/api/safety', safetyRoutes);
 
 app.use(errorHandler);
 module.exports = { app };

@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const dns = require('dns');
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -8,7 +9,12 @@ const connectDb = async (mongoUri, options = {}) => {
     maxRetries = 1,
     initialDelayMs = 1000,
     maxDelayMs = 15000,
+    dnsServers = [],
   } = options;
+
+  if (Array.isArray(dnsServers) && dnsServers.length > 0) {
+    dns.setServers(dnsServers);
+  }
 
   let attempt = 0;
   let delayMs = initialDelayMs;

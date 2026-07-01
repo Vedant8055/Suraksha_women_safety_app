@@ -20,6 +20,7 @@ const start = async () => {
     maxRetries: env.mongoMaxRetries,
     initialDelayMs: env.mongoInitialRetryDelayMs,
     maxDelayMs: env.mongoMaxRetryDelayMs,
+    dnsServers: env.mongoDnsServers,
   })
     .then(() => {
       console.log('MongoDB connected');
