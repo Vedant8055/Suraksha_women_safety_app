@@ -5,6 +5,19 @@ import 'package:suraksha_women_safety_app/features/cybercrime/utils/cybercrime_u
 import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
 import 'package:suraksha_women_safety_app/theme/app_theme.dart';
 
+// New class for a premium, light-mode friendly theme
+class PremiumCyberTheme {
+  static const Color background = Color(0xFFF8F9FD);
+  static const Color cardBackground = Colors.white;
+  static const Color cardBorder = Color(0xFFE8ECF5);
+  static const Color titleText = Color(0xFF1B2A41);
+  static const Color bodyText = Color(0xFF5A6B87);
+  static const Color subtleText = Color(0xFF8A9BB5);
+  static const Color accent = Color(0xFF2FB79E);
+  static const Color accentSoft = Color(0xFFEAF8F5);
+  static const Color error = Color(0xFFE53935);
+}
+
 class CyberScroll extends StatelessWidget {
   const CyberScroll({super.key, required this.children});
 
@@ -12,9 +25,13 @@ class CyberScroll extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    return Container(
+      color: isLight ? PremiumCyberTheme.background : null,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
+      ),
     );
   }
 }
@@ -46,12 +63,12 @@ class CyberSectionHeader extends StatelessWidget {
             height: 48,
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [color.withValues(alpha: 0.9), color.withValues(alpha: 0.55)],
+                colors: [color.withOpacity(0.9), color.withOpacity(0.55)],
               ),
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: color.withValues(alpha: 0.25),
+                  color: color.withOpacity(0.25),
                   blurRadius: 12,
                   offset: const Offset(0, 6),
                 ),
@@ -67,7 +84,7 @@ class CyberSectionHeader extends StatelessWidget {
                 Text(
                   title,
                   style: TextStyle(
-                    color: isLight ? const Color(0xFF172235) : Colors.white,
+                    color: isLight ? PremiumCyberTheme.titleText : Colors.white,
                     fontSize: 22,
                     fontWeight: FontWeight.w900,
                     letterSpacing: -0.3,
@@ -77,7 +94,7 @@ class CyberSectionHeader extends StatelessWidget {
                 Text(
                   subtitle,
                   style: TextStyle(
-                    color: isLight ? const Color(0xFF5F6F8A) : Colors.white70,
+                    color: isLight ? PremiumCyberTheme.bodyText : Colors.white70,
                     height: 1.35,
                   ),
                 ),
@@ -99,26 +116,26 @@ class CyberCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final borderColor = accent ?? (isLight ? const Color(0xFFDCE5F6) : Colors.white24);
+    final borderColor = accent ?? (isLight ? PremiumCyberTheme.cardBorder : Colors.white24);
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 14),
+      margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isLight ? Colors.white : AppTheme.cardColor,
+        color: isLight ? PremiumCyberTheme.cardBackground : AppTheme.cardColor,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: borderColor.withValues(alpha: isLight ? 1 : 0.35)),
+        border: Border.all(color: borderColor.withOpacity(isLight ? 1 : 0.35)),
         boxShadow: isLight
             ? [
                 BoxShadow(
-                  color: const Color(0xFF8A9FBE).withValues(alpha: 0.12),
-                  blurRadius: 18,
+                  color: const Color(0xFF8A9FBE).withOpacity(0.08),
+                  blurRadius: 24,
                   offset: const Offset(0, 8),
                 ),
               ]
             : [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.25),
+                  color: Colors.black.withOpacity(0.25),
                   blurRadius: 16,
                   offset: const Offset(0, 8),
                 ),
@@ -142,7 +159,7 @@ class CyberCardTitle extends StatelessWidget {
       child: Text(
         text,
         style: TextStyle(
-          color: isLight ? const Color(0xFF172235) : Colors.white,
+          color: isLight ? PremiumCyberTheme.titleText : Colors.white,
           fontSize: 16,
           fontWeight: FontWeight.w900,
         ),
@@ -155,11 +172,11 @@ InputDecoration cyberInputDecoration(BuildContext context, String label) {
   final isLight = Theme.of(context).brightness == Brightness.light;
   return InputDecoration(
     labelText: label,
-    labelStyle: TextStyle(color: isLight ? const Color(0xFF516078) : Colors.white70),
-    hintStyle: TextStyle(color: isLight ? const Color(0xFF8A9BB5) : Colors.white38),
+    labelStyle: TextStyle(color: isLight ? PremiumCyberTheme.bodyText : Colors.white70),
+    hintStyle: TextStyle(color: isLight ? PremiumCyberTheme.subtleText : Colors.white38),
     fillColor: isLight
-        ? const Color(0xFFF3F7FD)
-        : AppTheme.surfaceSoft.withValues(alpha: 0.72),
+        ? PremiumCyberTheme.background
+        : AppTheme.surfaceSoft.withOpacity(0.72),
     filled: true,
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
@@ -167,7 +184,7 @@ InputDecoration cyberInputDecoration(BuildContext context, String label) {
     ),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
-      borderSide: BorderSide(color: isLight ? const Color(0xFFE2EAF7) : Colors.transparent),
+      borderSide: BorderSide(color: isLight ? PremiumCyberTheme.cardBorder : Colors.transparent),
     ),
   );
 }
@@ -192,7 +209,7 @@ class CyberTextInput extends StatelessWidget {
     return TextField(
       controller: controller,
       onSubmitted: onSubmitted,
-      style: TextStyle(color: isLight ? const Color(0xFF172235) : Colors.white),
+      style: TextStyle(color: isLight ? PremiumCyberTheme.titleText : Colors.white),
       decoration: cyberInputDecoration(context, label).copyWith(hintText: hint),
     );
   }
@@ -216,7 +233,7 @@ class CyberMultilineInput extends StatelessWidget {
     return TextField(
       controller: controller,
       maxLines: 5,
-      style: TextStyle(color: isLight ? const Color(0xFF172235) : Colors.white),
+      style: TextStyle(color: isLight ? PremiumCyberTheme.titleText : Colors.white),
       decoration: cyberInputDecoration(context, label).copyWith(hintText: hint),
     );
   }
@@ -245,7 +262,7 @@ class CyberAnalysisResultCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
+                  color: color.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Row(
@@ -266,7 +283,7 @@ class CyberAnalysisResultCard extends StatelessWidget {
                   result.analysisSource!,
                   style: TextStyle(
                     color: Theme.of(context).brightness == Brightness.light
-                        ? const Color(0xFF8A9BB5)
+                        ? PremiumCyberTheme.subtleText
                         : Colors.white38,
                     fontSize: 11,
                   ),
@@ -279,7 +296,7 @@ class CyberAnalysisResultCard extends StatelessWidget {
             result.threatSummary,
             style: TextStyle(
               color: Theme.of(context).brightness == Brightness.light
-                  ? const Color(0xFF516078)
+                  ? PremiumCyberTheme.bodyText
                   : Colors.white70,
               height: 1.4,
             ),
@@ -293,7 +310,7 @@ class CyberAnalysisResultCard extends StatelessWidget {
                 '• $action',
                 style: TextStyle(
                   color: Theme.of(context).brightness == Brightness.light
-                      ? const Color(0xFF516078)
+                      ? PremiumCyberTheme.bodyText
                       : Colors.white70,
                 ),
               ),
@@ -308,7 +325,7 @@ class CyberAnalysisResultCard extends StatelessWidget {
                 '• $tip',
                 style: TextStyle(
                   color: Theme.of(context).brightness == Brightness.light
-                      ? const Color(0xFF6B7C95)
+                      ? PremiumCyberTheme.bodyText
                       : Colors.white60,
                 ),
               ),
@@ -445,77 +462,98 @@ class CyberEvidenceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final metaColor = isLight ? const Color(0xFF6B7C95) : Colors.white60;
+    final metaColor = isLight ? PremiumCyberTheme.bodyText : Colors.white60;
+
     return CyberCard(
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: const Color(0xFF2FB79E).withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(12),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: isLight ? PremiumCyberTheme.accentSoft : PremiumCyberTheme.accent.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                _iconForType(),
+                color: PremiumCyberTheme.accent,
+              ),
             ),
-            child: Icon(
-              _iconForType(),
-              color: item.encrypted ? const Color(0xFF2FB79E) : Colors.orange,
+            title: Text(
+              item.title,
+              style: TextStyle(
+                color: isLight ? PremiumCyberTheme.titleText : Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
+              ),
+            ),
+            subtitle: Text(
+              '${localizedEvidenceCategory(context, item.category)} • ${item.uploadedAt.toLocal()}'.split('.').first,
+              style: TextStyle(color: metaColor, fontSize: 13),
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.title,
-                  style: TextStyle(
-                    color: isLight ? const Color(0xFF172235) : Colors.white,
-                    fontWeight: FontWeight.w800,
-                  ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              if (item.reportId != null && item.reportId!.isNotEmpty)
+                Chip(
+                  avatar: const Icon(Icons.link_rounded, size: 16, color: Color(0xFF3B82F6)),
+                  label: Text(l10n.t('linkedToReport')),
+                  backgroundColor: const Color(0xFF3B82F6).withOpacity(0.12),
+                  labelStyle: const TextStyle(color: Color(0xFF3B82F6), fontSize: 11, fontWeight: FontWeight.w700),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
                 ),
-                Text(
-                  '${localizedEvidenceCategory(context, item.category)} • ${item.encrypted ? l10n.t('encrypted') : l10n.t('notEncrypted')} • ${item.uploadedAt.toLocal()}'.split('.').first,
-                  style: TextStyle(color: metaColor, fontSize: 12),
+              const SizedBox(width: 6),
+              if (item.encrypted)
+                Chip(
+                  avatar: Icon(Icons.lock_rounded, size: 16, color: metaColor),
+                  label: Text(l10n.t('encrypted')),
+                  backgroundColor: isLight ? PremiumCyberTheme.background : Colors.black26,
+                   labelStyle: TextStyle(color: metaColor, fontSize: 11, fontWeight: FontWeight.w700),
+                   padding: const EdgeInsets.symmetric(horizontal: 4),
                 ),
-                if (item.reportId != null && item.reportId!.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF3B82F6).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        l10n.t('linkedToReport'),
-                        style: const TextStyle(
-                          color: Color(0xFF3B82F6),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                if (item.tags.isNotEmpty)
-                  Text(item.tags.join(', '), style: TextStyle(color: metaColor, fontSize: 12)),
-              ],
+            ],
+          ),
+          if (item.tags.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                item.tags.map((t) => '#$t').join(' '),
+                style: TextStyle(color: metaColor, fontSize: 12),
+              ),
             ),
-          ),
-          IconButton(
-            tooltip: l10n.t('preview'),
-            onPressed: onPreview,
-            icon: Icon(Icons.visibility_rounded, color: metaColor),
-          ),
-          IconButton(
-            tooltip: l10n.t('download'),
-            onPressed: onDownload,
-            icon: Icon(Icons.download_rounded, color: metaColor),
-          ),
-          IconButton(
-            tooltip: l10n.t('delete'),
-            onPressed: onDelete,
-            icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+          const Divider(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton.icon(
+                onPressed: onPreview,
+                icon: Icon(Icons.visibility_rounded, size: 18),
+                label: Text(l10n.t('preview')),
+                style: TextButton.styleFrom(
+                  foregroundColor: isLight ? PremiumCyberTheme.bodyText : Colors.white70,
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton.icon(
+                onPressed: onDownload,
+                icon: Icon(Icons.download_rounded, size: 18),
+                label: Text(l10n.t('download')),
+                style: TextButton.styleFrom(
+                  foregroundColor: isLight ? PremiumCyberTheme.bodyText : Colors.white70,
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton.icon(
+                onPressed: onDelete,
+                icon: Icon(Icons.delete_outline_rounded, size: 18),
+                label: Text(l10n.t('delete')),
+                style: TextButton.styleFrom(foregroundColor: PremiumCyberTheme.error),
+              ),
+            ],
           ),
         ],
       ),
@@ -535,9 +573,9 @@ class CyberWarningBanner extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFE53935).withValues(alpha: 0.12),
+        color: const Color(0xFFE53935).withOpacity(0.12),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE53935).withValues(alpha: 0.35)),
+        border: Border.all(color: const Color(0xFFE53935).withOpacity(0.35)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -575,7 +613,7 @@ class CyberEmptyState extends StatelessWidget {
         child: Text(
           text,
           textAlign: TextAlign.center,
-          style: TextStyle(color: isLight ? const Color(0xFF6B7C95) : Colors.white60),
+          style: TextStyle(color: isLight ? PremiumCyberTheme.bodyText : Colors.white60),
         ),
       ),
     );

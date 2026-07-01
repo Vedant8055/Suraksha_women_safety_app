@@ -214,6 +214,7 @@ class SafetyMonitorState {
   final DateTime? lastUpdatedAt;
   final int nearbyPoliceCount;
   final int nearbyHospitalCount;
+  final int nearbySupportCount;
   final int safetyScore;
   final String riskLabel;
   final String statusMessage;
@@ -246,6 +247,7 @@ class SafetyMonitorState {
     this.lastUpdatedAt,
     this.nearbyPoliceCount = 0,
     this.nearbyHospitalCount = 0,
+    this.nearbySupportCount = 0,
     this.safetyScore = 50,
     this.riskLabel = 'Monitoring',
     this.statusMessage = 'Initializing safety monitor...',
@@ -279,6 +281,7 @@ class SafetyMonitorState {
     DateTime? lastUpdatedAt,
     int? nearbyPoliceCount,
     int? nearbyHospitalCount,
+    int? nearbySupportCount,
     int? safetyScore,
     String? riskLabel,
     String? statusMessage,
@@ -315,6 +318,7 @@ class SafetyMonitorState {
       lastUpdatedAt: lastUpdatedAt ?? this.lastUpdatedAt,
       nearbyPoliceCount: nearbyPoliceCount ?? this.nearbyPoliceCount,
       nearbyHospitalCount: nearbyHospitalCount ?? this.nearbyHospitalCount,
+      nearbySupportCount: nearbySupportCount ?? this.nearbySupportCount,
       safetyScore: safetyScore ?? this.safetyScore,
       riskLabel: riskLabel ?? this.riskLabel,
       statusMessage: statusMessage ?? this.statusMessage,
@@ -657,6 +661,15 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
         nearbyResources.where((item) => item.type == 'police').length;
     final hospitalFromResources =
         nearbyResources.where((item) => item.type == 'hospital').length;
+    final supportFromResources = nearbyResources
+        .where(
+          (item) =>
+              item.type == 'police' ||
+              item.type == 'hospital' ||
+              item.type == 'responder' ||
+              item.type == 'fuel_station',
+        )
+        .length;
     final policeCount = policeFromResources > 0
         ? policeFromResources
         : (metaMap['nearbyPoliceCount'] as num?)?.round() ?? state.nearbyPoliceCount;
@@ -664,6 +677,9 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
         ? hospitalFromResources
         : (metaMap['nearbyHospitalCount'] as num?)?.round() ??
             state.nearbyHospitalCount;
+    final supportCount = supportFromResources > 0
+        ? supportFromResources
+        : (metaMap['nearbySupportCount'] as num?)?.round() ?? state.nearbySupportCount;
     final safetyScore =
         (currentMap['safetyScore'] as num?)?.round() ?? state.safetyScore;
     final riskLabel = currentMap['riskLevel']?.toString() ?? state.riskLabel;
@@ -691,6 +707,7 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
       communityAlerts = _buildFallbackCommunityAlerts(
         policeCount: policeCount,
         hospitalCount: hospitalCount,
+        supportCount: supportCount,
         safetyScore: safetyScore,
         riskLabel: riskLabel,
         contributingFactors: parsedFactors,
@@ -703,6 +720,7 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
       isRefreshing: false,
       nearbyPoliceCount: policeCount,
       nearbyHospitalCount: hospitalCount,
+      nearbySupportCount: supportCount,
       safetyScore: safetyScore,
       riskLabel: riskLabel,
       aiConfidence: currentMap['aiConfidence'] as int?,
@@ -869,6 +887,7 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
         isRefreshing: false,
         nearbyPoliceCount: policeCount,
         nearbyHospitalCount: hospitalCount,
+        nearbySupportCount: policeCount + hospitalCount,
         nearbyResources: resources,
         safetyScore: fallbackScore,
         riskLabel: risk,
@@ -878,6 +897,7 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
         communityAlerts: _buildFallbackCommunityAlerts(
           policeCount: policeCount,
           hospitalCount: hospitalCount,
+          supportCount: policeCount + hospitalCount,
           safetyScore: fallbackScore,
           riskLabel: risk,
         ),
@@ -898,6 +918,7 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
         communityAlerts: _buildFallbackCommunityAlerts(
           policeCount: state.nearbyPoliceCount,
           hospitalCount: state.nearbyHospitalCount,
+          supportCount: state.nearbySupportCount,
           safetyScore: state.safetyScore,
           riskLabel: state.riskLabel,
         ),
@@ -910,6 +931,7 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
   List<SafetyCommunityAlert> _buildFallbackCommunityAlerts({
     required int policeCount,
     required int hospitalCount,
+    required int supportCount,
     required int safetyScore,
     required String riskLabel,
     List<String> contributingFactors = const [],
@@ -936,6 +958,7 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
       isLateNight: isLateNight,
       policeCount: policeCount,
       hospitalCount: hospitalCount,
+      supportCount: supportCount,
       contributingFactors: contributingFactors,
       dimensions: dimensions,
     );
@@ -1015,6 +1038,7 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
     required bool isLateNight,
     required int policeCount,
     required int hospitalCount,
+    required int supportCount,
     required List<String> contributingFactors,
     required List<SafetyDimensionScore> dimensions,
   }) {
@@ -1042,7 +1066,7 @@ class SafetyMonitorNotifier extends StateNotifier<SafetyMonitorState> {
     if (showRoadLightingFallback(isNight) && safetyScore < 60) {
       add('Street lighting may be inconsistent nearby.');
     }
-    if (policeCount == 0 && hospitalCount == 0) {
+    if (supportCount == 0 && policeCount == 0 && hospitalCount == 0) {
       add('Limited nearby emergency support points may slow rapid assistance.');
     }
     if (reasons.isEmpty && safetyScore < 55) {

@@ -13,6 +13,7 @@ import 'package:suraksha_women_safety_app/constants/api_constants.dart';
 import 'package:suraksha_women_safety_app/config/app_environment.dart';
 import 'package:suraksha_women_safety_app/core/network/dio_client.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/safety_monitor_provider.dart';
+import 'package:suraksha_women_safety_app/features/maps/map_handoff_actions.dart';
 import 'package:suraksha_women_safety_app/features/maps/widgets/live_safety_controls_sheet.dart';
 import 'package:suraksha_women_safety_app/features/routes/route_safety_provider.dart';
 import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
@@ -272,6 +273,30 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
       _resetJourneyMetrics();
     });
     _buildRouteTo(target);
+  }
+
+  Future<void> _presentNearbyLocationChooser(LatLng target, String title) async {
+    final choice = await showMapHandoffDialog(
+      context,
+      placeName: title,
+    );
+
+    if (!mounted || choice == null) return;
+
+    if (choice == MapHandoffOption.surakshaMap) {
+      _selectDestination(target, title);
+      return;
+    }
+
+    final launched = await launchGoogleMapsDirections(
+      latitude: target.latitude,
+      longitude: target.longitude,
+    );
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open Google Maps.')),
+      );
+    }
   }
 
   void _startJourney() {
@@ -570,9 +595,11 @@ class _SafetyMapScreenState extends ConsumerState<SafetyMapScreen> {
               position: LatLng(itemLat, itemLng),
               infoWindow: InfoWindow(title: name),
               icon: BitmapDescriptor.defaultMarkerWithHue(markerHue),
-              onTap: () => _selectDestination(
-                LatLng(itemLat, itemLng),
-                name,
+              onTap: () => unawaited(
+                _presentNearbyLocationChooser(
+                  LatLng(itemLat, itemLng),
+                  name,
+                ),
               ),
             ),
           );

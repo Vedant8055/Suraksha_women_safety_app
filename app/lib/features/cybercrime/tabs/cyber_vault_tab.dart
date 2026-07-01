@@ -265,17 +265,21 @@ class _CyberVaultTabState extends State<CyberVaultTab> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final isLight = Theme.of(context).brightness == Brightness.light;
+
     return CyberScroll(
       children: [
         CyberSectionHeader(
           title: l10n.t('secureEvidenceVault'),
           subtitle: l10n.t('uploadTagSearchPackageEvidence'),
-          icon: Icons.lock_rounded,
-          color: const Color(0xFF2FB79E),
+          icon: Icons.lock_person_rounded,
+          color: PremiumCyberTheme.accent,
         ),
         CyberCard(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              CyberCardTitle(l10n.t('addNewEvidence')),
               CyberTextInput(
                 controller: _titleController,
                 label: l10n.t('evidenceTitleLabel'),
@@ -283,7 +287,7 @@ class _CyberVaultTabState extends State<CyberVaultTab> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                initialValue: _category,
+                value: _category,
                 decoration: cyberInputDecoration(context, l10n.t('category')),
                 items: CybercrimeConstants.evidenceUploadCategories
                     .map(
@@ -296,11 +300,22 @@ class _CyberVaultTabState extends State<CyberVaultTab> {
                 onChanged: (value) => setState(() => _category = value ?? _category),
               ),
               const SizedBox(height: 12),
+              CyberTextInput(
+                controller: _tagController,
+                label: l10n.t('tags'),
+                hint: l10n.t('tagsHint'),
+              ),
+              const SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: AppTheme.surfaceSoft.withValues(alpha: 0.72),
+                  color: isLight
+                      ? PremiumCyberTheme.background
+                      : AppTheme.surfaceSoft.withOpacity(0.72),
                   borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isLight ? PremiumCyberTheme.cardBorder : Colors.transparent,
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -308,29 +323,37 @@ class _CyberVaultTabState extends State<CyberVaultTab> {
                       child: Text(
                         l10n.t('private'),
                         style: TextStyle(
-                          color: Theme.of(context).brightness == Brightness.light
-                              ? const Color(0xFF516078)
-                              : Colors.white70,
+                          color: isLight ? PremiumCyberTheme.bodyText : Colors.white70,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
                     Switch(
                       value: _privateMode,
+                      activeColor: PremiumCyberTheme.accent,
                       onChanged: (value) => setState(() => _privateMode = value),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
-              CyberTextInput(
-                controller: _tagController,
-                label: l10n.t('tags'),
-                hint: l10n.t('tagsHint'),
-              ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               Row(
                 children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _isUploading ? null : _pickFromFiles,
+                      icon: const Icon(Icons.upload_file_rounded),
+                      label: Text(l10n.t('pickFile')),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(0, 48),
+                        foregroundColor: isLight ? PremiumCyberTheme.bodyText : Colors.white70,
+                        side: BorderSide(
+                          color: isLight ? PremiumCyberTheme.cardBorder : Colors.white24,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: _isUploading ? null : _pickFromGallery,
@@ -342,36 +365,24 @@ class _CyberVaultTabState extends State<CyberVaultTab> {
                             )
                           : const Icon(Icons.photo_library_rounded),
                       label: Text(l10n.t('pickFromGallery')),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _isUploading ? null : _pickFromFiles,
-                      icon: const Icon(Icons.upload_file_rounded),
-                      label: Text(l10n.t('pickFile')),
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(0, 48),
+                        backgroundColor: PremiumCyberTheme.accent,
+                        foregroundColor: Colors.white,
+                      ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
-              OutlinedButton.icon(
-                onPressed: _isExporting ? null : _exportPackage,
-                icon: _isExporting
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.inventory_2_rounded),
-                label: Text(l10n.t('exportEvidencePackage')),
-              ),
             ],
           ),
         ),
+        const SizedBox(height: 24),
         CyberCard(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              CyberCardTitle(l10n.t('manageVault')),
               CyberTextInput(
                 controller: _searchController,
                 label: l10n.t('searchVault'),
@@ -411,9 +422,32 @@ class _CyberVaultTabState extends State<CyberVaultTab> {
                   unawaited(_load());
                 },
               ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _isExporting ? null : _exportPackage,
+                  icon: _isExporting
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.inventory_2_rounded),
+                  label: Text(l10n.t('exportEvidencePackage')),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 48),
+                    foregroundColor: isLight ? PremiumCyberTheme.bodyText : Colors.white70,
+                    side: BorderSide(
+                      color: isLight ? PremiumCyberTheme.cardBorder : Colors.white24,
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
+        const SizedBox(height: 24),
         if (_isLoading)
           const Center(
             child: Padding(

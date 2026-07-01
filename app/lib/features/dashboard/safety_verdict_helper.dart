@@ -156,12 +156,15 @@ class SafetyVerdictHelper {
     List<SafetyCommunityAlert> relatedAlerts = const [],
     int nearbyPoliceCount = 0,
     int nearbyHospitalCount = 0,
+    int nearbySupportCount = 0,
     String? limitedAssessmentNote,
     bool ensureForRiskyArea = false,
     SafetyVerdictLevel? verdictLevel,
   }) {
     final reasons = <String>[];
     final seen = <String>{};
+    final hasEmergencySupportNearby =
+        nearbySupportCount > 0 || nearbyPoliceCount > 0 || nearbyHospitalCount > 0;
 
     void addReason(String reason) {
       final trimmed = reason.trim();
@@ -172,30 +175,55 @@ class SafetyVerdictHelper {
 
     if (riskReasonsFromAlert.isNotEmpty) {
       for (final reason in riskReasonsFromAlert) {
-        addReason(_humanizeFactor(l10n, reason));
+        addReason(
+          _humanizeFactor(
+            l10n,
+            reason,
+            hasEmergencySupportNearby: hasEmergencySupportNearby,
+          ),
+        );
       }
     }
 
     for (final factor in contributingFactors) {
       if (_isPositiveFactor(factor)) continue;
-      addReason(_humanizeFactor(l10n, factor));
+      addReason(
+        _humanizeFactor(
+          l10n,
+          factor,
+          hasEmergencySupportNearby: hasEmergencySupportNearby,
+        ),
+      );
     }
 
     for (final dimension in dimensions) {
       if (dimension.score >= 55) continue;
+      if (dimension.key == 'support' && hasEmergencySupportNearby) continue;
       addReason(_reasonForWeakDimension(l10n, dimension.key));
     }
 
     for (final recommendation in recommendations.take(3)) {
       if (_isActionRecommendation(recommendation)) {
-        addReason(_humanizeFactor(l10n, recommendation));
+        addReason(
+          _humanizeFactor(
+            l10n,
+            recommendation,
+            hasEmergencySupportNearby: hasEmergencySupportNearby,
+          ),
+        );
       }
     }
 
     for (final alert in relatedAlerts) {
       if (isAreaSafetyAlert(alert.category)) continue;
       if (alert.priority != 'critical' && alert.priority != 'caution') continue;
-      addReason(_humanizeFactor(l10n, alert.summary));
+      addReason(
+        _humanizeFactor(
+          l10n,
+          alert.summary,
+          hasEmergencySupportNearby: hasEmergencySupportNearby,
+        ),
+      );
     }
 
     final hour = DateTime.now().hour;
@@ -206,10 +234,6 @@ class SafetyVerdictHelper {
       addReason(l10n.t('safetyReasonLowFootfall'));
     } else if (isNight) {
       addReason(l10n.t('safetyReasonNightRisk'));
-    }
-
-    if (nearbyPoliceCount == 0 && nearbyHospitalCount == 0) {
-      addReason(l10n.t('safetyReasonLimitedSupport'));
     }
 
     if (limitedAssessmentNote != null && limitedAssessmentNote.trim().isNotEmpty) {
@@ -223,12 +247,12 @@ class SafetyVerdictHelper {
     if (needsFallback && reasons.isEmpty) {
       addReason(l10n.t('safetyReasonGeneralCaution'));
       if (isNight) addReason(l10n.t('safetyReasonNightRisk'));
-      if (nearbyPoliceCount == 0 && nearbyHospitalCount == 0) {
-        addReason(l10n.t('safetyReasonLimitedSupport'));
-      }
     }
 
-    return reasons.take(6).toList(growable: false);
+    return reasons
+        .where((reason) => !_isLimitedSupportReason(l10n, reason))
+        .take(6)
+        .toList(growable: false);
   }
 
   static bool _isActionRecommendation(String text) {
@@ -256,7 +280,11 @@ class SafetyVerdictHelper {
     };
   }
 
-  static String _humanizeFactor(AppLocalizations l10n, String factor) {
+  static String _humanizeFactor(
+    AppLocalizations l10n,
+    String factor, {
+    required bool hasEmergencySupportNearby,
+  }) {
     final text = factor.toLowerCase();
     if (_containsAny(text, ['drug', 'narcotic'])) {
       return l10n.t('safetyReasonDrugActivity');
@@ -280,7 +308,8 @@ class SafetyVerdictHelper {
       return l10n.t('safetyReasonCrimeActivity');
     }
     if (_containsAny(text, ['emergency support', 'police', 'hospital', 'support points'])) {
-      return l10n.t('safetyReasonLimitedSupport');
+      if (hasEmergencySupportNearby) return '';
+      return '';
     }
     if (_containsAny(text, ['late-night', 'night', 'after sunset', 'midnight'])) {
       return l10n.t('safetyReasonNightRisk');
@@ -305,6 +334,16 @@ class SafetyVerdictHelper {
       if (text.contains(needle)) return true;
     }
     return false;
+  }
+
+  static bool _isLimitedSupportReason(AppLocalizations l10n, String reason) {
+    final text = reason.trim().toLowerCase();
+    final localized = l10n.t('safetyReasonLimitedSupport').trim().toLowerCase();
+    return text == localized ||
+        text.contains('limited nearby emergency support') ||
+        text.contains('limited mapped police') ||
+        text.contains('emergency support is sparse') ||
+        text.contains('support points may slow rapid assistance');
   }
 
   static bool _isPositiveFactor(String factor) {

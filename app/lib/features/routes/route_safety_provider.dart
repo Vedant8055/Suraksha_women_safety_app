@@ -495,6 +495,7 @@ class RouteSafetyNotifier extends StateNotifier<RouteSafetyState> {
   bool _loading = false;
   bool _profilesDirty = true;
   int _deviationStreak = 0;
+  RoutePoint? _acknowledgedDeviationPoint;
 
   Future<void> start() async {
     if (_started && _monitorSubscription != null) return;
@@ -570,6 +571,9 @@ class RouteSafetyNotifier extends StateNotifier<RouteSafetyState> {
     _safetyCountdownTimer?.cancel();
     _safetyCountdownTimer = null;
     _deviationStreak = 0;
+    if (state.lastPosition != null) {
+      _acknowledgedDeviationPoint = RoutePoint.fromPosition(state.lastPosition!);
+    }
     await LocalAlertService.instance.cancelRouteDeviationAlert();
     state = state.copyWith(
       pendingSafetyCheck: false,
@@ -586,6 +590,7 @@ class RouteSafetyNotifier extends StateNotifier<RouteSafetyState> {
     _activeMapRoute.clear();
     _profilesDirty = true;
     _deviationStreak = 0;
+    _acknowledgedDeviationPoint = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_prefsKey);
     await prefs.remove(_legacyPrefsKey);
@@ -673,6 +678,7 @@ class RouteSafetyNotifier extends StateNotifier<RouteSafetyState> {
       _deviationStreak += 1;
     } else {
       _deviationStreak = 0;
+      _acknowledgedDeviationPoint = null;
     }
 
     final learningProgress = _buildLearningProgressLabel(
@@ -703,7 +709,25 @@ class RouteSafetyNotifier extends StateNotifier<RouteSafetyState> {
     if (assessment.deviatedFromLearnedRoute &&
         _deviationStreak >= _requiredDeviationSamples &&
         !state.pendingSafetyCheck) {
-      _beginSafetyCheck(position);
+      var shouldAlert = true;
+      if (_acknowledgedDeviationPoint != null) {
+        final distanceToAck = Geolocator.distanceBetween(
+          position.latitude,
+          position.longitude,
+          _acknowledgedDeviationPoint!.latitude,
+          _acknowledgedDeviationPoint!.longitude,
+        );
+
+        if (distanceToAck < (_tripMatchStartRadiusMeters / 1.5)) {
+          shouldAlert = false;
+        } else {
+          _acknowledgedDeviationPoint = null;
+        }
+      }
+
+      if (shouldAlert) {
+        _beginSafetyCheck(position);
+      }
     }
   }
 

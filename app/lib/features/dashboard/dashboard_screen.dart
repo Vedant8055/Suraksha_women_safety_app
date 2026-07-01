@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +14,7 @@ import 'package:suraksha_women_safety_app/features/profile/emergency_contact_gua
 import 'package:suraksha_women_safety_app/features/sos/sos_provider.dart';
 import 'package:suraksha_women_safety_app/features/sos/emergency_mode_screen.dart';
 import 'package:suraksha_women_safety_app/features/cybercrime/cybercrime_screen.dart';
+import 'package:suraksha_women_safety_app/features/maps/map_handoff_actions.dart';
 import 'package:suraksha_women_safety_app/features/maps/safety_map_screen.dart';
 import 'package:suraksha_women_safety_app/features/medical/medical_vault_screen.dart';
 import 'package:suraksha_women_safety_app/features/posh/posh_chat_screen.dart';
@@ -25,7 +27,6 @@ import 'package:suraksha_women_safety_app/features/profile/profile_display_provi
 import 'package:suraksha_women_safety_app/features/routes/route_safety_provider.dart';
 import 'package:suraksha_women_safety_app/localization/app_localizations.dart';
 import 'package:suraksha_women_safety_app/localization/locale_provider.dart';
-import 'package:suraksha_women_safety_app/widgets/premium_dialog.dart';
 import 'package:suraksha_women_safety_app/widgets/safety_risk_reasons_expansion.dart';
 
 final _manualSosLaunchingProvider = StateProvider<bool>((ref) => false);
@@ -87,37 +88,35 @@ class DashboardScreen extends ConsumerWidget {
     BuildContext context,
     NearbyPlaceItem place,
   ) async {
-    final l10n = AppLocalizations.of(context);
-    final shouldOpen = await showPremiumDialog<bool>(
-      context: context,
-      title: l10n.t('openSafetyMap'),
-      message: l10n.t('openSafetyMapConfirm'),
-      icon: Icons.map_rounded,
-      accentColor: const Color(0xFF3B82F6), // A more appropriate map color
-      actions: [
-        PremiumDialogAction(
-          label: l10n.t('no'),
-          onPressed: () =>
-              Navigator.of(context, rootNavigator: true).pop(false),
-        ),
-        PremiumDialogAction(
-          label: l10n.t('yes'),
-          isPrimary: true,
-          onPressed: () => Navigator.of(context, rootNavigator: true).pop(true),
-        ),
-      ],
-    );
-
-    if (shouldOpen != true || !context.mounted) return;
-
-    _pushPremium(
+    final choice = await showMapHandoffDialog(
       context,
-      SafetyMapScreen(
-        initialTargetLatitude: place.latitude,
-        initialTargetLongitude: place.longitude,
-        initialTargetName: place.name,
-      ),
+      placeName: place.name,
+      placeAddress: place.address,
     );
+
+    if (!context.mounted || choice == null) return;
+
+    if (choice == MapHandoffOption.surakshaMap) {
+      _pushPremium(
+        context,
+        SafetyMapScreen(
+          initialTargetLatitude: place.latitude,
+          initialTargetLongitude: place.longitude,
+          initialTargetName: place.name,
+        ),
+      );
+      return;
+    }
+
+    final launched = await launchGoogleMapsDirections(
+      latitude: place.latitude,
+      longitude: place.longitude,
+    );
+    if (!launched && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open Google Maps.')),
+      );
+    }
   }
 
   @override
@@ -517,7 +516,13 @@ class DashboardScreen extends ConsumerWidget {
   Widget _buildSafetyIntelligenceCard(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final safetyState = ref.watch(safetyMonitorProvider);
+    final nearbyState = ref.watch(nearbyPlacesProvider);
     final isLight = Theme.of(context).brightness == Brightness.light;
+    final scannedSupportCount = _countNearbySupportPlaces(nearbyState.places);
+    final effectiveSupportCount = [
+      safetyState.nearbySupportCount,
+      scannedSupportCount,
+    ].reduce((left, right) => left > right ? left : right);
     final verdict = SafetyVerdictHelper.fromScore(
       l10n,
       score: safetyState.safetyScore,
@@ -533,6 +538,7 @@ class DashboardScreen extends ConsumerWidget {
       relatedAlerts: safetyState.communityAlerts,
       nearbyPoliceCount: safetyState.nearbyPoliceCount,
       nearbyHospitalCount: safetyState.nearbyHospitalCount,
+      nearbySupportCount: effectiveSupportCount,
       limitedAssessmentNote: safetyState.limitedAssessmentMessage,
       verdictLevel: verdict.level,
       ensureForRiskyArea: verdict.showRiskReasons,
@@ -626,6 +632,13 @@ class DashboardScreen extends ConsumerWidget {
                   label:
                       '${safetyState.nearbyHospitalCount} hospitals nearby',
                   color: const Color(0xFFE11D48),
+                ),
+              if (scannedSupportCount > 0 && scannedSupportCount > safetyState.nearbySupportCount)
+                _routeChip(
+                  context,
+                  icon: Icons.place_rounded,
+                  label: '$scannedSupportCount support places nearby',
+                  color: const Color(0xFF2FB79E),
                 ),
               if (safetyState.limitedAssessmentMessage != null)
                 _routeChip(
@@ -1135,11 +1148,9 @@ class DashboardScreen extends ConsumerWidget {
       }
     });
 
-    Future<void> refreshAlerts() async {
-      await Future.wait([
-        ref.read(safetyMonitorProvider.notifier).refresh(),
-        ref.read(communityAlertsProvider.notifier).refresh(),
-      ]);
+    void refreshAlerts() {
+      unawaited(ref.read(safetyMonitorProvider.notifier).refresh());
+      unawaited(ref.read(communityAlertsProvider.notifier).refresh());
     }
 
     void toggleCommunityAlerts() {
@@ -1150,7 +1161,7 @@ class DashboardScreen extends ConsumerWidget {
       }
       ref.read(communityAlertsExpandedProvider.notifier).state = true;
       if (alerts.isEmpty) {
-        unawaited(refreshAlerts());
+        refreshAlerts();
       }
     }
 
@@ -1412,18 +1423,10 @@ class DashboardScreen extends ConsumerWidget {
                       : color.withValues(alpha: isLight ? 0.14 : 0.22),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: loading
-                    ? const Padding(
-                        padding: EdgeInsets.all(10),
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : Icon(
-                        Icons.notifications_active_rounded,
-                        color: expanded ? Colors.white : color,
-                      ),
+                child: Icon(
+                  Icons.notifications_active_rounded,
+                  color: expanded ? Colors.white : color,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1503,22 +1506,15 @@ class DashboardScreen extends ConsumerWidget {
         ),
         child: Row(
           children: [
-            if (loading)
-              SizedBox(
-                width: 28,
-                height: 28,
-                child: CircularProgressIndicator(strokeWidth: 2.6, color: tone),
-              )
-            else
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: tone.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: tone),
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: tone.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(12),
               ),
+              child: Icon(icon ?? Icons.notifications_active_rounded, color: tone),
+            ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -1615,6 +1611,7 @@ class DashboardScreen extends ConsumerWidget {
         relatedAlerts: safetyState.communityAlerts,
         nearbyPoliceCount: safetyState.nearbyPoliceCount,
         nearbyHospitalCount: safetyState.nearbyHospitalCount,
+        nearbySupportCount: safetyState.nearbySupportCount,
         limitedAssessmentNote: safetyState.limitedAssessmentMessage,
         verdictLevel: areaVerdict.level,
         ensureForRiskyArea: areaVerdict.showRiskReasons,
@@ -1935,94 +1932,13 @@ class DashboardScreen extends ConsumerWidget {
     required bool shouldEmphasizeRefresh,
     required VoidCallback onPressed,
   }) {
-    final button = Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: canRefresh && !isRefreshing ? onPressed : null,
-        customBorder: const CircleBorder(),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
-          width: 60,
-          height: 60,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              colors: canRefresh
-                  ? [
-                      const Color(0xFF3B82F6),
-                      const Color(0xFF1D4ED8),
-                      const Color(0xFF0F172A),
-                    ]
-                  : [
-                      const Color(0xFFBFD1E8).withValues(alpha: 0.8),
-                      const Color(0xFF7FA0C8).withValues(alpha: 0.9),
-                    ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            border: Border.all(
-              color: shouldEmphasizeRefresh && !isRefreshing
-                  ? const Color(
-                      0xFFF3B13E,
-                    ).withValues(alpha: isLight ? 0.64 : 0.5)
-                  : Colors.white.withValues(alpha: 0.18),
-              width: shouldEmphasizeRefresh && !isRefreshing ? 2 : 1.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: shouldEmphasizeRefresh && !isRefreshing
-                    ? const Color(
-                        0xFFF3B13E,
-                      ).withValues(alpha: isLight ? 0.42 : 0.28)
-                    : const Color(
-                        0xFF3B82F6,
-                      ).withValues(alpha: isLight ? 0.30 : 0.22),
-                blurRadius: shouldEmphasizeRefresh && !isRefreshing ? 28 : 18,
-                spreadRadius: shouldEmphasizeRefresh && !isRefreshing ? 2 : 0,
-                offset: const Offset(0, 10),
-              ),
-              BoxShadow(
-                color: Colors.white.withValues(alpha: isLight ? 0.42 : 0.08),
-                blurRadius: 10,
-                offset: const Offset(0, -2),
-              ),
-            ],
-          ),
-          child: Center(
-            child: isRefreshing
-                ? const SizedBox(
-                    width: 26,
-                    height: 26,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.6,
-                      color: Colors.white,
-                    ),
-                  )
-                : Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Container(
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withValues(alpha: 0.12),
-                        ),
-                      ),
-                      const Icon(
-                        Icons.refresh_rounded,
-                        size: 28,
-                        color: Colors.white,
-                      ),
-                    ],
-                  ),
-          ),
-        ),
-      ),
+    return _CommunityAlertsRefreshButton(
+      isLight: isLight,
+      canRefresh: canRefresh,
+      isRefreshing: isRefreshing,
+      shouldEmphasizeRefresh: shouldEmphasizeRefresh,
+      onPressed: onPressed,
     );
-
-    return button;
   }
 
   String _formatUpdatedAgo(DateTime updatedAt) {
@@ -2317,6 +2233,33 @@ class DashboardScreen extends ConsumerWidget {
   }
 
 
+
+  int _countNearbySupportPlaces(List<NearbyPlaceItem> places) {
+    return places.where((place) {
+      final name = place.name.toLowerCase();
+      final address = place.address.toLowerCase();
+      return name.contains('hospital') ||
+          name.contains('clinic') ||
+          name.contains('police') ||
+          name.contains('pharmacy') ||
+          name.contains('medical') ||
+          name.contains('petrol') ||
+          name.contains('fuel') ||
+          name.contains('washroom') ||
+          name.contains('toilet') ||
+          name.contains('restroom') ||
+          address.contains('hospital') ||
+          address.contains('clinic') ||
+          address.contains('police') ||
+          address.contains('pharmacy') ||
+          address.contains('medical') ||
+          address.contains('petrol') ||
+          address.contains('fuel') ||
+          address.contains('washroom') ||
+          address.contains('toilet') ||
+          address.contains('restroom');
+    }).length;
+  }
 
   Widget _buildNearbyServicesBlock(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
@@ -2888,6 +2831,154 @@ class DashboardScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CommunityAlertsRefreshButton extends StatefulWidget {
+  const _CommunityAlertsRefreshButton({
+    required this.isLight,
+    required this.canRefresh,
+    required this.isRefreshing,
+    required this.shouldEmphasizeRefresh,
+    required this.onPressed,
+  });
+
+  final bool isLight;
+  final bool canRefresh;
+  final bool isRefreshing;
+  final bool shouldEmphasizeRefresh;
+  final VoidCallback onPressed;
+
+  @override
+  State<_CommunityAlertsRefreshButton> createState() =>
+      _CommunityAlertsRefreshButtonState();
+}
+
+class _CommunityAlertsRefreshButtonState
+    extends State<_CommunityAlertsRefreshButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 560),
+  );
+
+  Future<void> _handleTap() async {
+    if (!widget.canRefresh && !widget.isRefreshing) return;
+    unawaited(_controller.forward(from: 0));
+    if (widget.canRefresh && !widget.isRefreshing) {
+      widget.onPressed();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final gradient = widget.canRefresh
+        ? const [
+            Color(0xFF3B82F6),
+            Color(0xFF1D4ED8),
+            Color(0xFF0F172A),
+          ]
+        : [
+            const Color(0xFFBFD1E8).withValues(alpha: 0.8),
+            const Color(0xFF7FA0C8).withValues(alpha: 0.9),
+          ];
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _handleTap,
+        customBorder: const CircleBorder(),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              colors: gradient,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            border: Border.all(
+              color: widget.shouldEmphasizeRefresh && !widget.isRefreshing
+                  ? const Color(0xFFF3B13E).withValues(
+                      alpha: widget.isLight ? 0.64 : 0.5,
+                    )
+                  : Colors.white.withValues(alpha: 0.18),
+              width: widget.shouldEmphasizeRefresh && !widget.isRefreshing
+                  ? 2
+                  : 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: widget.shouldEmphasizeRefresh && !widget.isRefreshing
+                    ? const Color(0xFFF3B13E).withValues(
+                        alpha: widget.isLight ? 0.42 : 0.28,
+                      )
+                    : const Color(0xFF3B82F6).withValues(
+                        alpha: widget.isLight ? 0.30 : 0.22,
+                      ),
+                blurRadius: widget.shouldEmphasizeRefresh && !widget.isRefreshing
+                    ? 28
+                    : 18,
+                spreadRadius:
+                    widget.shouldEmphasizeRefresh && !widget.isRefreshing ? 2 : 0,
+                offset: const Offset(0, 10),
+              ),
+              BoxShadow(
+                color: Colors.white.withValues(alpha: widget.isLight ? 0.42 : 0.08),
+                blurRadius: 10,
+                offset: const Offset(0, -2),
+              ),
+            ],
+          ),
+          child: AnimatedBuilder(
+            animation: _controller,
+            builder: (context, child) {
+              final progress = Curves.easeInOut.transform(_controller.value);
+              final turns = progress;
+              final scale = 1 + (0.08 * (1 - (progress - 0.5).abs() * 2).clamp(0.0, 1.0));
+              return Transform.scale(
+                scale: scale,
+                child: Transform.rotate(
+                  angle: turns * 2 * math.pi,
+                  child: child,
+                ),
+              );
+            },
+            child: Center(
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.12),
+                    ),
+                  ),
+                  Icon(
+                    Icons.refresh_rounded,
+                    size: 28,
+                    color: Colors.white.withValues(
+                      alpha: widget.isRefreshing ? 0.88 : 1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

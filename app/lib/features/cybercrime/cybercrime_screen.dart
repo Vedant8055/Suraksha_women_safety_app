@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:suraksha_women_safety_app/features/cybercrime/services/cyber_protection_service.dart';
 import 'package:suraksha_women_safety_app/features/cybercrime/tabs/cyber_assistant_tab.dart';
-import 'package:suraksha_women_safety_app/features/cybercrime/tabs/cyber_deepfake_tab.dart';
 import 'package:suraksha_women_safety_app/features/cybercrime/tabs/cyber_learning_tab.dart';
 import 'package:suraksha_women_safety_app/features/cybercrime/tabs/cyber_report_tab.dart';
 import 'package:suraksha_women_safety_app/features/cybercrime/tabs/cyber_vault_tab.dart';
@@ -40,7 +39,7 @@ class _CyberCrimeScreenState extends ConsumerState<CyberCrimeScreen> {
     final isLight = Theme.of(context).brightness == Brightness.light;
 
     return DefaultTabController(
-      length: 5,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: Text(l10n.t('cyberCrimeProtection')),
@@ -60,7 +59,6 @@ class _CyberCrimeScreenState extends ConsumerState<CyberCrimeScreen> {
               Tab(icon: const Icon(Icons.assignment_rounded), text: l10n.t('report')),
               Tab(icon: const Icon(Icons.lock_rounded), text: l10n.t('vault')),
               Tab(icon: const Icon(Icons.school_rounded), text: l10n.t('learn')),
-              Tab(icon: const Icon(Icons.warning_rounded), text: l10n.t('deepfake')),
             ],
           ),
         ),
@@ -88,7 +86,6 @@ class _CyberCrimeScreenState extends ConsumerState<CyberCrimeScreen> {
               CyberReportTab(service: _service, onApiError: _handleApiError),
               CyberVaultTab(service: _service, onApiError: _handleApiError),
               CyberLearningTab(service: _service, onApiError: _handleApiError),
-              CyberDeepfakeTab(service: _service),
             ],
           ),
         ),

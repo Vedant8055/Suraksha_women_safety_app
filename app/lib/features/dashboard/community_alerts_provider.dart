@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:async';
 
 import 'package:dio/dio.dart';
@@ -6,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:suraksha_women_safety_app/config/app_environment.dart';
 import 'package:suraksha_women_safety_app/features/dashboard/safety_monitor_provider.dart';
 import 'package:suraksha_women_safety_app/localization/locale_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 enum CommunityAlertKind {
   traffic,
@@ -33,6 +35,29 @@ class CommunityAlertItem {
     required this.detail,
     required this.updatedAt,
   });
+
+  factory CommunityAlertItem.fromJson(Map<String, dynamic> json) {
+    final kindName = json['kind']?.toString() ?? CommunityAlertKind.traffic.name;
+    return CommunityAlertItem(
+      kind: CommunityAlertKind.values.firstWhere(
+        (value) => value.name == kindName,
+        orElse: () => CommunityAlertKind.traffic,
+      ),
+      title: json['title']?.toString() ?? '',
+      detail: json['detail']?.toString() ?? '',
+      updatedAt:
+          DateTime.tryParse(json['updatedAt']?.toString() ?? '') ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'kind': kind.name,
+      'title': title,
+      'detail': detail,
+      'updatedAt': updatedAt.toIso8601String(),
+    };
+  }
 
   String timeText(String languageCode) {
     final diff = DateTime.now().difference(updatedAt);
@@ -94,10 +119,55 @@ final communityAlertsProvider =
     );
 
 class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
-  CommunityAlertsNotifier(this._ref) : super(const CommunityAlertsState());
+  CommunityAlertsNotifier(this._ref) : super(const CommunityAlertsState()) {
+    unawaited(_restoreCachedAlerts());
+  }
 
   final Ref _ref;
   final Dio _dio = Dio();
+  static const _cacheKey = 'community_alerts_cache_v1';
+  static const _cacheUpdatedKey = 'community_alerts_cache_updated_v1';
+
+  Future<void> _restoreCachedAlerts() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_cacheKey);
+      if (raw == null || raw.trim().isEmpty) return;
+
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return;
+
+      final alerts = decoded
+          .whereType<Map<String, dynamic>>()
+          .map(CommunityAlertItem.fromJson)
+          .toList(growable: false);
+      DateTime? updatedAt = DateTime.tryParse(
+        prefs.getString(_cacheUpdatedKey) ?? '',
+      );
+      updatedAt ??= alerts.isNotEmpty ? alerts.first.updatedAt : null;
+
+      if (alerts.isEmpty) return;
+      state = state.copyWith(
+        alerts: alerts,
+        lastUpdatedAt: updatedAt,
+        clearError: true,
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _saveCachedAlerts(
+    List<CommunityAlertItem> alerts,
+    DateTime updatedAt,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _cacheKey,
+        jsonEncode(alerts.map((item) => item.toJson()).toList(growable: false)),
+      );
+      await prefs.setString(_cacheUpdatedKey, updatedAt.toIso8601String());
+    } catch (_) {}
+  }
 
   Future<void> refresh() async {
     if (state.isLoading) return;
@@ -146,6 +216,7 @@ class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
         lastUpdatedAt: now,
         clearError: true,
       );
+      unawaited(_saveCachedAlerts(alerts, now));
     } catch (_) {
       state = state.copyWith(
         isLoading: false,
@@ -196,18 +267,30 @@ class CommunityAlertsNotifier extends StateNotifier<CommunityAlertsState> {
     final ratios = <double>[];
     var failedRoutes = 0;
 
-    for (final destination in destinations) {
-      final response = await _dio.get(
-        'https://maps.googleapis.com/maps/api/directions/json',
-        queryParameters: {
-          'origin': '${position.latitude},${position.longitude}',
-          'destination': '${destination.$1},${destination.$2}',
-          'mode': 'driving',
-          'departure_time': 'now',
-          'key': apiKey,
-        },
-      );
+    final responses = await Future.wait(
+      destinations.map((destination) async {
+        try {
+          return await _dio.get(
+            'https://maps.googleapis.com/maps/api/directions/json',
+            queryParameters: {
+              'origin': '${position.latitude},${position.longitude}',
+              'destination': '${destination.$1},${destination.$2}',
+              'mode': 'driving',
+              'departure_time': 'now',
+              'key': apiKey,
+            },
+          );
+        } catch (_) {
+          return null;
+        }
+      }),
+    );
 
+    for (final response in responses) {
+      if (response == null) {
+        failedRoutes++;
+        continue;
+      }
       final data = response.data;
       if (data is! Map<String, dynamic>) continue;
 
